@@ -85,4 +85,29 @@ class ExcelExportApplicationServiceTest {
 		// Then
 		verify(excelWriterPort).writeStream(any(), any(WriteStreamExcelCommand.class));
 	}
+
+	/**
+	 * Feature: 宣告式 Model 匯出業務
+	 * Scenario: Application Service 調用 Assembler 將強型別 Model 清單轉為 Command 並委託 Writer 寫入
+	 * Given 建立測試 Model 清單
+	 * When 調用 exportService.exportBeans(list, ModelClass)
+	 * Then 應正確委託 excelWriterPort.write 並回傳 byte[]
+	 */
+	@Test
+	@DisplayName("場景：成功透過 ApplicationService 調用 Assembler 匯出 Model 清單")
+	void shouldExportBeansSuccessfully() {
+		// Given
+		byte[] mockBytes = new byte[] { 9, 8, 7 };
+		when(excelWriterPort.write(any(WriteExcelCommand.class))).thenReturn(mockBytes);
+
+		record SimpleItem(String code, String name) {}
+		List<SimpleItem> items = List.of(new SimpleItem("C1", "N1"));
+
+		// When
+		byte[] result = exportService.exportBeans(items, SimpleItem.class);
+
+		// Then
+		assertThat(result).isEqualTo(mockBytes);
+		verify(excelWriterPort).write(any(WriteExcelCommand.class));
+	}
 }

@@ -1,5 +1,7 @@
 package com.example.demo.application.port.in;
 
+import java.util.List;
+
 import com.example.demo.application.shared.command.ExportExcelCommand;
 
 /**
@@ -17,5 +19,27 @@ public interface ExportExcelUseCase {
 	 * @return Excel (.xlsx) 檔案二進位資料
 	 */
 	byte[] export(ExportExcelCommand command);
+
+	/**
+	 * 宣告式將強型別 Model 物件清單匯出為 Excel 二進位資料 (支援 POJO 與 Java 21 Record)
+	 *
+	 * @param <T>        模型型別
+	 * @param dataList   資料物件清單
+	 * @param modelClass 模型類別 Class
+	 * @return Excel (.xlsx) 檔案二進位資料
+	 */
+	<T> byte[] exportBeans(List<T> dataList, Class<T> modelClass);
+
+	/**
+	 * 宣告式將強型別 Model 物件清單匯出為 Excel 二進位資料 (可覆蓋指定工作表名稱)
+	 *
+	 * @param <T>             模型型別
+	 * @param dataList        資料物件清單
+	 * @param modelClass      模型類別 Class
+	 * @param customSheetName 自訂工作表名稱
+	 * @return Excel (.xlsx) 檔案二進位資料
+	 */
+	<T> byte[] exportBeans(List<T> dataList, Class<T> modelClass, String customSheetName);
 }
+
 

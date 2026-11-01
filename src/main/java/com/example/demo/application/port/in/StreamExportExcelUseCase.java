@@ -1,6 +1,7 @@
 package com.example.demo.application.port.in;
 
 import java.io.OutputStream;
+import java.util.List;
 
 import com.example.demo.application.shared.command.StreamExportExcelCommand;
 
@@ -19,5 +20,27 @@ public interface StreamExportExcelUseCase {
 	 * @param command      串流匯出命令物件，包含資料流與分批沖刷大小
 	 */
 	void streamExport(OutputStream outputStream, StreamExportExcelCommand command);
+
+	/**
+	 * 宣告式將強型別 Model 物件清單串流寫入輸出串流
+	 *
+	 * @param <T>          模型型別
+	 * @param outputStream 輸出資料流 (不得為 null)
+	 * @param dataList     資料物件清單
+	 * @param modelClass   模型類別 Class (支援 POJO 與 Java 21 Record)
+	 */
+	<T> void streamExportBeans(OutputStream outputStream, List<T> dataList, Class<T> modelClass);
+
+	/**
+	 * 宣告式將強型別 Model 物件清單串流寫入輸出串流 (自訂工作表名稱)
+	 *
+	 * @param <T>             模型型別
+	 * @param outputStream    輸出資料流 (不得為 null)
+	 * @param dataList        資料物件清單
+	 * @param modelClass      模型類別 Class
+	 * @param customSheetName 自訂工作表名稱
+	 */
+	<T> void streamExportBeans(OutputStream outputStream, List<T> dataList, Class<T> modelClass, String customSheetName);
 }
+
 

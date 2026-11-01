@@ -101,4 +101,35 @@ class ExcelImportApplicationServiceTest {
 		assertThat(result.status()).isEqualTo("SUCCESS");
 		verify(excelReaderPort).readChunked(any(InputStream.class), any(ReadExcelQuery.class), eq(100), any(ExcelChunkConsumer.class));
 	}
+
+	/**
+	 * Feature: 宣告式 Model 匯入業務
+	 * Scenario: Application Service 委託 Reader 取得 ExcelGottenResult 並調用 Assembler 轉為強型別 Model 清單
+	 * Given 建立測試 Model 與 Mock 讀取結果
+	 * When 調用 importService.importBeans(inputStream, ModelClass)
+	 * Then 應正確回傳強型別 Model 清單
+	 */
+	@Test
+	@DisplayName("場景：成功透過 ApplicationService 調用 Assembler 解析為 Model 清單")
+	void shouldImportBeansSuccessfully() {
+		// Given
+		InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+		ExcelSheetGottenResult sheet = new ExcelSheetGottenResult(0, "Sheet1",
+				List.of("code", "name"),
+				List.of(List.of("ITEM-1", "TestName")),
+				List.of(List.of("ITEM-1", "TestName")));
+		when(excelReaderPort.read(any(InputStream.class), any(ReadExcelQuery.class)))
+				.thenReturn(new ExcelGottenResult(List.of(sheet)));
+
+		record SimpleItem(String code, String name) {}
+
+		// When
+		List<SimpleItem> items = importService.importBeans(inputStream, SimpleItem.class);
+
+		// Then
+		assertThat(items).hasSize(1);
+		assertThat(items.get(0).code()).isEqualTo("ITEM-1");
+		assertThat(items.get(0).name()).isEqualTo("TestName");
+		verify(excelReaderPort).read(eq(inputStream), any(ReadExcelQuery.class));
+	}
 }

@@ -2,6 +2,7 @@ package com.example.demo.application.assembler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,15 +18,15 @@ import com.example.demo.application.annotation.ExcelColumn;
 import com.example.demo.application.annotation.ExcelSheet;
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
-import com.example.demo.application.shared.command.WriteExcelCommand;
-import com.example.demo.application.shared.dto.ExcelGottenResult;
+import com.example.demo.application.service.ExcelExportApplicationService;
+import com.example.demo.application.service.ExcelImportApplicationService;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.infrastructure.adapter.FastExcelReaderAdapter;
 import com.example.demo.infrastructure.adapter.FastExcelWriterAdapter;
 import com.example.demo.infrastructure.adapter.PoiSaxReaderAdapter;
 import com.example.demo.infrastructure.adapter.PoiSxssfWriterAdapter;
 
-@DisplayName("ExcelBeanAssembler 宣告式物件映射與 Map 相容性測試")
+@DisplayName("ExcelBeanAssembler 宣告式物件映射與 Application Service 流程測試")
 class ExcelBeanAssemblerTest {
 
 	// =========================================================================
@@ -148,18 +149,18 @@ class ExcelBeanAssemblerTest {
 	// =========================================================================
 
 	/**
-	 * Feature: JavaBean 宣告式匯出與匯入 (FastExcel 引擎)
-	 * Scenario: 匯出 OrderPojoModel 清單為 Excel 並透過 readBeans 還原為強型別物件
+	 * Feature: JavaBean 宣告式匯出與匯入 (Clean Architecture 調度流程 - FastExcel 引擎)
+	 * Scenario: 透過 ExcelExportApplicationService.exportBeans 產製 Excel，並透過 ExcelImportApplicationService.importBeans 還原為強型別物件
 	 * Given: 建立包含 2 筆訂單之 OrderPojoModel 清單
-	 * When: 調用 FastExcelWriterAdapter.writeBeans 產製 byte[] 並使用 FastExcelReaderAdapter.readBeans 解析
-	 * Then: 成功還原 2 筆物件，所有屬性型別 (String, BigDecimal, int, LocalDate, Enum) 與數值皆正確
+	 * When: Application Service 調用 Assembler 轉為 Command 後由 FastExcelWriterAdapter 產出 byte[]，再經由 FastExcelReaderAdapter 與 Assembler 還原
+	 * Then: 成功還原 2 筆物件，所有屬性型別 (String, BigDecimal, int, LocalDate, Enum) 與預設值皆正確
 	 */
 	@Test
-	@DisplayName("情境：FastExcel 引擎下 JavaBean 宣告式匯出與匯入驗證")
+	@DisplayName("情境：FastExcel 引擎下 JavaBean 宣告式匯出與匯入 (經由 ApplicationService 調度)")
 	void shouldWriteAndReadBeansWithFastExcelSuccessfully() {
 		// Given
-		ExcelWriterPort writer = new FastExcelWriterAdapter();
-		ExcelReaderPort reader = new FastExcelReaderAdapter();
+		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new FastExcelWriterAdapter());
+		ExcelImportApplicationService importService = new ExcelImportApplicationService(new FastExcelReaderAdapter());
 
 		List<OrderPojoModel> orders = List.of(
 				new OrderPojoModel("ORD-2026-001", "張小明", new BigDecimal("12500.50"), 2, LocalDate.of(2026, 11, 1), OrderStatus.PAID),
@@ -167,8 +168,8 @@ class ExcelBeanAssemblerTest {
 		);
 
 		// When
-		byte[] excelBytes = writer.writeBeans(orders, OrderPojoModel.class);
-		List<OrderPojoModel> restoredOrders = reader.readBeans(excelBytes, OrderPojoModel.class);
+		byte[] excelBytes = exportService.exportBeans(orders, OrderPojoModel.class);
+		List<OrderPojoModel> restoredOrders = importService.importBeans(new ByteArrayInputStream(excelBytes), OrderPojoModel.class);
 
 		// Then
 		assertThat(restoredOrders).hasSize(2);
@@ -191,18 +192,18 @@ class ExcelBeanAssemblerTest {
 	}
 
 	/**
-	 * Feature: Java 21 Record 宣告式匯出與匯入 (Apache POI 引擎)
-	 * Scenario: 匯出 ProductRecordModel 清單為 Excel 並透過 readBeans 還原為不可變 Record
+	 * Feature: Java 21 Record 宣告式匯出與匯入 (Clean Architecture 調度流程 - Apache POI 引擎)
+	 * Scenario: 透過 ExcelExportApplicationService.exportBeans 匯出 Record 清單，並透過 ExcelImportApplicationService.importBeans 還原為不可變 Record
 	 * Given: 建立包含 2 筆商品之 ProductRecordModel 清單
-	 * When: 調用 PoiSxssfWriterAdapter.writeBeans 產製 byte[] 並使用 PoiSaxReaderAdapter.readBeans 解析
+	 * When: Application Service 調度 PoiSxssfWriterAdapter 產製 byte[] 並調度 PoiSaxReaderAdapter 解析
 	 * Then: 成功還原 2 筆 Record 實例，各欄位數值與格式化字串還原正確
 	 */
 	@Test
-	@DisplayName("情境：Apache POI 引擎下 Java 21 Record 宣告式匯出與匯入驗證")
+	@DisplayName("情境：Apache POI 引擎下 Java 21 Record 宣告式匯出與匯入 (經由 ApplicationService 調度)")
 	void shouldWriteAndReadRecordsWithApachePoiSuccessfully() {
 		// Given
-		ExcelWriterPort writer = new PoiSxssfWriterAdapter();
-		ExcelReaderPort reader = new PoiSaxReaderAdapter();
+		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new PoiSxssfWriterAdapter());
+		ExcelImportApplicationService importService = new ExcelImportApplicationService(new PoiSaxReaderAdapter());
 
 		LocalDateTime now = LocalDateTime.of(2026, 11, 1, 10, 30, 0);
 		List<ProductRecordModel> products = List.of(
@@ -211,8 +212,8 @@ class ExcelBeanAssemblerTest {
 		);
 
 		// When
-		byte[] excelBytes = writer.writeBeans(products, ProductRecordModel.class);
-		List<ProductRecordModel> restoredProducts = reader.readBeans(excelBytes, ProductRecordModel.class);
+		byte[] excelBytes = exportService.exportBeans(products, ProductRecordModel.class);
+		List<ProductRecordModel> restoredProducts = importService.importBeans(new ByteArrayInputStream(excelBytes), ProductRecordModel.class);
 
 		// Then
 		assertThat(restoredProducts).hasSize(2);
@@ -233,13 +234,13 @@ class ExcelBeanAssemblerTest {
 
 	/**
 	 * Feature: Map 字典結構相容性與 getDataRowsAsMaps 方法保留驗證
-	 * Scenario: 驗證寫入 Map 資料並使用 getDataRowsAsMaps 讀取，同時支援轉換為 Bean
+	 * Scenario: 驗證寫入 Map 資料並使用 getDataRowsAsMaps 讀取，同時支援由 Assembler 轉換為 Bean
 	 * Given: 建立包含 2 筆以 Map 表示的訂單資料
-	 * When: 調用 writer.writeMaps 寫入，並透過 reader.readFirstSheet 讀取
-	 * Then: 能正常使用 getDataRowsAsMaps 取得 Map 清單，且可使用 getDataRowsAsBeans 轉換為 OrderPojoModel
+	 * When: 調用 writer.writeMaps 寫入，並透過 reader.readFirstSheet 讀取純資料載體
+	 * Then: 能正常使用 getDataRowsAsMaps 取得 Map 清單，且可經由 ExcelBeanAssembler.toBeanList 轉換為 OrderPojoModel
 	 */
 	@Test
-	@DisplayName("情境：Map 結構寫入與 getDataRowsAsMaps / getDataRowsAsBeans 雙軌相容驗證")
+	@DisplayName("情境：Map 結構寫入與 getDataRowsAsMaps / Assembler 轉 Bean 雙軌相容驗證")
 	void shouldRetainMapMethodsAndSupportBidirectionalConversion() {
 		// Given
 		ExcelWriterPort writer = new FastExcelWriterAdapter();
@@ -269,10 +270,10 @@ class ExcelBeanAssemblerTest {
 		// When - 1: 使用 writeMaps 寫入 Excel
 		byte[] excelBytes = writer.writeMaps("Map訂單表", headers, mapRows);
 
-		// When - 2: 使用 readFirstSheet 讀取工作表
+		// When - 2: 使用 readFirstSheet 讀取工作表純資料載體
 		ExcelSheetGottenResult sheet = reader.readFirstSheet(excelBytes);
 
-		// Then - 1: 驗證原先的 Map 方法 getDataRowsAsMaps 完整運作
+		// Then - 1: 驗證純資料載體保留的 Map 方法 getDataRowsAsMaps 完整運作
 		List<Map<String, Object>> readMaps = sheet.getDataRowsAsMaps();
 		assertThat(readMaps).hasSize(2);
 		assertThat(readMaps.get(0).get("訂單編號")).isEqualTo("MAP-001");
@@ -280,8 +281,8 @@ class ExcelBeanAssemblerTest {
 		assertThat(readMaps.get(1).get("訂單編號")).isEqualTo("MAP-002");
 		assertThat(readMaps.get(1).get("訂購人")).isEqualTo("程又青");
 
-		// Then - 2: 驗證工作表可直接調用 getDataRowsAsBeans 轉為強型別 Model
-		List<OrderPojoModel> beans = sheet.getDataRowsAsBeans(OrderPojoModel.class);
+		// Then - 2: 由 Assembler 負責將純資料載體轉換為強型別 Model (符合 Clean Architecture 職責分離)
+		List<OrderPojoModel> beans = ExcelBeanAssembler.toBeanList(sheet, OrderPojoModel.class);
 		assertThat(beans).hasSize(2);
 		assertThat(beans.get(0).getOrderNo()).isEqualTo("MAP-001");
 		assertThat(beans.get(0).getCustomerName()).isEqualTo("李大仁");

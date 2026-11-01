@@ -78,15 +78,4 @@ public class ExcelSheetGottenResult {
 		}
 		return Collections.unmodifiableList(mappedRows);
 	}
-
-	/**
-	 * 便捷取用：將各資料列依宣告式標註解析為強型別 Model 清單 (支援 POJO 與 Java 21 Record)
-	 *
-	 * @param <T>        模型型別
-	 * @param modelClass 模型類別 Class
-	 * @return 強型別 Model 物件清單
-	 */
-	public <T> List<T> getDataRowsAsBeans(Class<T> modelClass) {
-		return com.example.demo.application.assembler.ExcelBeanAssembler.toBeanList(this, modelClass);
-	}
 }

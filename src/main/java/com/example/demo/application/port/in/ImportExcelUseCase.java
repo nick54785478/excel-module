@@ -1,6 +1,7 @@
 package com.example.demo.application.port.in;
 
 import java.io.InputStream;
+import java.util.List;
 
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.query.ReadExcelQuery;
@@ -21,5 +22,27 @@ public interface ImportExcelUseCase {
 	 * @return 讀取結果 DTO
 	 */
 	ExcelGottenResult importExcel(InputStream inputStream, ReadExcelQuery query);
+
+	/**
+	 * 執行 Excel 檔案解析並宣告式轉換為強型別 Model 清單 (支援 POJO 與 Java 21 Record)
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param modelClass  模型類別 Class
+	 * @return 強型別 Model 清單
+	 */
+	<T> List<T> importBeans(InputStream inputStream, Class<T> modelClass);
+
+	/**
+	 * 依據查詢條件執行 Excel 檔案解析並宣告式轉換為強型別 Model 清單
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param query       讀取篩選查詢物件
+	 * @param modelClass  模型類別 Class
+	 * @return 強型別 Model 清單
+	 */
+	<T> List<T> importBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass);
 }
+
 

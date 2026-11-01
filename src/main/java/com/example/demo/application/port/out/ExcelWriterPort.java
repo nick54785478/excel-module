@@ -88,64 +88,6 @@ public interface ExcelWriterPort {
 	byte[] writeStream(WriteStreamExcelCommand command);
 
 	// =========================================================================
-	// 宣告式 Model 物件 (Bean / Record) 寫入擴充
-	// =========================================================================
-
-	/**
-	 * 宣告式 Model 物件清單寫入 Excel 活頁簿 (In-memory Write)
-	 * <p>
-	 * 自動解析 {@link com.example.demo.application.annotation.ExcelSheet} 與
-	 * {@link com.example.demo.application.annotation.ExcelColumn} 註解，
-	 * 將強型別 POJO 或 Java 21 Record 物件清單轉換並產製為 Excel 二進位 byte 陣列。
-	 *
-	 * @param <T>        模型型別
-	 * @param dataList   資料物件清單
-	 * @param modelClass 模型類別 Class (支援 POJO 與 Record)
-	 * @return Excel 檔案 (.xlsx) 之二進位 byte 陣列
-	 */
-	default <T> byte[] writeBeans(List<T> dataList, Class<T> modelClass) {
-		return write(com.example.demo.application.assembler.ExcelBeanAssembler.toWriteCommand(dataList, modelClass));
-	}
-
-	/**
-	 * 宣告式 Model 物件清單串流寫入指定輸出串流 (Streaming Write)
-	 *
-	 * @param <T>          模型型別
-	 * @param outputStream 輸出資料流 (不得為 null)
-	 * @param dataList     資料物件清單
-	 * @param modelClass   模型類別 Class
-	 */
-	default <T> void writeBeans(OutputStream outputStream, List<T> dataList, Class<T> modelClass) {
-		write(outputStream, com.example.demo.application.assembler.ExcelBeanAssembler.toWriteCommand(dataList, modelClass));
-	}
-
-	/**
-	 * 宣告式 Model 物件清單寫入 Excel 活頁簿 (可自訂覆蓋工作表名稱)
-	 *
-	 * @param <T>             模型型別
-	 * @param dataList        資料物件清單
-	 * @param modelClass      模型類別 Class
-	 * @param customSheetName 自訂工作表名稱
-	 * @return Excel 檔案 (.xlsx) 之二進位 byte 陣列
-	 */
-	default <T> byte[] writeBeans(List<T> dataList, Class<T> modelClass, String customSheetName) {
-		return write(com.example.demo.application.assembler.ExcelBeanAssembler.toWriteCommand(dataList, modelClass, customSheetName));
-	}
-
-	/**
-	 * 宣告式 Model 物件清單串流寫入指定輸出串流 (可自訂覆蓋工作表名稱)
-	 *
-	 * @param <T>             模型型別
-	 * @param outputStream    輸出資料流 (不得為 null)
-	 * @param dataList        資料物件清單
-	 * @param modelClass      模型類別 Class
-	 * @param customSheetName 自訂工作表名稱
-	 */
-	default <T> void writeBeans(OutputStream outputStream, List<T> dataList, Class<T> modelClass, String customSheetName) {
-		write(outputStream, com.example.demo.application.assembler.ExcelBeanAssembler.toWriteCommand(dataList, modelClass, customSheetName));
-	}
-
-	// =========================================================================
 	// 鍵值字典 (Map) 寫入便捷方法擴充 (保留並相容 Map 操作)
 	// =========================================================================
 

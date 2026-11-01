@@ -1,12 +1,15 @@
 package com.example.demo.application.service;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 
+import com.example.demo.application.assembler.ExcelBeanAssembler;
 import com.example.demo.application.port.in.ImportExcelUseCase;
 import com.example.demo.application.port.in.StreamImportExcelUseCase;
 import com.example.demo.application.port.out.ExcelReaderPort;
@@ -20,7 +23,8 @@ import com.example.demo.application.shared.query.ReadExcelQuery;
  * <p>
  * 遵循 Clean Architecture 六角形架構規範，作為 Inbound Adapter 實作應用層
  * {@link ImportExcelUseCase} 與 {@link StreamImportExcelUseCase} 業務合約。
- * 協調調度領域/應用命令，並呼叫基礎設施輸出端口 {@link ExcelReaderPort} 執行實際檔案解析與串流分塊處理。
+ * 協調調度領域/應用命令，調用 {@link ExcelBeanAssembler} 進行資料轉換，
+ * 並呼叫基礎設施輸出端口 {@link ExcelReaderPort} 執行實際檔案解析與串流分塊處理。
  * 命名規範：以 {@code ApplicationService} 結尾 (3-9 規範)。
  */
 @Service
@@ -37,6 +41,21 @@ public class ExcelImportApplicationService implements ImportExcelUseCase, Stream
 		Objects.requireNonNull(inputStream, "inputStream must not be null");
 		ReadExcelQuery effectiveQuery = query != null ? query : ReadExcelQuery.defaultQuery();
 		return excelReaderPort.read(inputStream, effectiveQuery);
+	}
+
+	@Override
+	public <T> List<T> importBeans(InputStream inputStream, Class<T> modelClass) {
+		return importBeans(inputStream, ReadExcelQuery.defaultQuery(), modelClass);
+	}
+
+	@Override
+	public <T> List<T> importBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass) {
+		Objects.requireNonNull(inputStream, "inputStream must not be null");
+		Objects.requireNonNull(modelClass, "modelClass must not be null");
+		// 1. 調用純粹 Outbound Port 讀取 Excel 原始資料載體
+		ExcelGottenResult result = importExcel(inputStream, query);
+		// 2. 由 Application Service 調用 Assembler 將 DTO 轉換為 Model
+		return ExcelBeanAssembler.toBeanList(result, modelClass);
 	}
 
 	@Override
@@ -67,6 +86,20 @@ public class ExcelImportApplicationService implements ImportExcelUseCase, Stream
 				"SUCCESS",
 				"Stream import chunk processing completed successfully"
 		);
+	}
+
+	@Override
+	public <T> void streamImportBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass,
+			int chunkSize, Consumer<List<T>> chunkConsumer) {
+		Objects.requireNonNull(inputStream, "inputStream must not be null");
+		Objects.requireNonNull(modelClass, "modelClass must not be null");
+		Objects.requireNonNull(chunkConsumer, "chunkConsumer must not be null");
+
+		ReadExcelQuery effectiveQuery = query != null ? query : ReadExcelQuery.defaultQuery();
+		excelReaderPort.readChunked(inputStream, effectiveQuery, chunkSize, (chunkRows, context) -> {
+			List<T> beanChunk = ExcelBeanAssembler.fromMaps(chunkRows, modelClass);
+			chunkConsumer.accept(beanChunk);
+		});
 	}
 }
 

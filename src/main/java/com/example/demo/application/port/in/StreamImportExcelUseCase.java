@@ -1,7 +1,12 @@
 package com.example.demo.application.port.in;
 
+import java.io.InputStream;
+import java.util.List;
+import java.util.function.Consumer;
+
 import com.example.demo.application.shared.command.StreamImportExcelCommand;
 import com.example.demo.application.shared.dto.ExcelStreamImportGottenResult;
+import com.example.demo.application.shared.query.ReadExcelQuery;
 
 /**
  * Excel 大數據分塊串流匯入業務合約 (Stream Import Excel Use Case)
@@ -18,5 +23,19 @@ public interface StreamImportExcelUseCase {
 	 * @return 串流匯入結果統計 DTO
 	 */
 	ExcelStreamImportGottenResult streamImport(StreamImportExcelCommand command);
+
+	/**
+	 * 串流分塊讀取並宣告式轉換為強型別 Model 批次清單 (支援 POJO 與 Java 21 Record)
+	 *
+	 * @param <T>           模型型別
+	 * @param inputStream   Excel 輸入串流
+	 * @param query         讀取查詢條件
+	 * @param modelClass    模型類別 Class
+	 * @param chunkSize     分塊大小
+	 * @param chunkConsumer 分塊消費者 (接收強型別 Model 清單)
+	 */
+	<T> void streamImportBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass,
+			int chunkSize, Consumer<List<T>> chunkConsumer);
 }
+
 
