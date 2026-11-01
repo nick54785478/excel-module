@@ -75,33 +75,53 @@ flowchart TD
 
 ## 3. 企業級擴充藍圖 (5 大演進維度)
 
-### 維度一：宣告式物件映射 (Declarative Bean Mapping)
+### 維度一：宣告式物件映射 (Declarative Bean Mapping) [已完成 ✅]
 
-* **現狀痛點**：目前資料是以 `List<List<Object>>` 或 `Map<String, Object>` 傳遞，業務端需撰寫繁瑣的手動轉換邏輯。
-* **目標設計**：
-  1. 定義宣告式註解：
+* **解決痛點**：克服以往僅能使用 `List<List<Object>>` 或 `Map<String, Object>` 傳遞資料所造成的型別不安全與手動重複轉換負擔；同時**100% 完整保留原有 Map 方法**，達成「強型別 Model 導向」與「動態資料字典 (Map) 導向」之雙軌相容。
+* **已交付核心架構與元件**：
+  1. **宣告式註解 ([`application/annotation/`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation))**：
+     * [`@ExcelSheet`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/ExcelSheet.java)：指定工作表名稱、標題列與資料列起始索引。
+     * [`@ExcelColumn`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/ExcelColumn.java)：指定欄位名稱、顯式索引 (`index`)、日期/數值格式 (`format`)、預設值 (`defaultValue`) 與忽略開關 (`ignore`)。
      ```java
-     @ExcelSheet("訂單匯入清單")
+     // 範例一：標準 JavaBean (支援無參建構子 + Getter/Setter)
+     @ExcelSheet(name = "訂單匯入清單")
      public class OrderImportModel {
          @ExcelColumn(name = "訂單編號", index = 0)
          private String orderNo;
 
-         @ExcelColumn(name = "購買金額", index = 1, format = "#,##0.00")
+         @ExcelColumn(name = "訂購人", index = 1, defaultValue = "匿名訪客")
+         private String customerName;
+
+         @ExcelColumn(name = "購買金額", index = 2, format = "#,##0.00")
          private BigDecimal amount;
 
-         @ExcelColumn(name = "下單日期", index = 2, format = "yyyy-MM-dd")
+         @ExcelColumn(name = "下單日期", index = 3, format = "yyyy-MM-dd")
          private LocalDate orderDate;
      }
+
+     // 範例二：原生支援 Java 21 不可變 Record (Canonical Constructor 自動綁定)
+     @ExcelSheet("商品主檔清單")
+     public record ProductRecordModel(
+         @ExcelColumn(name = "商品代碼", index = 0) String productCode,
+         @ExcelColumn(name = "商品名稱", index = 1) String productName,
+         @ExcelColumn(name = "售價", index = 2, format = "#,##0.00") BigDecimal price
+     ) {}
      ```
-  2. 擴充 Port 契約：
-     ```java
-     // 泛型型別讀取
-     <T> List<T> read(InputStream is, Class<T> modelClass);
-     
-     // 泛型型別寫入
-     <T> byte[] write(List<T> dataList, Class<T> modelClass);
-     ```
-  3. **實作核心**：於 `application/assembler/` 建立基於 Java 21 `MethodHandle` 與 Record 反射快取之組裝器，避免原生反射造成效能損耗。
+  2. **高純度高效能組裝器 ([`ExcelBeanAssembler.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/assembler/ExcelBeanAssembler.java))**：
+     * **反射快取**：以 `ConcurrentHashMap` 快取屬性存取器、Record 元件與建構子，消除原生反射重複解析開銷。
+     * **智慧型別轉換**：自動解析包含千分位逗號之數值、浮點數、高精度 `BigDecimal`、`LocalDate`、`LocalDateTime` 及枚舉。
+     * **雙向 Map 相容轉換**：提供 `toMaps(beans, modelClass)` 與 `fromMaps(mapList, modelClass)`，確保 Bean 與 Map 雙向流轉自由。
+  3. **擴充輸出端口契約 (Ports)**：
+     * [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java)：
+       * 宣告式物件寫入：`<T> byte[] writeBeans(List<T> dataList, Class<T> modelClass)`
+       * 宣告式串流寫入：`<T> void writeBeans(OutputStream os, List<T> dataList, Class<T> modelClass)`
+       * **保留 Map 寫入方法**：`writeMaps(sheetName, headers, mapRows)` 與 `writeMaps(os, sheetName, headers, mapRows)`
+     * [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReaderPort.java)：
+       * 宣告式讀取：`<T> List<T> readBeans(InputStream is, Class<T> modelClass)` 與 `readBeans(byte[], Class<T>)`
+       * 宣告式串流分塊消費：`<T> void readBeansChunked(InputStream is, ReadExcelQuery query, Class<T> modelClass, int chunkSize, Consumer<List<T>> chunkConsumer)`
+     * [`ExcelSheetGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelSheetGottenResult.java)：
+       * **保留原先 Map 方法**：`List<Map<String, Object>> getDataRowsAsMaps()`
+       * 新增 Bean 方法：`<T> List<T> getDataRowsAsBeans(Class<T> modelClass)`
 
 ---
 
@@ -191,8 +211,8 @@ gantt
     大數據分塊串流處理 (Streaming)  :done, 2026-10-31, 1d
     
     section 階段一：實用業務擴充
-    宣告式 @ExcelColumn 註解與 Bean 映射 :active, 2026-11-01, 3d
-    匯入檢核與「錯誤回標檔」生成機制       :2026-11-04, 3d
+    宣告式 @ExcelColumn 註解與 Bean 映射 :done, 2026-11-01, 1d
+    匯入檢核與「錯誤回標檔」生成機制       :active, 2026-11-04, 3d
     
     section 階段二：非同步與長任務
     ExcelTask 聚合根與進度追蹤長任務     :2026-11-07, 4d
