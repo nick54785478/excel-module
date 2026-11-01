@@ -15,6 +15,7 @@ import com.example.demo.application.port.in.StreamImportExcelUseCase;
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.shared.command.StreamImportExcelCommand;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
+import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelStreamImportGottenResult;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 
@@ -56,6 +57,12 @@ public class ExcelImportApplicationService implements ImportExcelUseCase, Stream
 		ExcelGottenResult result = importExcel(inputStream, query);
 		// 2. 由 Application Service 調用 Assembler 將 DTO 轉換為 Model
 		return ExcelBeanAssembler.toBeanList(result, modelClass);
+	}
+
+	@Override
+	public ExcelSheetGottenResult importFirstSheet(InputStream inputStream) {
+		Objects.requireNonNull(inputStream, "inputStream must not be null");
+		return excelReaderPort.readFirstSheet(inputStream);
 	}
 
 	@Override

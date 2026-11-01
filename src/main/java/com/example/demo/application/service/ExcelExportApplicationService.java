@@ -2,6 +2,7 @@ package com.example.demo.application.service;
 
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.stereotype.Service;
@@ -53,6 +54,12 @@ public class ExcelExportApplicationService implements ExportExcelUseCase, Stream
 	}
 
 	@Override
+	public byte[] exportMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
+		WriteExcelCommand writeCommand = ExcelBeanAssembler.toWriteCommandFromMaps(sheetName, headers, mapRows);
+		return excelWriterPort.write(writeCommand);
+	}
+
+	@Override
 	public void streamExport(OutputStream outputStream, StreamExportExcelCommand command) {
 		Objects.requireNonNull(outputStream, "outputStream must not be null");
 		Objects.requireNonNull(command, "command must not be null");
@@ -75,5 +82,18 @@ public class ExcelExportApplicationService implements ExportExcelUseCase, Stream
 		Objects.requireNonNull(modelClass, "modelClass must not be null");
 		WriteExcelCommand writeCommand = ExcelBeanAssembler.toWriteCommand(dataList, modelClass, customSheetName);
 		excelWriterPort.write(outputStream, writeCommand);
+	}
+
+	@Override
+	public void streamExportMaps(OutputStream outputStream, String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
+		Objects.requireNonNull(outputStream, "outputStream must not be null");
+		WriteExcelCommand writeCommand = ExcelBeanAssembler.toWriteCommandFromMaps(sheetName, headers, mapRows);
+		excelWriterPort.write(outputStream, writeCommand);
+	}
+
+	@SafeVarargs
+	@Override
+	public final void streamExportMaps(OutputStream outputStream, String sheetName, List<String> headers, Map<String, Object>... mapRows) {
+		streamExportMaps(outputStream, sheetName, headers, mapRows != null ? List.of(mapRows) : List.of());
 	}
 }

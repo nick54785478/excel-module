@@ -132,4 +132,29 @@ class ExcelImportApplicationServiceTest {
 		assertThat(items.get(0).name()).isEqualTo("TestName");
 		verify(excelReaderPort).read(eq(inputStream), any(ReadExcelQuery.class));
 	}
+
+	/**
+	 * Feature: Excel 首個工作表匯入業務
+	 * Scenario: 成功讀取第一個工作表純資料載體
+	 * Given 建立 InputStream 與 Mock 讀取結果
+	 * When 調用 importService.importFirstSheet(inputStream)
+	 * Then 應正確委託 excelReaderPort.readFirstSheet 並回傳 ExcelSheetGottenResult
+	 */
+	@Test
+	@DisplayName("場景：成功讀取第一個工作表純資料載體")
+	void shouldImportFirstSheetSuccessfully() {
+		// Given
+		InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+		ExcelSheetGottenResult mockSheet = new ExcelSheetGottenResult(0, "Sheet1", List.of("Col1"), List.of(List.of("Val1")), List.of(List.of("Val1")));
+		when(excelReaderPort.readFirstSheet(any(InputStream.class))).thenReturn(mockSheet);
+
+		// When
+		ExcelSheetGottenResult result = importService.importFirstSheet(inputStream);
+
+		// Then
+		assertThat(result).isNotNull();
+		assertThat(result.getSheetName()).isEqualTo("Sheet1");
+		assertThat(result.getRowCount()).isEqualTo(1);
+		verify(excelReaderPort).readFirstSheet(eq(inputStream));
+	}
 }

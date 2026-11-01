@@ -127,6 +127,45 @@ public final class ExcelBeanAssembler {
 		return WriteSheetCommand.of(sheetName, headers, rows);
 	}
 
+	/**
+	 * 將資料字典清單 (Map List) 與標題清單組裝為 Excel 活頁簿寫入命令 {@link WriteExcelCommand}。
+	 *
+	 * @param sheetName 工作表名稱
+	 * @param headers   標題列清單
+	 * @param mapRows   資料字典清單 (Key 為 Header 名稱)
+	 * @return Excel 寫入命令 {@link WriteExcelCommand}
+	 */
+	public static WriteExcelCommand toWriteCommandFromMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
+		WriteSheetCommand sheet = toSheetCommandFromMaps(sheetName, headers, mapRows);
+		return WriteExcelCommand.of(sheet);
+	}
+
+	/**
+	 * 將資料字典清單 (Map List) 與標題清單組裝為工作表寫入命令 {@link WriteSheetCommand}。
+	 *
+	 * @param sheetName 工作表名稱
+	 * @param headers   標題列清單
+	 * @param mapRows   資料字典清單 (Key 為 Header 名稱)
+	 * @return 工作表寫入命令 {@link WriteSheetCommand}
+	 */
+	public static WriteSheetCommand toSheetCommandFromMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
+		String effectiveSheetName = (sheetName != null && !sheetName.isBlank()) ? sheetName.trim() : "Sheet1";
+		List<String> effectiveHeaders = (headers != null) ? headers : Collections.emptyList();
+		List<List<Object>> rows = new ArrayList<>(mapRows != null ? mapRows.size() : 0);
+
+		if (mapRows != null) {
+			for (Map<String, Object> map : mapRows) {
+				List<Object> row = new ArrayList<>(effectiveHeaders.size());
+				for (String header : effectiveHeaders) {
+					row.add(map != null ? map.get(header) : null);
+				}
+				rows.add(row);
+			}
+		}
+
+		return WriteSheetCommand.of(effectiveSheetName, effectiveHeaders, rows);
+	}
+
 	// =========================================================================
 	// 2. ExcelGottenResult / ExcelSheetGottenResult $\to$ List<T>
 	// =========================================================================

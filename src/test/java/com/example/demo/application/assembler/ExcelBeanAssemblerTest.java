@@ -243,7 +243,7 @@ class ExcelBeanAssemblerTest {
 	@DisplayName("情境：Map 結構寫入與 getDataRowsAsMaps / Assembler 轉 Bean 雙軌相容驗證")
 	void shouldRetainMapMethodsAndSupportBidirectionalConversion() {
 		// Given
-		ExcelWriterPort writer = new FastExcelWriterAdapter();
+		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new FastExcelWriterAdapter());
 		ExcelReaderPort reader = new FastExcelReaderAdapter();
 
 		List<String> headers = List.of("訂單編號", "訂購人", "購買金額", "數量", "下單日期", "訂單狀態");
@@ -267,8 +267,8 @@ class ExcelBeanAssemblerTest {
 		row2.put("訂單狀態", "SHIPPED");
 		mapRows.add(row2);
 
-		// When - 1: 使用 writeMaps 寫入 Excel
-		byte[] excelBytes = writer.writeMaps("Map訂單表", headers, mapRows);
+		// When - 1: 使用 ApplicationService.exportMaps (調用 Assembler) 寫入 Excel
+		byte[] excelBytes = exportService.exportMaps("Map訂單表", headers, mapRows);
 
 		// When - 2: 使用 readFirstSheet 讀取工作表純資料載體
 		ExcelSheetGottenResult sheet = reader.readFirstSheet(excelBytes);

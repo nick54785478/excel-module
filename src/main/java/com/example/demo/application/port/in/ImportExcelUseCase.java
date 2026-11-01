@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.util.List;
 
 import com.example.demo.application.shared.dto.ExcelGottenResult;
+import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 
 /**
@@ -43,6 +44,14 @@ public interface ImportExcelUseCase {
 	 * @return 強型別 Model 清單
 	 */
 	<T> List<T> importBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass);
+
+	/**
+	 * 執行 Excel 檔案解析並回傳第一個工作表純資料載體
+	 *
+	 * @param inputStream 檔案輸入串流
+	 * @return 第一個工作表讀取結果物件 {@link ExcelSheetGottenResult}
+	 */
+	ExcelSheetGottenResult importFirstSheet(InputStream inputStream);
 }
 
 

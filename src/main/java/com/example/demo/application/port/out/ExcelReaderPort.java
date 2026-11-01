@@ -6,6 +6,9 @@ import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.exception.ExcelReadException;
 import com.example.demo.application.shared.query.ReadExcelQuery;
+import com.example.demo.application.shared.stream.ExcelChunkConsumer;
+import com.example.demo.application.shared.stream.ExcelRowConsumer;
+import com.example.demo.application.shared.stream.ExcelStreamListener;
 
 /**
  * Excel 讀取輸出端口 (Outbound Port)
@@ -64,7 +67,7 @@ public interface ExcelReaderPort {
 	 */
 	default ExcelSheetGottenResult readFirstSheet(InputStream inputStream) {
 		ExcelGottenResult result = read(inputStream, ReadExcelQuery.ofSheet(0));
-		return result.getFirstSheet().orElseGet(() -> new ExcelSheetGottenResult(0, "Sheet1", null, null, null));
+		return result.getFirstSheet().orElseGet(ExcelSheetGottenResult::empty);
 	}
 
 	/**
@@ -75,7 +78,7 @@ public interface ExcelReaderPort {
 	 */
 	default ExcelSheetGottenResult readFirstSheet(byte[] excelBytes) {
 		ExcelGottenResult result = read(excelBytes, ReadExcelQuery.ofSheet(0));
-		return result.getFirstSheet().orElseGet(() -> new ExcelSheetGottenResult(0, "Sheet1", null, null, null));
+		return result.getFirstSheet().orElseGet(ExcelSheetGottenResult::empty);
 	}
 
 	/**
@@ -88,7 +91,7 @@ public interface ExcelReaderPort {
 	 * @param rowConsumer 逐列消費者 (接收原生儲存格數值、文字與上下文環境)
 	 * @throws ExcelReadException 當串流讀取、格式解析或檔案損壞時拋出
 	 */
-	void readStream(InputStream inputStream, ReadExcelQuery query, com.example.demo.application.shared.stream.ExcelRowConsumer rowConsumer);
+	void readStream(InputStream inputStream, ReadExcelQuery query, ExcelRowConsumer rowConsumer);
 
 	/**
 	 * 串流逐列讀取 (從 byte[] 讀取)
@@ -97,7 +100,7 @@ public interface ExcelReaderPort {
 	 * @param query       讀取查詢條件
 	 * @param rowConsumer 逐列消費者
 	 */
-	void readStream(byte[] excelBytes, ReadExcelQuery query, com.example.demo.application.shared.stream.ExcelRowConsumer rowConsumer);
+	void readStream(byte[] excelBytes, ReadExcelQuery query, ExcelRowConsumer rowConsumer);
 
 	/**
 	 * 串流分塊批次讀取 (Chunked Stream Consumer)
@@ -110,7 +113,7 @@ public interface ExcelReaderPort {
 	 * @param chunkConsumer 分塊批次消費者 (接收已映射標題名稱之資料 Map 清單)
 	 * @throws ExcelReadException 當串流讀取、格式解析或檔案損壞時拋出
 	 */
-	void readChunked(InputStream inputStream, ReadExcelQuery query, int chunkSize, com.example.demo.application.shared.stream.ExcelChunkConsumer chunkConsumer);
+	void readChunked(InputStream inputStream, ReadExcelQuery query, int chunkSize, ExcelChunkConsumer chunkConsumer);
 
 	/**
 	 * 串流分塊批次讀取 (從 byte[] 讀取)
@@ -120,7 +123,7 @@ public interface ExcelReaderPort {
 	 * @param chunkSize     分塊大小
 	 * @param chunkConsumer 分塊批次消費者
 	 */
-	void readChunked(byte[] excelBytes, ReadExcelQuery query, int chunkSize, com.example.demo.application.shared.stream.ExcelChunkConsumer chunkConsumer);
+	void readChunked(byte[] excelBytes, ReadExcelQuery query, int chunkSize, ExcelChunkConsumer chunkConsumer);
 
 	/**
 	 * 串流全生命週期監聽讀取 (Full Lifecycle Listener)
@@ -130,7 +133,7 @@ public interface ExcelReaderPort {
 	 * @param listener    生命週期監聽器
 	 * @throws ExcelReadException 當串流讀取、格式解析或檔案損壞時拋出
 	 */
-	void readWithListener(InputStream inputStream, ReadExcelQuery query, com.example.demo.application.shared.stream.ExcelStreamListener listener);
+	void readWithListener(InputStream inputStream, ReadExcelQuery query, ExcelStreamListener listener);
 
 	/**
 	 * 串流全生命週期監聽讀取 (從 byte[] 讀取)
@@ -139,5 +142,5 @@ public interface ExcelReaderPort {
 	 * @param query      讀取查詢條件
 	 * @param listener   生命週期監聽器
 	 */
-	void readWithListener(byte[] excelBytes, ReadExcelQuery query, com.example.demo.application.shared.stream.ExcelStreamListener listener);
+	void readWithListener(byte[] excelBytes, ReadExcelQuery query, ExcelStreamListener listener);
 }

@@ -1,6 +1,7 @@
 package com.example.demo.application.port.in;
 
 import java.util.List;
+import java.util.Map;
 
 import com.example.demo.application.shared.command.ExportExcelCommand;
 
@@ -40,6 +41,17 @@ public interface ExportExcelUseCase {
 	 * @return Excel (.xlsx) 檔案二進位資料
 	 */
 	<T> byte[] exportBeans(List<T> dataList, Class<T> modelClass, String customSheetName);
+
+	/**
+	 * 將資料字典清單 (Map List) 匯出為單一工作表之 Excel 二進位資料
+	 *
+	 * @param sheetName 工作表名稱
+	 * @param headers   標題列清單
+	 * @param mapRows   資料字典清單 (Key 為 Header 名稱)
+	 * @return Excel (.xlsx) 檔案二進位資料
+	 */
+	byte[] exportMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows);
 }
+
 
 

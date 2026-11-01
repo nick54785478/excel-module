@@ -29,6 +29,26 @@ public class ExcelSheetGottenResult {
 		this.textRows = textRows != null ? Collections.unmodifiableList(new ArrayList<>(textRows)) : Collections.emptyList();
 	}
 
+	/**
+	 * 建立空工作表讀取結果物件
+	 *
+	 * @return 空工作表讀取結果
+	 */
+	public static ExcelSheetGottenResult empty() {
+		return empty(0, "Sheet1");
+	}
+
+	/**
+	 * 建立指定工作表索引與名稱之空結果物件
+	 *
+	 * @param sheetIndex 工作表索引
+	 * @param sheetName  工作表名稱
+	 * @return 空工作表讀取結果
+	 */
+	public static ExcelSheetGottenResult empty(int sheetIndex, String sheetName) {
+		return new ExcelSheetGottenResult(sheetIndex, sheetName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+	}
+
 	public int getSheetIndex() {
 		return sheetIndex;
 	}

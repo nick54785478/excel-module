@@ -41,6 +41,26 @@ public interface StreamExportExcelUseCase {
 	 * @param customSheetName 自訂工作表名稱
 	 */
 	<T> void streamExportBeans(OutputStream outputStream, List<T> dataList, Class<T> modelClass, String customSheetName);
+
+	/**
+	 * 將資料字典清單 (Map List) 串流寫入指定輸出串流
+	 *
+	 * @param outputStream 輸出資料流 (不得為 null)
+	 * @param sheetName    工作表名稱
+	 * @param headers      標題列清單
+	 * @param mapRows      資料字典清單 (Key 為 Header 名稱)
+	 */
+	void streamExportMaps(OutputStream outputStream, String sheetName, List<String> headers, java.util.Map<String, Object>... mapRows);
+
+	/**
+	 * 將資料字典清單 (Map List) 串流寫入指定輸出串流
+	 *
+	 * @param outputStream 輸出資料流 (不得為 null)
+	 * @param sheetName    工作表名稱
+	 * @param headers      標題列清單
+	 * @param mapRows      資料字典清單 (Key 為 Header 名稱)
+	 */
+	void streamExportMaps(OutputStream outputStream, String sheetName, List<String> headers, List<java.util.Map<String, Object>> mapRows);
 }
 
 

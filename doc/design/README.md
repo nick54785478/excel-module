@@ -77,6 +77,9 @@ flowchart TD
 
 ### 維度一：宣告式物件映射 (Declarative Bean Mapping) [已完成 ✅]
 
+> 📖 **專題技術文件**：關於宣告式物件映射的雙層反射快取、POJO/Record 雙軌建構策略、型別容錯與 REST 表現層端點完整設計，請參閱專題文件：
+> 👉 [宣告式物件映射架構與設計指南 (declarative-bean-mapping.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping.md)
+
 * **解決痛點**：克服以往僅能使用 `List<List<Object>>` 或 `Map<String, Object>` 傳遞資料所造成的型別不安全與手動重複轉換負擔；同時**100% 完整保留原有 Map 方法**，達成「強型別 Model 導向」與「動態資料字典 (Map) 導向」之雙軌相容。
 * **已交付核心架構與元件**：
   1. **宣告式註解 ([`application/annotation/`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation))**：
