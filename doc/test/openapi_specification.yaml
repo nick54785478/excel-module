@@ -1,0 +1,555 @@
+openapi: 3.0.3
+info:
+  title: Excel 模組與物料清單 (BOM) 處理服務 API
+  description: |
+    遵循 DDD (領域驅動設計) 與 Clean Architecture 六角形架構實作之高效能 Excel 處理模組。
+    提供物料清單 (BOM) 多階層樹狀展開、單階平鋪格式與物料主檔對照表動態 Excel 產製下載，
+    以及標準批次匯出/匯入與百萬級別低記憶體消耗的大數據串流匯出/匯入服務。
+  version: v1.0.0
+  contact:
+    name: Module Architecture Team
+    email: architecture@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: 本地開發與測試環境 (Local Environment)
+
+tags:
+  - name: BOM 物料清單介面
+    description: 提供物料清單 (BOM) Excel 檔案動態產生、多階展開與下載 REST API
+  - name: Excel 檔案處理介面
+    description: 提供 Excel 檔案標準批次匯入/匯出與百萬級大數據串流讀寫 REST API
+
+paths:
+  /api/v1/bom/excel:
+    get:
+      tags:
+        - BOM 物料清單介面
+      summary: 下載物料清單 (BOM) Excel 檔案 (GET)
+      description: |
+        依據母件料號、版本號與工作表選項，動態產製包含多階展開清單、單階匯入清單與物料主檔對照表之 Excel 檔案並提供下載。
+        若未指定料號則匯出全系統所有 BOM 清單。
+      operationId: downloadBomExcel
+      parameters:
+        - name: parentMaterialCode
+          in: query
+          description: 母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單，例如 MAT-FG-001)
+          required: false
+          schema:
+            type: string
+            example: MAT-FG-001
+        - name: version
+          in: query
+          description: BOM 版本號 (選填，如 V1.0)
+          required: false
+          schema:
+            type: string
+            example: V1.0
+        - name: includeMultiLevel
+          in: query
+          description: 是否包含多階層樹狀展開工作表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: includeSingleLevel
+          in: query
+          description: 是否包含單階平鋪匯入格式工作表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: includeMaterialMaster
+          in: query
+          description: 是否包含物料主檔對照表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+      responses:
+        '200':
+          description: 成功生成 BOM Excel 二進位檔案並提供下載
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename*=UTF-8''BOM_MAT-FG-001.xlsx
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求參數錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+        '404':
+          description: 查無指定母件料號之物料主檔
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/bom/excel/export:
+    post:
+      tags:
+        - BOM 物料清單介面
+      summary: 以結構化條件匯出物料清單 (BOM) Excel 檔案 (POST)
+      description: 接收 JSON 結構化條件，動態產製並下載物料清單 (BOM) Excel 檔案。
+      operationId: exportBomExcel
+      requestBody:
+        description: BOM 匯出請求載體
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportBomResource'
+      responses:
+        '200':
+          description: 成功生成 BOM Excel 二進位檔案並提供下載
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename*=UTF-8''BOM_MAT-FG-001_V1.0.xlsx
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求資料校驗失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+        '404':
+          description: 查無指定母件料號之物料主檔
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/bom/excel/stream:
+    get:
+      tags:
+        - BOM 物料清單介面
+      summary: 大數據串流下載物料清單 (BOM) Excel 檔案 (GET)
+      description: |
+        邊產製邊將 Excel 二進位串流 Flush 至 HTTP 回應流中，維持常數級極低記憶體消耗，適合海量 BOM 下載。
+      operationId: streamDownloadBomExcel
+      parameters:
+        - name: parentMaterialCode
+          in: query
+          description: 母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單)
+          required: false
+          schema:
+            type: string
+            example: MAT-FG-001
+        - name: version
+          in: query
+          description: BOM 版本號 (選填，如 1.0)
+          required: false
+          schema:
+            type: string
+            example: "1.0"
+        - name: includeMultiLevel
+          in: query
+          description: 是否包含多階層樹狀展開工作表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: includeSingleLevel
+          in: query
+          description: 是否包含單階平鋪匯入格式工作表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: includeMaterialMaster
+          in: query
+          description: 是否包含物料主檔對照表
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: flushInterval
+          in: query
+          description: 串流分批沖刷筆數間隔 (預設 1000)
+          required: false
+          schema:
+            type: integer
+            default: 1000
+            example: 1000
+      responses:
+        '200':
+          description: 成功建立串流輸出傳輸
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename*=UTF-8''BOM_MAT-FG-001.xlsx
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: 查無指定母件料號之物料主檔
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+    post:
+      tags:
+        - BOM 物料清單介面
+      summary: 以結構化條件大數據串流匯出物料清單 (BOM) Excel 檔案 (POST)
+      description: 接收 JSON 結構化條件，邊產製邊以分批 Flush 機制將 Excel 串流傳輸至前端。
+      operationId: streamExportBomExcel
+      requestBody:
+        description: BOM 串流匯出請求載體 (含 flushInterval)
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportBomResource'
+      responses:
+        '200':
+          description: 成功建立串流輸出傳輸
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename*=UTF-8''BOM_MAT-FG-001_1.0.xlsx
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求資料校驗失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+        '404':
+          description: 查無指定母件料號之物料主檔
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/export:
+    post:
+      tags:
+        - Excel 檔案處理介面
+      summary: 標準批次匯出 Excel 檔案
+      description: 依據傳入之工作表結構、標題列與資料陣列，於記憶體中建構 Excel (.xlsx) 檔案，並以二進位串流提供下載。
+      operationId: exportExcel
+      requestBody:
+        description: 匯出結構載體
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportExcelResource'
+      responses:
+        '200':
+          description: 成功生成 Excel 二進位檔案並提供下載
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求資料校驗失敗 (如空白檔名、未指定工作表等)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/export/stream:
+    post:
+      tags:
+        - Excel 檔案處理介面
+      summary: 大數據串流匯出 Excel 檔案
+      description: 針對百萬筆大數據資料，邊寫入邊透過 HTTP 輸出串流 Flush，維持常數級低記憶體消耗，避免 OOM。
+      operationId: streamExportExcel
+      requestBody:
+        description: 串流匯出參數設定
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamExportExcelResource'
+      responses:
+        '200':
+          description: 成功建立串流輸出傳輸
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 串流參數校驗失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/import:
+    post:
+      tags:
+        - Excel 檔案處理介面
+      summary: 檔案上傳並完整解析 Excel 內容
+      description: 透過 Multipart 形式上傳 Excel 檔案，讀取各工作表欄位名稱與資料列，封裝為結構化 JSON 回應。
+      operationId: importExcel
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲上傳解析之 Excel 檔案 (.xlsx)
+                sheetName:
+                  type: string
+                  description: 可選：指定解析之工作表名稱
+                sheetIndex:
+                  type: integer
+                  description: 可選：指定解析之工作表索引 (0-based)
+      responses:
+        '200':
+          description: 成功解析 Excel 內容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelImportedResource'
+        '400':
+          description: 上傳檔案不合法或格式損毀
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/import/stream:
+    post:
+      tags:
+        - Excel 檔案處理介面
+      summary: 大數據檔案串流上傳逐行解析
+      description: 針對超大 Excel 檔案採用 SAX 串流事件監聽逐列掃描，維持超低記憶體消耗。
+      operationId: streamImportExcel
+      parameters:
+        - name: batchSize
+          in: query
+          description: 批次處理區塊大小 (預設 1000)
+          required: false
+          schema:
+            type: integer
+            default: 1000
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲串流掃描之 Excel 檔案
+      responses:
+        '200':
+          description: 成功完成串流掃描
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelStreamImportedResource'
+
+components:
+  schemas:
+    ExportBomResource:
+      type: object
+      description: 物料清單 (BOM) Excel 檔案匯出請求結構載體
+      properties:
+        parentMaterialCode:
+          type: string
+          description: 母件物料料號 (若不填則匯出系統所有 BOM)
+          example: MAT-FG-001
+        version:
+          type: string
+          description: BOM 版本號 (若不填則取全部或最新版本)
+          example: V1.0
+        includeMultiLevel:
+          type: boolean
+          description: 是否包含多階層樹狀展開工作表
+          default: true
+          example: true
+        includeSingleLevel:
+          type: boolean
+          description: 是否包含單階匯入格式工作表
+          default: true
+          example: true
+        includeMaterialMaster:
+          type: boolean
+          description: 是否包含物料主檔對照表
+          default: true
+          example: true
+        flushInterval:
+          type: integer
+          description: 串流分批沖刷筆數間隔 (預設 1000)
+          default: 1000
+          example: 1000
+
+    ExportExcelResource:
+      type: object
+      required:
+        - fileName
+        - sheets
+      description: 標準記憶體匯出請求結構
+      properties:
+        fileName:
+          type: string
+          description: 下載檔案名稱 (含副檔名 .xlsx)
+          example: 採購報表.xlsx
+        sheets:
+          type: array
+          description: 活頁簿內包含之工作表清單
+          items:
+            $ref: '#/components/schemas/ExportSheetResource'
+
+    ExportSheetResource:
+      type: object
+      required:
+        - sheetName
+        - headers
+        - rows
+      description: 單一工作表結構與資料陣列
+      properties:
+        sheetName:
+          type: string
+          example: 採購明細
+        headers:
+          type: array
+          items:
+            type: string
+          example: ["單號", "供應商", "料號", "數量", "金額"]
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: object
+        freezeHeader:
+          type: boolean
+          default: true
+        headerFillColor:
+          type: string
+          example: "1F4E78"
+        headerFontColor:
+          type: string
+          example: "FFFFFF"
+
+    StreamExportExcelResource:
+      type: object
+      required:
+        - fileName
+        - sheets
+      properties:
+        fileName:
+          type: string
+          example: 百萬筆資料串流.xlsx
+        flushRows:
+          type: integer
+          default: 1000
+          example: 1000
+        sheets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExportSheetResource'
+
+    ExcelImportedResource:
+      type: object
+      properties:
+        sheetName:
+          type: string
+          example: 單階BOM匯入清單
+        headers:
+          type: array
+          items:
+            type: string
+        rowCount:
+          type: integer
+          example: 75
+        rows:
+          type: array
+          items:
+            type: object
+
+    ExcelStreamImportedResource:
+      type: object
+      properties:
+        totalRowsProcessed:
+          type: integer
+          example: 1000000
+        totalBatches:
+          type: integer
+          example: 1000
+        executionTimeMillis:
+          type: integer
+          example: 1250
+
+    ValidationFailedResource:
+      type: object
+      description: 統一錯誤與參數校驗失敗結構
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-31T18:00:00"
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: 請求參數校驗失敗
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldErrorResource'
+
+    FieldErrorResource:
+      type: object
+      properties:
+        field:
+          type: string
+          example: parentMaterialCode
+        rejectedValue:
+          type: object
+          example: INVALID_CODE
+        message:
+          type: string
+          example: 查無指定料號之物料主檔
+

@@ -1,0 +1,583 @@
+{
+	"info": {
+		"_postman_id": "7f8b9e10-c4a3-4812-98e1-f63901b0a721",
+		"name": "Excel & BOM Module API Test Collection",
+		"description": "遵循 DDD 與 Clean Architecture 六角形架構之 Excel 模組與 BOM 物料清單 API 完整自動化測試集合。\n包含 BOM 多階層/單階 Excel 下載、大數據百萬級串流匯出/匯入與異常校驗測試。",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string",
+			"description": "本機後端服務基礎 URL"
+		}
+	],
+	"item": [
+		{
+			"name": "1. BOM 物料清單模組 (BOM Module)",
+			"description": "物料清單 (BOM) Excel 檔案動態產生、多階層展開、單階平鋪格式與物料對照表下載 API",
+			"item": [
+				{
+					"name": "GET 下載指定母件多階層 BOM (MAT-FG-001)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel?parentMaterialCode=MAT-FG-001&includeMultiLevel=true&includeSingleLevel=true&includeMaterialMaster=true",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel"
+							],
+							"query": [
+								{
+									"key": "parentMaterialCode",
+									"value": "MAT-FG-001",
+									"description": "母件物料料號 (工業級四軸無人機旗艦套件)"
+								},
+								{
+									"key": "includeMultiLevel",
+									"value": "true",
+									"description": "是否包含多階層樹狀展開工作表"
+								},
+								{
+									"key": "includeSingleLevel",
+									"value": "true",
+									"description": "是否包含單階匯入格式工作表"
+								},
+								{
+									"key": "includeMaterialMaster",
+									"value": "true",
+									"description": "是否包含物料主檔對照表"
+								}
+							]
+						},
+						"description": "下載特定成品 (MAT-FG-001) 之完整 3 工作表 Excel (多階展開、單階平鋪、物料對照表)。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Content-Type 為 Excel openxml 格式\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"spreadsheetml.sheet\");",
+									"});",
+									"pm.test(\"Content-Disposition 標頭包含正確 attachment 與料號檔名\", function () {",
+									"    var disposition = pm.response.headers.get(\"Content-Disposition\");",
+									"    pm.expect(disposition).to.include(\"attachment\");",
+									"    pm.expect(disposition).to.include(\"MAT-FG-001\");",
+									"    pm.expect(disposition).to.include(\".xlsx\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "GET 下載指定母件特定版本 BOM (MAT-FG-001 V1.0)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel?parentMaterialCode=MAT-FG-001&version=V1.0",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel"
+							],
+							"query": [
+								{
+									"key": "parentMaterialCode",
+									"value": "MAT-FG-001"
+								},
+								{
+									"key": "version",
+									"value": "V1.0"
+								}
+							]
+						},
+						"description": "指定母件料號與工程版本號 V1.0 進行 Excel 下載。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"檔名包含版本號 V1.0\", function () {",
+									"    var disposition = pm.response.headers.get(\"Content-Disposition\");",
+									"    pm.expect(disposition).to.include(\"V1.0\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "GET 下載全系統所有 BOM 清單 (未指定料號)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel"
+							]
+						},
+						"description": "不帶任何料號參數，匯出資料庫內全系統 25 筆 BOM 與 2000 筆料件主檔之完整清單。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"預設檔名為 BOM_LIST_ALL.xlsx\", function () {",
+									"    var disposition = pm.response.headers.get(\"Content-Disposition\");",
+									"    pm.expect(disposition).to.include(\"BOM_LIST_ALL.xlsx\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "POST 結構化條件匯出 BOM (僅匯出單階工作表)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parentMaterialCode\": \"MAT-FG-001\",\n    \"version\": \"V1.0\",\n    \"includeMultiLevel\": false,\n    \"includeSingleLevel\": true,\n    \"includeMaterialMaster\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel/export",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel",
+								"export"
+							]
+						},
+						"description": "透過 POST JSON RequestBody 指定自訂工作表開關，此範例僅匯出「單階BOM匯入清單」。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"成功接收二進位位元組\", function () {",
+									"    pm.expect(pm.response.rawBody.length).to.be.above(1000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "GET 大數據串流下載 BOM Excel (邊產製邊傳輸)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel/stream?parentMaterialCode=MAT-FG-001&flushInterval=500",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel",
+								"stream"
+							],
+							"query": [
+								{
+									"key": "parentMaterialCode",
+									"value": "MAT-FG-001",
+									"description": "母件物料料號"
+								},
+								{
+									"key": "flushInterval",
+									"value": "500",
+									"description": "串流分批沖刷筆數間隔 (預設 1000)"
+								}
+							]
+						},
+						"description": "透過 GET /api/v1/bom/excel/stream 以常數級低記憶體即時 Flush 串流下載 BOM Excel。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Content-Type 為 Excel openxml 格式\", function () {",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"spreadsheetml.sheet\");",
+									"});",
+									"pm.test(\"成功接收串流二進位內容\", function () {",
+									"    pm.expect(pm.response.rawBody.length).to.be.above(1000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "POST 結構化條件大數據串流下載 BOM (帶入 flushInterval)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parentMaterialCode\": \"MAT-FG-001\",\n    \"version\": \"1.0\",\n    \"includeMultiLevel\": true,\n    \"includeSingleLevel\": true,\n    \"includeMaterialMaster\": true,\n    \"flushInterval\": 500\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel/stream",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel",
+								"stream"
+							]
+						},
+						"description": "透過 POST JSON RequestBody 傳入篩選條件與 flushInterval，以邊讀邊寫的方式即時沖刷輸出串流。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"成功接收串流二進位位元組\", function () {",
+									"    pm.expect(pm.response.rawBody.length).to.be.above(1000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "GET 異常測試 - 查無母件料號 (404 Not Found)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bom/excel?parentMaterialCode=NON_EXISTENT_MATERIAL",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bom",
+								"excel"
+							],
+							"query": [
+								{
+									"key": "parentMaterialCode",
+									"value": "NON_EXISTENT_MATERIAL"
+								}
+							]
+						},
+						"description": "驗證傳入不存在之母件料號時，系統是否能正確攔截並回傳 404 Not Found 結構化錯誤訊息。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"回傳結構化錯誤訊息 JSON\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(404);",
+									"    pm.expect(jsonData.message).to.include(\"查無指定料號\");",
+									"    pm.expect(jsonData.errors).to.be.an(\"array\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Excel 標準處理模組 (Excel Core Module)",
+			"description": "通用 Excel 檔案記憶體批次匯入/匯出與百萬級大數據串流輸出入 API",
+			"item": [
+				{
+					"name": "POST 標準批次匯出 Excel (In-Memory)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fileName\": \"採購單匯出_202610.xlsx\",\n    \"sheets\": [\n        {\n            \"sheetName\": \"採購明細表\",\n            \"headers\": [\"採購單號\", \"供應商代碼\", \"物料料號\", \"採購數量\", \"單價\", \"總金額\", \"採購狀態\"],\n            \"rows\": [\n                [\"PO-2026-0001\", \"VEND-001\", \"MAT-RM-001\", 100, 450.00, 45000.00, \"已核准\"],\n                [\"PO-2026-0002\", \"VEND-002\", \"MAT-RM-003\", 250, 180.00, 45000.00, \"已發出\"],\n                [\"PO-2026-0003\", \"VEND-003\", \"MAT-RM-010\", 50, 1250.00, 62500.00, \"採購中\"]\n            ],\n            \"freezeHeader\": true,\n            \"headerFillColor\": \"1F4E78\",\n            \"headerFontColor\": \"FFFFFF\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/excel/export",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"excel",
+								"export"
+							]
+						},
+						"description": "傳送標題列與行資料陣列，於記憶體中建構 Excel (.xlsx) 檔案並下載。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Content-Type 為 Excel 格式\", function () {",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"spreadsheetml.sheet\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "POST 大數據百萬級串流匯出 (Streaming Flush)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fileName\": \"百萬筆串流測試報表.xlsx\",\n    \"flushRows\": 1000,\n    \"sheets\": [\n        {\n            \"sheetName\": \"串流資料表\",\n            \"headers\": [\"流水號\", \"追蹤碼\", \"傳輸時間戳\", \"感測數值\"],\n            \"rows\": [\n                [1, \"TRK-10001\", \"2026-10-31 10:00:00\", 98.6],\n                [2, \"TRK-10002\", \"2026-10-31 10:00:01\", 99.1],\n                [3, \"TRK-10003\", \"2026-10-31 10:00:02\", 97.4]\n            ]\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/excel/export/stream",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"excel",
+								"export",
+								"stream"
+							]
+						},
+						"description": "邊寫入邊 Flush 輸出串流，維持常數級極低記憶體占用，防止 OutOfMemoryError。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "POST 檔案上傳並完整解析 Excel (Multipart)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "src/main/resources/templates/BOM_IMPORT.xlsx",
+									"description": "上傳之 Excel 檔案 (.xlsx)"
+								},
+								{
+									"key": "sheetIndex",
+									"value": "0",
+									"type": "text",
+									"description": "指定工作表索引 (0 代表第一個工作表)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/excel/import",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"excel",
+								"import"
+							]
+						},
+						"description": "透過 Multipart 形式上傳 Excel 檔案，後端解析後回傳結構化 JSON 資料。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"回傳結構包含工作表名稱與資料列數\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"sheetName\");",
+									"    pm.expect(jsonData).to.have.property(\"rowCount\");",
+									"    pm.expect(jsonData).to.have.property(\"headers\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "POST 異常測試 - 匯出空白檔名 (400 Bad Request)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fileName\": \"   \",\n    \"sheets\": []\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/excel/export",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"excel",
+								"export"
+							]
+						},
+						"description": "測試參數校驗機制：傳送空白檔名與空工作表，預期回傳 400 Bad Request 與欄位驗證錯誤陣列。"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"狀態碼為 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"包含 fieldErrors 參數錯誤明細\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(400);",
+									"    pm.expect(jsonData.errors).to.be.an(\"array\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				}
+			]
+		}
+	]
+}
+
