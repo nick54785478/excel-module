@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +13,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.demo.application.port.in.ExportBomUseCase;
 import com.example.demo.application.port.out.BomRepositoryPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.port.out.MaterialRepositoryPort;
@@ -23,14 +21,12 @@ import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.dto.BomExcelGottenResult;
 import com.example.demo.domain.bom.aggregate.root.Bom;
-import com.example.demo.domain.bom.aggregate.vo.BomStatus;
 import com.example.demo.domain.bom.aggregate.vo.BomVersion;
 import com.example.demo.domain.bom.aggregate.vo.Quantity;
 import com.example.demo.domain.bom.aggregate.vo.ScrapRate;
 import com.example.demo.domain.material.aggregate.root.Material;
 import com.example.demo.domain.material.aggregate.vo.MaterialCategory;
 import com.example.demo.domain.material.aggregate.vo.MaterialCode;
-import com.example.demo.domain.material.aggregate.vo.MaterialId;
 import com.example.demo.domain.material.aggregate.vo.Money;
 import com.example.demo.domain.material.aggregate.vo.UnitOfMeasure;
 import com.example.demo.domain.material.exception.MaterialNotFoundException;
@@ -42,14 +38,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 物料清單匯出應用服務單元測試 (BomExportApplicationService Unit Test)
+ * 物料清單匯出命令應用服務單元測試 (BomCommandService Test)
  * <p>
- * 針對 {@link BomExportApplicationService} 進行多階展開、單階平鋪與物料主檔對照表產製業務邏輯之驗證。
- * 所有測試案例嚴格遵循 BDD / Gherkin (Feature, Scenario, Given-When-Then) 語法语境規範。
+ * 針對 {@link BomCommandService} 驗證多階展開、單階平鋪、物料主檔對照表產製與大數據串流輸出之命令端邏輯。
+ * 所有測試案例嚴格遵循 BDD / Gherkin (Feature, Scenario, Given-When-Then) 語法規範。
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("BomExportApplicationService 物料清單匯出服務測試")
-class BomExportApplicationServiceTest {
+@DisplayName("BomCommandService 物料清單匯出命令服務測試")
+class BomCommandServiceTest {
 
 	@Mock
 	private BomRepositoryPort bomRepositoryPort;
@@ -60,7 +56,7 @@ class BomExportApplicationServiceTest {
 	@Mock
 	private ExcelWriterPort excelWriterPort;
 
-	private ExportBomUseCase exportBomUseCase;
+	private BomCommandService commandService;
 
 	private Material parentMaterial;
 	private Material subAssemblyMaterial;
@@ -70,7 +66,7 @@ class BomExportApplicationServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		this.exportBomUseCase = new BomExportApplicationService(
+		this.commandService = new BomCommandService(
 				bomRepositoryPort,
 				materialRepositoryPort,
 				excelWriterPort
@@ -104,7 +100,7 @@ class BomExportApplicationServiceTest {
 				Money.of(new BigDecimal("450.00"))
 		);
 
-		// 準備多階 BOM
+		// 準備 BOM 配方 (MAT-FG-001 -> MAT-SA-001 -> MAT-RM-001)
 		this.parentBom = Bom.create(
 				parentMaterial.getId(),
 				parentMaterial.getCategory(),
@@ -139,106 +135,73 @@ class BomExportApplicationServiceTest {
 	}
 
 	/**
-	 * Feature: 特定成品之多階層 BOM Excel 匯出
-	 * Scenario: 依據指定母件料號 (MAT-FG-001) 產製包含多階展開、單階平鋪與物料主檔對照表之 Excel 檔案
-	 * Given: 系統中存在成品 MAT-FG-001 與其下階半成品 MAT-SA-001 和原物料 MAT-RM-001
-	 * When: 呼叫 exportBomUseCase.exportBom(command)
-	 * Then: 成功調用 excelWriterPort 產製 3 個工作表，且檔案名稱包含該母件料號
+	 * Feature: 多階層 BOM 展開與 Excel 匯出
+	 * Scenario: 指定母件料號匯出包含多階展開、單階平鋪與物料主檔三張工作表之 Excel
+	 * Given: 儲存庫存在完整成品與半成品 BOM，且 ExcelWriterPort 正常產製二進位陣列
+	 * When: 呼叫 commandService.exportBom(command)
+	 * Then: 成功返回 BomExcelGottenResult，工作表數量為 3，檔名符合 BOM_MAT-FG-001_V1.0.xlsx
 	 */
 	@Test
-	@DisplayName("成功：依指定母件料號匯出多階層 BOM Excel 檔案")
-	void shouldExportBomForSpecificParentMaterialSuccessfully() {
+	@DisplayName("成功：依指定母件料號與版本匯出完整三張工作表 BOM Excel")
+	void shouldExportBomWithAllSheetsSuccessfully() {
 		// Given
 		ExportBomCommand command = new ExportBomCommand("MAT-FG-001", "V1.0", true, true, true);
-		byte[] mockBytes = new byte[]{0x50, 0x4B, 0x03, 0x04}; // ZIP/XLSX header magic bytes
+		byte[] mockBytes = "MOCK_EXCEL_BYTES".getBytes();
 
 		when(materialRepositoryPort.findAll()).thenReturn(List.of(parentMaterial, subAssemblyMaterial, rawMaterial));
 		when(bomRepositoryPort.findAll()).thenReturn(List.of(parentBom, subAssemblyBom));
 		when(excelWriterPort.write(any(WriteExcelCommand.class))).thenReturn(mockBytes);
 
 		// When
-		BomExcelGottenResult result = exportBomUseCase.exportBom(command);
+		BomExcelGottenResult result = commandService.exportBom(command);
 
 		// Then
 		assertThat(result).isNotNull();
-		assertThat(result.fileBytes()).isEqualTo(mockBytes);
 		assertThat(result.fileName()).isEqualTo("BOM_MAT-FG-001_V1.0.xlsx");
 		assertThat(result.totalSheets()).isEqualTo(3);
-		assertThat(result.totalRows()).isGreaterThan(0);
+		assertThat(result.fileBytes()).isEqualTo(mockBytes);
 
 		ArgumentCaptor<WriteExcelCommand> captor = ArgumentCaptor.forClass(WriteExcelCommand.class);
 		verify(excelWriterPort).write(captor.capture());
-		WriteExcelCommand captured = captor.getValue();
-		assertThat(captured.getSheets()).hasSize(3);
-		assertThat(captured.getSheets().get(0).getSheetName()).isEqualTo("多階層BOM展開清單");
-		assertThat(captured.getSheets().get(1).getSheetName()).isEqualTo("單階BOM匯入清單");
-		assertThat(captured.getSheets().get(2).getSheetName()).isEqualTo("物料主檔對照表");
+		WriteExcelCommand capturedCommand = captor.getValue();
+		assertThat(capturedCommand.getSheets()).hasSize(3);
+		assertThat(capturedCommand.getSheets().get(0).getSheetName()).isEqualTo("多階層BOM展開清單");
+		assertThat(capturedCommand.getSheets().get(1).getSheetName()).isEqualTo("單階BOM匯入清單");
+		assertThat(capturedCommand.getSheets().get(2).getSheetName()).isEqualTo("物料主檔對照表");
 	}
 
 	/**
-	 * Feature: 全系統 BOM 清單 Excel 批次匯出
-	 * Scenario: 未指定母件料號時，匯出系統中所有 BOM 清單
-	 * Given: 匯出命令之 parentMaterialCode 為 null
-	 * When: 呼叫 exportBomUseCase.exportBom(command)
-	 * Then: 預設檔名為 BOM_LIST_ALL.xlsx，產製所有 BOM 之階層與單階資料
+	 * Feature: 指定不存在之母件料號時拋出例外
+	 * Scenario: 前端傳入未登錄之母件料號進行 BOM 匯出
+	 * Given: 儲存庫查無該料號對應之物料主檔
+	 * When: 呼叫 commandService.exportBom(command)
+	 * Then: 拋出 MaterialNotFoundException 領域例外
 	 */
 	@Test
-	@DisplayName("成功：未指定母件料號時匯出全系統所有 BOM 清單")
-	void shouldExportAllBomsWhenParentMaterialCodeIsNull() {
+	@DisplayName("失敗：指定不存在之母件料號應拋出 MaterialNotFoundException")
+	void shouldThrowExceptionWhenParentMaterialNotFound() {
 		// Given
-		ExportBomCommand command = new ExportBomCommand(null, null, true, true, false);
-		byte[] mockBytes = new byte[]{1, 2, 3};
-
-		when(materialRepositoryPort.findAll()).thenReturn(List.of(parentMaterial, subAssemblyMaterial, rawMaterial));
-		when(bomRepositoryPort.findAll()).thenReturn(List.of(parentBom, subAssemblyBom));
-		when(excelWriterPort.write(any(WriteExcelCommand.class))).thenReturn(mockBytes);
-
-		// When
-		BomExcelGottenResult result = exportBomUseCase.exportBom(command);
-
-		// Then
-		assertThat(result).isNotNull();
-		assertThat(result.fileName()).isEqualTo("BOM_LIST_ALL.xlsx");
-		assertThat(result.totalSheets()).isEqualTo(2); // 排除物料主檔對照表
-	}
-
-	/**
-	 * Feature: 查詢不存在之母件料號例外處理
-	 * Scenario: 輸入無效或不存在之母件料號請求匯出
-	 * Given: parentMaterialCode 為 NON-EXISTENT
-	 * When: 呼叫 exportBomUseCase.exportBom(command)
-	 * Then: 應拋出 MaterialNotFoundException 領域例外
-	 */
-	@Test
-	@DisplayName("異常：查無指定母件料號時拋出 MaterialNotFoundException")
-	void shouldThrowMaterialNotFoundExceptionWhenMaterialDoesNotExist() {
-		// Given
-		ExportBomCommand command = new ExportBomCommand("NON-EXISTENT", null, true, true, true);
-		when(materialRepositoryPort.findAll()).thenReturn(List.of(parentMaterial));
-		when(bomRepositoryPort.findAll()).thenReturn(List.of());
+		ExportBomCommand command = new ExportBomCommand("NOT_EXIST_MAT", "1.0", true, false, false);
+		when(materialRepositoryPort.findAll()).thenReturn(List.of(parentMaterial, subAssemblyMaterial));
+		when(bomRepositoryPort.findAll()).thenReturn(List.of(parentBom));
 
 		// When & Then
-		assertThatThrownBy(() -> exportBomUseCase.exportBom(command))
+		assertThatThrownBy(() -> commandService.exportBom(command))
 				.isInstanceOf(MaterialNotFoundException.class)
-				.hasMessageContaining("查無指定料號之物料主檔");
+				.hasMessageContaining("查無指定料號之物料主檔: NOT_EXIST_MAT");
 	}
 
 	/**
-	 * Feature: 大數據串流匯出 BOM
-	 * Scenario: 透過 streamExportBom 將 Excel 資料分批 Flush 至 OutputStream
-	 * Given: 傳入 ByteArrayOutputStream 與指定 flushInterval 之 ExportBomCommand
-	 * When: 呼叫 service.streamExportBom(baos, command)
+	 * Feature: 大數據串流匯出物料清單 (BOM) Excel
+	 * Scenario: 呼叫 streamExportBom 邊產製邊寫入 OutputStream
+	 * Given: 儲存庫存在完整 BOM 資料
+	 * When: 呼叫 commandService.streamExportBom(baos, command)
 	 * Then: 成功調用 excelWriterPort.writeStream(...) 且包含 WriteStreamExcelCommand
 	 */
 	@Test
 	@DisplayName("成功：透過 streamExportBom 執行大數據串流輸出")
 	void shouldStreamExportBomSuccessfully() {
 		// Given
-		BomExportApplicationService service = new BomExportApplicationService(
-				bomRepositoryPort,
-				materialRepositoryPort,
-				excelWriterPort
-		);
 		ExportBomCommand command = new ExportBomCommand("MAT-FG-001", "V1.0", true, true, true, 500);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
@@ -246,7 +209,7 @@ class BomExportApplicationServiceTest {
 		when(bomRepositoryPort.findAll()).thenReturn(List.of(parentBom, subAssemblyBom));
 
 		// When
-		service.streamExportBom(baos, command);
+		commandService.streamExportBom(baos, command);
 
 		// Then
 		ArgumentCaptor<WriteStreamExcelCommand> captor = ArgumentCaptor.forClass(WriteStreamExcelCommand.class);

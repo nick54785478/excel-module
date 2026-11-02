@@ -4,12 +4,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.domain.bom.aggregate.entity.BomItem;
+import com.example.demo.domain.bom.aggregate.root.Bom;
 import com.example.demo.domain.material.aggregate.root.Material;
+import com.example.demo.domain.material.aggregate.vo.MaterialId;
 import com.example.demo.presentation.resource.in.ExportBomItemResource;
 import com.example.demo.presentation.resource.in.ExportBomItemResource.BomItemDetailResource;
 import com.example.demo.presentation.resource.in.ExportMaterialResource;
@@ -20,14 +24,14 @@ import com.example.demo.presentation.resource.out.MaterialImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource.MaterialRetrievedResource;
 
 /**
- * 聚合根對應之表現層資源組裝器 (Aggregate Presentation Resource Assembler)
+ * 物料與 BOM 表現層資源組裝器 (Material & BOM Presentation Resource Assembler)
  * <p>
- * 遵循 Clean Architecture 六角形架構，擔任表現層防腐層 (ACL) 角色。
- * 負責將 Request Resource 與 {@link MaterialExcelModel}、{@link BomItemExcelModel} 互相轉換，
- * 以及提供領域聚合根 {@link Material} 至 Excel 模型的對映轉換，確保各層資料隔離與單一職責。
+ * 遵循 Clean Architecture 六角形架構與 AGENTS.md 規則 35，擔任表現層防腐層 (ACL) 角色。
+ * 負責將 Request Resource 與應用層模型（{@link MaterialExcelModel}、{@link BomItemExcelModel}）互相轉換，
+ * 以及提供領域聚合根（{@link Material}、{@link Bom}）至 Excel 模型的對映轉換，確保表現層與應用層職責清晰隔離。
  */
 @Component
-public class AggregateResourceAssembler {
+public class MaterialBomResourceAssembler {
 
 	// =========================================================================
 	// 1. Material 物料主檔轉換
@@ -41,7 +45,7 @@ public class AggregateResourceAssembler {
 	 */
 	public List<MaterialExcelModel> toMaterialExcelModels(ExportMaterialResource resource) {
 		if (resource == null || resource.materials() == null || resource.materials().isEmpty()) {
-			return createSampleMaterials();
+			return Collections.emptyList();
 		}
 
 		List<MaterialExcelModel> models = new ArrayList<>(resource.materials().size());
@@ -143,7 +147,7 @@ public class AggregateResourceAssembler {
 	 */
 	public List<BomItemExcelModel> toBomItemExcelModels(ExportBomItemResource resource) {
 		if (resource == null || resource.items() == null || resource.items().isEmpty()) {
-			return createSampleBomItems();
+			return Collections.emptyList();
 		}
 
 		List<BomItemExcelModel> models = new ArrayList<>(resource.items().size());
@@ -198,37 +202,60 @@ public class AggregateResourceAssembler {
 		return new BomItemImportedResource(items.size(), sheetName != null ? sheetName : "單階BOM清單", items);
 	}
 
-	// =========================================================================
-	// 3. 範例資料生成方法 (結合 Aggregate 領域真實數據結構)
-	// =========================================================================
-
 	/**
-	 * 產製對應真實 {@link Material} 聚合根特性的展示物料資料
+	 * 將多筆領域層 {@link Bom} 聚合根與關聯物料映射轉換為應用層 {@link BomItemExcelModel} 清單
 	 *
-	 * @return 展示物料 Excel 模型清單
+	 * @param boms        BOM 聚合根清單
+	 * @param materialMap 物料識別碼與物料聚合根映射 Map (用於解析料號、品名與單位)
+	 * @return BOM 子項 Excel 映射模型清單
 	 */
-	public List<MaterialExcelModel> createSampleMaterials() {
-		return List.of(
-				new MaterialExcelModel("MAT-FG-001", "4K 專業航拍無人機", "DRONE-4K-PRO", "FINISHED_GOODS", "PCS", new BigDecimal("35000.00"), "ACTIVE"),
-				new MaterialExcelModel("MAT-SFG-001", "4K 雲台相機模組", "CAM-4K-GIMBAL", "SEMI_FINISHED_GOODS", "SET", new BigDecimal("8500.00"), "ACTIVE"),
-				new MaterialExcelModel("MAT-SFG-002", "高容量無人機鋰電池", "BAT-6S-5000MAH", "SEMI_FINISHED_GOODS", "PCS", new BigDecimal("3200.00"), "ACTIVE"),
-				new MaterialExcelModel("MAT-RM-001", "碳纖維主機臂 (左前)", "CF-ARM-LF", "RAW_MATERIAL", "PCS", new BigDecimal("450.00"), "ACTIVE"),
-				new MaterialExcelModel("MAT-RM-002", "無刷旋翼馬達 2306", "BRUSHLESS-2306-2400KV", "RAW_MATERIAL", "PCS", new BigDecimal("550.00"), "ACTIVE")
-		);
-	}
+	public List<BomItemExcelModel> toBomItemExcelModelsFromDomain(
+			List<Bom> boms,
+			Map<MaterialId, Material> materialMap
+	) {
+		if (boms == null || boms.isEmpty()) {
+			return Collections.emptyList();
+		}
 
-	/**
-	 * 產製對應真實 {@link com.example.demo.domain.bom.aggregate.root.Bom} 聚合根特性的展示單階 BOM 配方資料
-	 *
-	 * @return 展示 BOM 配方 Excel 模型清單
-	 */
-	public List<BomItemExcelModel> createSampleBomItems() {
-		return List.of(
-				new BomItemExcelModel("MAT-FG-001", "1.0", 10, "MAT-SFG-001", "4K 雲台相機模組", new BigDecimal("1.0000"), "SET", new BigDecimal("0.00"), "CAM-BAY-01", "光學防手震相機模組"),
-				new BomItemExcelModel("MAT-FG-001", "1.0", 20, "MAT-SFG-002", "高容量無人機鋰電池", new BigDecimal("1.0000"), "PCS", new BigDecimal("0.00"), "BAT-BAY-01", "快拆智慧電池"),
-				new BomItemExcelModel("MAT-FG-001", "1.0", 30, "MAT-RM-001", "碳纖維主機臂 (左前)", new BigDecimal("1.0000"), "PCS", new BigDecimal("2.50"), "ARM-LF-01", "抗扭高剛性主臂"),
-				new BomItemExcelModel("MAT-FG-001", "1.0", 40, "MAT-RM-002", "無刷旋翼馬達 2306", new BigDecimal("4.0000"), "PCS", new BigDecimal("1.00"), "M1-M4", "動力旋翼馬達")
-		);
+		List<BomItemExcelModel> models = new ArrayList<>();
+		for (Bom bom : boms) {
+			if (bom == null || bom.getItems() == null) {
+				continue;
+			}
+
+			Material parentMaterial = materialMap != null ? materialMap.get(bom.getParentMaterialId()) : null;
+			String parentCode = parentMaterial != null
+					? parentMaterial.getCode().value()
+					: (bom.getParentMaterialId() != null ? bom.getParentMaterialId().value().toString() : "");
+			String version = bom.getVersion() != null ? bom.getVersion().value() : "1.0";
+
+			for (BomItem item : bom.getItems()) {
+				if (item == null) {
+					continue;
+				}
+
+				Material childMaterial = materialMap != null ? materialMap.get(item.getChildMaterialId()) : null;
+				String childCode = childMaterial != null
+						? childMaterial.getCode().value()
+						: (item.getChildMaterialId() != null ? item.getChildMaterialId().value().toString() : "");
+				String childName = childMaterial != null ? childMaterial.getName() : "";
+				String unit = childMaterial != null ? childMaterial.getUnit().name() : "";
+
+				models.add(new BomItemExcelModel(
+						parentCode,
+						version,
+						item.getItemSequence() != null ? item.getItemSequence().value() : 0,
+						childCode,
+						childName,
+						item.getQuantity() != null ? item.getQuantity().value() : null,
+						unit,
+						item.getScrapRate() != null ? item.getScrapRate().rate() : null,
+						item.getPositionCode(),
+						item.getRemark()
+				));
+			}
+		}
+		return models;
 	}
 }
 

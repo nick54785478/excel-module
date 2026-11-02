@@ -162,16 +162,26 @@ flowchart TD
 
 ### 四、 非同步長任務與進度追蹤 (Async Import/Export Task)
 
-* **現狀痛點**：耗時長達數十秒的大型匯出匯入請求，HTTP 連線容易發生 Gateway Timeout (504)。
-* **目標設計（DDD 聚合實作）**：
-  1. **Domain Aggregate**：`ExcelTask` 聚合根。
-     * 狀態 Value Object：`TaskStatus` (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`)。
-     * 進度欄位：`totalRows`, `processedRows`, `progressPercentage`。
-     * 領域事件：`ExcelImportCompletedEvent`, `ExcelExportFailedEvent`。
-  2. **非同步流程**：
-     * Controller 接收請求後立即產生 `taskId` 回傳予前端。
-     * 背景執行緒（`@Async` 或 Spring Task）執行處理，持續推進 `ExcelTask` 進度。
-     * 前端可透過 Polling 或 SSE/WebSocket 即時展示「已完成 45% (4,500 / 10,000 列)」。
+* **架構定位與設計決策**：
+  * **模組定位（Module Positioning）**：本專案定位為**通用技術功能模組 (Reusable Capability Module / Starter)**，而非具備獨立核心商業領域邊界的微服務 (Microservice)。
+  * **分層職責歸屬（Infrastructure Layer Placement）**：非同步長任務的進度追蹤、狀態儲存（如資料表狀態或快取）純屬**技術基礎設施職責**，**嚴格禁止將此類技術性實體置於 Domain Layer**。因此，`ExcelTask` 不作為 Domain Aggregate，而是下沉為 **Infrastructure Layer 的技術實體與狀態管理機制**，維持 Domain Layer 的純粹性。
+* **目標架構設計（Infrastructure 技術實體與狀態協同）**：
+  1. **Infrastructure Layer (基礎設施層 - 技術實體與儲存庫)**：
+     * **JPA ORM 技術實體**：`infrastructure/persistence/task/entity/ExcelTaskJpaEntity.java`
+       * 任務識別碼：`taskId` (UUID)
+       * 任務類型：`taskType` (`IMPORT` / `EXPORT`)
+       * 任務狀態：`taskStatus` (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`)
+       * 進度欄位：`totalRows`, `processedRows`, `progressPercentage`
+       * 時間戳記與錯誤訊息：`createdAt`, `updatedAt`, `errorMessage`, `fileUrl`
+     * **Spring Data JPA 儲存庫**：`infrastructure/persistence/task/repository/ExcelTaskJpaRepository.java`
+     * **技術適配器 (Outbound Adapter)**：`infrastructure/adapter/ExcelTaskRepositoryAdapter.java`（實作應用層 Outbound Port，嚴格轉換領域/應用 DTO，禁止對外洩漏 JPA Entity）。
+  2. **Application Layer (應用層 - 技術合約與進度回呼)**：
+     * **Outbound Port**：`application/port/out/ExcelTaskPort.java`（定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById` 等純資料合約）。
+     * **串流生命週期聯動**：結合現有 `ExcelStreamListener`，於串流讀寫的 `onChunk` / `onRow` 時即時回呼觸發進度更新，達成極低耦合度。
+  3. **非同步執行流程 (Asynchronous Flow)**：
+     * **接收請求**：Controller 接收匯出/匯入請求後，調用應用層 UseCase，建立初始狀態並立即回傳 `taskId` 予前端（HTTP 202 Accepted）。
+     * **背景執行**：由背景執行緒池（`@Async` 或 Spring `ThreadPoolTaskExecutor`）進行實際的大數據串流讀寫。
+     * **進度推播與查詢**：背景執行期間透過 `ExcelTaskPort` 持續更新 `ExcelTaskJpaEntity`，表現層提供 `GET /api/v1/excel/tasks/{taskId}/progress` 供前端輪詢（Polling），或透過 SSE / WebSocket 即時推播進度百分比（如「已完成 45% (4,500 / 10,000 列)」）。
 
 ---
 
@@ -220,7 +230,7 @@ gantt
     匯入檢核與「錯誤回標檔」生成機制       :active, 2026-11-04, 3d
     
     section 階段二：非同步與長任務
-    ExcelTask 聚合根與進度追蹤長任務     :2026-11-07, 4d
+    基礎設施層非同步長任務實體與進度追蹤 :2026-11-07, 4d
     
     section 階段三：安全性與模組協同
     工作表密碼保護與公式合併樣式強化       :2026-11-14, 2d

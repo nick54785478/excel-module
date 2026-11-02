@@ -1,6 +1,7 @@
 package com.example.demo.presentation.controller;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -17,9 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.application.assembler.BomDtoAssembler;
 import com.example.demo.application.port.in.ExportBomUseCase;
+import com.example.demo.application.port.in.QueryBomUseCase;
 import com.example.demo.application.port.in.StreamExportBomUseCase;
-import com.example.demo.application.service.BomExportApplicationService;
 import com.example.demo.application.shared.command.ExportBomCommand;
 import com.example.demo.application.shared.dto.BomExcelGottenResult;
 import com.example.demo.presentation.assembler.BomResourceAssembler;
@@ -39,7 +41,8 @@ import jakarta.validation.Valid;
 /**
  * 物料清單 (BOM) REST 控制器 (Presentation Inbound Adapter)
  * <p>
- * 遵循 Clean Architecture 表現層職責，提供 BOM 相關 Excel 檔案動態產生與下載的 REST API。
+ * 遵循 Clean Architecture 表現層職責與 CQRS 規範，作為外部 HTTP 請求進入點。
+ * 針對 GET 查詢導向操作調度 {@link QueryBomUseCase}，針對 POST 命令導向操作調度 {@link ExportBomUseCase} 與 {@link StreamExportBomUseCase}。
  * 支援一般記憶體快速下載 (GET/POST) 以及百萬級大數據串流輸出 (GET/POST /stream)。
  */
 @Tag(name = "BOM 物料清單介面", description = "提供物料清單 (BOM) Excel 檔案動態匯出與下載 REST API")
@@ -50,19 +53,47 @@ public class BomController {
 
 	private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+	private final QueryBomUseCase queryBomUseCase;
 	private final ExportBomUseCase exportBomUseCase;
 	private final StreamExportBomUseCase streamExportBomUseCase;
 	private final BomResourceAssembler bomResourceAssembler;
 
 	@Autowired
 	public BomController(
+			QueryBomUseCase queryBomUseCase,
 			ExportBomUseCase exportBomUseCase,
 			StreamExportBomUseCase streamExportBomUseCase,
 			BomResourceAssembler bomResourceAssembler
 	) {
+		this.queryBomUseCase = Objects.requireNonNull(queryBomUseCase, "queryBomUseCase must not be null");
 		this.exportBomUseCase = Objects.requireNonNull(exportBomUseCase, "exportBomUseCase must not be null");
 		this.streamExportBomUseCase = streamExportBomUseCase;
 		this.bomResourceAssembler = Objects.requireNonNull(bomResourceAssembler, "bomResourceAssembler must not be null");
+	}
+
+	public BomController(
+			ExportBomUseCase exportBomUseCase,
+			StreamExportBomUseCase streamExportBomUseCase,
+			BomResourceAssembler bomResourceAssembler
+	) {
+		this(
+				new QueryBomUseCase() {
+					@Override
+					public BomExcelGottenResult queryBom(ExportBomCommand command) {
+						return exportBomUseCase.exportBom(command);
+					}
+
+					@Override
+					public void streamQueryBom(OutputStream outputStream, ExportBomCommand command) {
+						if (streamExportBomUseCase != null) {
+							streamExportBomUseCase.streamExportBom(outputStream, command);
+						}
+					}
+				},
+				exportBomUseCase,
+				streamExportBomUseCase,
+				bomResourceAssembler
+		);
 	}
 
 	public BomController(ExportBomUseCase exportBomUseCase, BomResourceAssembler bomResourceAssembler) {
@@ -74,7 +105,7 @@ public class BomController {
 	}
 
 	/**
-	 * 透過 HTTP GET 下載物料清單 (BOM) Excel 檔案
+	 * 透過 HTTP GET 下載物料清單 (BOM) Excel 檔案 (查詢端操作)
 	 *
 	 * @param parentMaterialCode    母件物料料號 (選填，如 MAT-FG-001)
 	 * @param version               BOM 版本號 (選填，如 1.0)
@@ -138,12 +169,12 @@ public class BomController {
 				includeMaterialMaster
 		);
 
-		BomExcelGottenResult result = exportBomUseCase.exportBom(command);
+		BomExcelGottenResult result = queryBomUseCase.queryBom(command);
 		return buildExcelDownloadResponse(result);
 	}
 
 	/**
-	 * 透過 HTTP POST 結構化請求匯出物料清單 (BOM) Excel 檔案
+	 * 透過 HTTP POST 結構化請求匯出物料清單 (BOM) Excel 檔案 (命令端操作)
 	 *
 	 * @param resource 匯出條件請求結構體
 	 * @return Excel 二進位檔案下載回應
@@ -189,7 +220,7 @@ public class BomController {
 	}
 
 	/**
-	 * 透過 HTTP GET 大數據串流下載物料清單 (BOM) Excel 檔案
+	 * 透過 HTTP GET 大數據串流下載物料清單 (BOM) Excel 檔案 (查詢端串流操作)
 	 *
 	 * @param parentMaterialCode    母件物料料號 (選填)
 	 * @param version               BOM 版本號 (選填)
@@ -253,16 +284,15 @@ public class BomController {
 				flushInterval
 		);
 
-		String fileName = BomExportApplicationService.resolveFileName(command);
+		String fileName = BomDtoAssembler.resolveFileName(command);
 		setStreamResponseHeaders(response, fileName);
 
-		Objects.requireNonNull(streamExportBomUseCase, "streamExportBomUseCase must not be null");
-		streamExportBomUseCase.streamExportBom(response.getOutputStream(), command);
+		queryBomUseCase.streamQueryBom(response.getOutputStream(), command);
 		response.flushBuffer();
 	}
 
 	/**
-	 * 透過 HTTP POST 結構化條件大數據串流匯出物料清單 (BOM) Excel 檔案
+	 * 透過 HTTP POST 結構化條件大數據串流匯出物料清單 (BOM) Excel 檔案 (命令端串流操作)
 	 *
 	 * @param resource 匯出條件請求結構體 (含可選之 flushInterval)
 	 * @param response HTTP Servlet 回應物件
@@ -305,7 +335,7 @@ public class BomController {
 			HttpServletResponse response
 	) throws IOException {
 		ExportBomCommand command = bomResourceAssembler.toExportCommand(resource);
-		String fileName = BomExportApplicationService.resolveFileName(command);
+		String fileName = BomDtoAssembler.resolveFileName(command);
 		setStreamResponseHeaders(response, fileName);
 
 		Objects.requireNonNull(streamExportBomUseCase, "streamExportBomUseCase must not be null");

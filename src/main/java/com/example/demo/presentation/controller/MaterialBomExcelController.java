@@ -19,10 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.application.port.in.ExportExcelUseCase;
+import com.example.demo.application.port.in.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.ImportExcelUseCase;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.presentation.assembler.AggregateResourceAssembler;
+import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.resource.in.ExportBomItemResource;
 import com.example.demo.presentation.resource.in.ExportMaterialResource;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
@@ -39,52 +40,55 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
- * Aggregate 領域聚合根宣告式 Excel 映射測試控制器 (Aggregate Declarative Excel Mapping Controller)
+ * 物料與 BOM 宣告式 Excel 映射控制器 (Material & BOM Declarative Excel Mapping Controller / Inbound Adapter)
  * <p>
- * 遵循 Clean Architecture 六角形架構表現層規範，專門提供物料聚合根 ({@link com.example.demo.domain.material.aggregate.root.Material})
- * 與物料清單聚合根 ({@link com.example.demo.domain.bom.aggregate.root.Bom}) 對應之 Excel 宣告式物件映射測試 API。
+ * 遵循 Clean Architecture 六角形架構表現層規範，作為外部 HTTP 請求進入點。
+ * 專門提供物料主檔 ({@link com.example.demo.domain.material.aggregate.root.Material})
+ * 與物料清單配方 ({@link com.example.demo.domain.bom.aggregate.root.Bom}) 對應之 Excel 宣告式物件映射 (Declarative Bean Mapping) API。
  * 支援物料主檔與單階 BOM 配方清單之宣告式雙向匯出與解析匯入。
  */
-@Tag(name = "Aggregate 領域聚合根宣告式 Excel 介面", description = "提供基於 Material 與 BOM 領域聚合根之宣告式 Excel 物件映射 (Declarative Bean Mapping) 測試 API")
+@Tag(name = "物料與 BOM Excel 宣告式映射介面", description = "提供基於 Material 與 BOM 業務模型之宣告式 Excel 物件映射 (Declarative Bean Mapping) 匯出與匯入 API")
 @Validated
 @RestController
-@RequestMapping("/api/v1/excel/aggregate")
-public class AggregateExcelController {
+@RequestMapping({"/api/v1/excel/material-bom", "/api/v1/excel/aggregate"})
+public class MaterialBomExcelController {
 
 	private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+	private final ExportMaterialBomUseCase exportMaterialBomUseCase;
 	private final ExportExcelUseCase exportExcelUseCase;
 	private final ImportExcelUseCase importExcelUseCase;
-	private final AggregateResourceAssembler resourceAssembler;
+	private final MaterialBomResourceAssembler resourceAssembler;
 
-	public AggregateExcelController(
+	public MaterialBomExcelController(
+			ExportMaterialBomUseCase exportMaterialBomUseCase,
 			ExportExcelUseCase exportExcelUseCase,
 			ImportExcelUseCase importExcelUseCase,
-			AggregateResourceAssembler resourceAssembler
+			MaterialBomResourceAssembler resourceAssembler
 	) {
+		this.exportMaterialBomUseCase = Objects.requireNonNull(exportMaterialBomUseCase, "exportMaterialBomUseCase must not be null");
 		this.exportExcelUseCase = Objects.requireNonNull(exportExcelUseCase, "exportExcelUseCase must not be null");
 		this.importExcelUseCase = Objects.requireNonNull(importExcelUseCase, "importExcelUseCase must not be null");
 		this.resourceAssembler = Objects.requireNonNull(resourceAssembler, "resourceAssembler must not be null");
 	}
 
 	// =========================================================================
-	// 1. Material (物料聚合根) 宣告式匯出與匯入測試
+	// 1. Material (物料主檔) 宣告式匯出與匯入
 	// =========================================================================
 
 	/**
-	 * 透過 HTTP GET 快速下載物料主檔範例 Excel 檔案
+	 * 透過 HTTP GET 快速下載系統資料庫現有物料主檔 Excel 檔案
 	 *
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
-			summary = "快速下載物料主檔範例 Excel (Material 聚合根模型)",
-			description = "使用符合 Material 聚合根規格之展示資料，宣告式產製 MaterialExcelModel 之 Excel 檔案。"
+			summary = "匯出系統現有物料主檔 Excel (Material 業務模型)",
+			description = "直接從物料儲存庫查詢現有物料聚合根，透過純領域方法提取屬性並宣告式產製 MaterialExcelModel 之 Excel 檔案。"
 	)
 	@GetMapping("/materials/export")
-	public ResponseEntity<byte[]> exportSampleMaterials() {
-		List<MaterialExcelModel> sampleMaterials = resourceAssembler.createSampleMaterials();
-		byte[] excelBytes = exportExcelUseCase.exportBeans(sampleMaterials, MaterialExcelModel.class);
-		return createDownloadResponse(excelBytes, "materials_sample.xlsx");
+	public ResponseEntity<byte[]> exportLiveMaterials() {
+		byte[] excelBytes = exportMaterialBomUseCase.exportMaterials();
+		return createDownloadResponse(excelBytes, "materials_master.xlsx");
 	}
 
 	/**
@@ -94,7 +98,7 @@ public class AggregateExcelController {
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
-			summary = "自訂資料宣告式匯出物料主檔 Excel (Material 聚合根模型)",
+			summary = "自訂資料宣告式匯出物料主檔 Excel (Material 業務模型)",
 			description = "接收客戶端傳入之自訂物料 JSON 清單，經由 ResourceAssembler 轉換為 MaterialExcelModel 後宣告式寫入 Excel。"
 	)
 	@PostMapping("/materials/export")
@@ -122,7 +126,7 @@ public class AggregateExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "檔案上傳並宣告式解析為 MaterialExcelModel (Material 聚合根模型)",
+			summary = "檔案上傳並宣告式解析為 MaterialExcelModel (Material 業務模型)",
 			description = "上傳物料 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 MaterialExcelModel 清單，回傳 JSON。"
 	)
 	@ApiResponses({
@@ -158,7 +162,7 @@ public class AggregateExcelController {
 	}
 
 	// =========================================================================
-	// 2. BOM (物料清單聚合根) 宣告式匯出與匯入測試
+	// 2. BOM (物料清單配方) 宣告式匯出與匯入
 	// =========================================================================
 
 	/**
@@ -167,14 +171,13 @@ public class AggregateExcelController {
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
-			summary = "快速下載單階 BOM 配方範例 Excel (BOM 聚合根模型)",
-			description = "使用符合 Bom/BomItem 聚合根結構之展示資料，宣告式產製 BomItemExcelModel 之 Excel 檔案。"
+			summary = "匯出系統現有單階 BOM 配方 Excel (BOM 業務模型)",
+			description = "直接從 BOM 與物料儲存庫查詢現有 BOM 與關聯物料聚合根，透過純領域方法提取屬性並宣告式產製 BomItemExcelModel 之 Excel 檔案。"
 	)
 	@GetMapping("/bom-items/export")
-	public ResponseEntity<byte[]> exportSampleBomItems() {
-		List<BomItemExcelModel> sampleBomItems = resourceAssembler.createSampleBomItems();
-		byte[] excelBytes = exportExcelUseCase.exportBeans(sampleBomItems, BomItemExcelModel.class);
-		return createDownloadResponse(excelBytes, "bom_items_sample.xlsx");
+	public ResponseEntity<byte[]> exportLiveBomItems() {
+		byte[] excelBytes = exportMaterialBomUseCase.exportBomItems();
+		return createDownloadResponse(excelBytes, "bom_items_master.xlsx");
 	}
 
 	/**
@@ -184,7 +187,7 @@ public class AggregateExcelController {
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
-			summary = "自訂資料宣告式匯出單階 BOM 配方 Excel (BOM 聚合根模型)",
+			summary = "自訂資料宣告式匯出單階 BOM 配方 Excel (BOM 業務模型)",
 			description = "接收客戶端傳入之自訂 BOM JSON 清單，經由 ResourceAssembler 轉換為 BomItemExcelModel 後宣告式寫入 Excel。"
 	)
 	@PostMapping("/bom-items/export")
@@ -212,7 +215,7 @@ public class AggregateExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "檔案上傳並宣告式解析為 BomItemExcelModel (BOM 聚合根模型)",
+			summary = "檔案上傳並宣告式解析為 BomItemExcelModel (BOM 業務模型)",
 			description = "上傳 BOM Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 BomItemExcelModel 清單，回傳 JSON。"
 	)
 	@ApiResponses({

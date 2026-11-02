@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,24 +26,31 @@ import com.example.demo.application.shared.dto.ExcelStreamImportGottenResult;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 import com.example.demo.application.shared.stream.ExcelChunkConsumer;
 
-@DisplayName("ExcelImportApplicationService 匯入業務服務測試")
-class ExcelImportApplicationServiceTest {
+/**
+ * Excel 匯入查詢應用服務單元測試 (ExcelQueryService Test)
+ * <p>
+ * 針對 {@link ExcelQueryService} 驗證 Clean Architecture / CQRS 查詢端業務邏輯、
+ * 宣告式物件映射與大數據串流分塊讀取之調度行為。
+ * 遵循 BDD / Gherkin 規範。
+ */
+@DisplayName("ExcelQueryService 匯入查詢業務服務測試")
+class ExcelQueryServiceTest {
 
 	private ExcelReaderPort excelReaderPort;
-	private ExcelImportApplicationService importService;
+	private ExcelQueryService queryService;
 
 	@BeforeEach
 	void setUp() {
 		excelReaderPort = mock(ExcelReaderPort.class);
-		importService = new ExcelImportApplicationService(excelReaderPort);
+		queryService = new ExcelQueryService(excelReaderPort);
 	}
 
 	/**
 	 * Feature: Excel 檔案解析匯入業務
 	 * Scenario: 成功讀取活頁簿資料結構
-	 * Given 建立 InputStream 與 ReadExcelQuery
-	 * When 調用 importService.importExcel(inputStream, query)
-	 * Then 應正確委託 excelReaderPort.read 並回傳活頁簿結果物件
+	 * Given: 建立 InputStream 與 ReadExcelQuery
+	 * When: 調用 queryService.importExcel(inputStream, query)
+	 * Then: 應正確委託 excelReaderPort.read 並回傳活頁簿結果物件
 	 */
 	@Test
 	@DisplayName("場景：成功解析 Excel 內容為 ExcelGottenResult")
@@ -58,7 +64,7 @@ class ExcelImportApplicationServiceTest {
 		when(excelReaderPort.read(any(InputStream.class), any(ReadExcelQuery.class))).thenReturn(mockResult);
 
 		// When
-		ExcelGottenResult result = importService.importExcel(inputStream, query);
+		ExcelGottenResult result = queryService.importExcel(inputStream, query);
 
 		// Then
 		assertThat(result).isNotNull();
@@ -71,9 +77,9 @@ class ExcelImportApplicationServiceTest {
 	/**
 	 * Feature: Excel 串流分塊批次匯入業務
 	 * Scenario: 成功調用 readChunked 並統計分塊與總筆數
-	 * Given 建立 StreamImportExcelCommand
-	 * When 調用 importService.streamImport(command)
-	 * Then 應正確觸發分塊消費回呼，並回傳正確之統計摘要
+	 * Given: 建立 StreamImportExcelCommand
+	 * When: 調用 queryService.streamImport(command)
+	 * Then: 應正確觸發分塊消費回呼，並回傳正確之統計摘要
 	 */
 	@Test
 	@DisplayName("場景：成功執行串流分塊解析並產出統計報告")
@@ -91,7 +97,7 @@ class ExcelImportApplicationServiceTest {
 		}).when(excelReaderPort).readChunked(any(InputStream.class), any(ReadExcelQuery.class), anyInt(), any(ExcelChunkConsumer.class));
 
 		// When
-		ExcelStreamImportGottenResult result = importService.streamImport(command);
+		ExcelStreamImportGottenResult result = queryService.streamImport(command);
 
 		// Then
 		assertThat(result).isNotNull();
@@ -104,13 +110,13 @@ class ExcelImportApplicationServiceTest {
 
 	/**
 	 * Feature: 宣告式 Model 匯入業務
-	 * Scenario: Application Service 委託 Reader 取得 ExcelGottenResult 並調用 Assembler 轉為強型別 Model 清單
-	 * Given 建立測試 Model 與 Mock 讀取結果
-	 * When 調用 importService.importBeans(inputStream, ModelClass)
-	 * Then 應正確回傳強型別 Model 清單
+	 * Scenario: Query Service 委託 Reader 取得 ExcelGottenResult 並調用 Assembler 轉為強型別 Model 清單
+	 * Given: 建立測試 Model 與 Mock 讀取結果
+	 * When: 調用 queryService.importBeans(inputStream, ModelClass)
+	 * Then: 應正確回傳強型別 Model 清單
 	 */
 	@Test
-	@DisplayName("場景：成功透過 ApplicationService 調用 Assembler 解析為 Model 清單")
+	@DisplayName("場景：成功透過 QueryService 調用 Assembler 解析為 Model 清單")
 	void shouldImportBeansSuccessfully() {
 		// Given
 		InputStream inputStream = new ByteArrayInputStream(new byte[0]);
@@ -124,7 +130,7 @@ class ExcelImportApplicationServiceTest {
 		record SimpleItem(String code, String name) {}
 
 		// When
-		List<SimpleItem> items = importService.importBeans(inputStream, SimpleItem.class);
+		List<SimpleItem> items = queryService.importBeans(inputStream, SimpleItem.class);
 
 		// Then
 		assertThat(items).hasSize(1);
@@ -136,9 +142,9 @@ class ExcelImportApplicationServiceTest {
 	/**
 	 * Feature: Excel 首個工作表匯入業務
 	 * Scenario: 成功讀取第一個工作表純資料載體
-	 * Given 建立 InputStream 與 Mock 讀取結果
-	 * When 調用 importService.importFirstSheet(inputStream)
-	 * Then 應正確委託 excelReaderPort.readFirstSheet 並回傳 ExcelSheetGottenResult
+	 * Given: 建立 InputStream 與 Mock 讀取結果
+	 * When: 調用 queryService.importFirstSheet(inputStream)
+	 * Then: 應正確委託 excelReaderPort.readFirstSheet 並回傳 ExcelSheetGottenResult
 	 */
 	@Test
 	@DisplayName("場景：成功讀取第一個工作表純資料載體")
@@ -149,7 +155,7 @@ class ExcelImportApplicationServiceTest {
 		when(excelReaderPort.readFirstSheet(any(InputStream.class))).thenReturn(mockSheet);
 
 		// When
-		ExcelSheetGottenResult result = importService.importFirstSheet(inputStream);
+		ExcelSheetGottenResult result = queryService.importFirstSheet(inputStream);
 
 		// Then
 		assertThat(result).isNotNull();
@@ -158,3 +164,4 @@ class ExcelImportApplicationServiceTest {
 		verify(excelReaderPort).readFirstSheet(eq(inputStream));
 	}
 }
+

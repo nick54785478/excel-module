@@ -18,8 +18,8 @@ import com.example.demo.application.annotation.ExcelColumn;
 import com.example.demo.application.annotation.ExcelSheet;
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
-import com.example.demo.application.service.ExcelExportApplicationService;
-import com.example.demo.application.service.ExcelImportApplicationService;
+import com.example.demo.application.service.ExcelCommandService;
+import com.example.demo.application.service.ExcelQueryService;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.infrastructure.adapter.FastExcelReaderAdapter;
 import com.example.demo.infrastructure.adapter.FastExcelWriterAdapter;
@@ -150,7 +150,7 @@ class ExcelBeanAssemblerTest {
 
 	/**
 	 * Feature: JavaBean 宣告式匯出與匯入 (Clean Architecture 調度流程 - FastExcel 引擎)
-	 * Scenario: 透過 ExcelExportApplicationService.exportBeans 產製 Excel，並透過 ExcelImportApplicationService.importBeans 還原為強型別物件
+	 * Scenario: 透過 ExcelCommandService.exportBeans 產製 Excel，並透過 ExcelQueryService.importBeans 還原為強型別物件
 	 * Given: 建立包含 2 筆訂單之 OrderPojoModel 清單
 	 * When: Application Service 調用 Assembler 轉為 Command 後由 FastExcelWriterAdapter 產出 byte[]，再經由 FastExcelReaderAdapter 與 Assembler 還原
 	 * Then: 成功還原 2 筆物件，所有屬性型別 (String, BigDecimal, int, LocalDate, Enum) 與預設值皆正確
@@ -159,8 +159,8 @@ class ExcelBeanAssemblerTest {
 	@DisplayName("情境：FastExcel 引擎下 JavaBean 宣告式匯出與匯入 (經由 ApplicationService 調度)")
 	void shouldWriteAndReadBeansWithFastExcelSuccessfully() {
 		// Given
-		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new FastExcelWriterAdapter());
-		ExcelImportApplicationService importService = new ExcelImportApplicationService(new FastExcelReaderAdapter());
+		ExcelCommandService exportService = new ExcelCommandService(new FastExcelWriterAdapter());
+		ExcelQueryService importService = new ExcelQueryService(new FastExcelReaderAdapter());
 
 		List<OrderPojoModel> orders = List.of(
 				new OrderPojoModel("ORD-2026-001", "張小明", new BigDecimal("12500.50"), 2, LocalDate.of(2026, 11, 1), OrderStatus.PAID),
@@ -193,7 +193,7 @@ class ExcelBeanAssemblerTest {
 
 	/**
 	 * Feature: Java 21 Record 宣告式匯出與匯入 (Clean Architecture 調度流程 - Apache POI 引擎)
-	 * Scenario: 透過 ExcelExportApplicationService.exportBeans 匯出 Record 清單，並透過 ExcelImportApplicationService.importBeans 還原為不可變 Record
+	 * Scenario: 透過 ExcelCommandService.exportBeans 匯出 Record 清單，並透過 ExcelQueryService.importBeans 還原為不可變 Record
 	 * Given: 建立包含 2 筆商品之 ProductRecordModel 清單
 	 * When: Application Service 調度 PoiSxssfWriterAdapter 產製 byte[] 並調度 PoiSaxReaderAdapter 解析
 	 * Then: 成功還原 2 筆 Record 實例，各欄位數值與格式化字串還原正確
@@ -202,8 +202,8 @@ class ExcelBeanAssemblerTest {
 	@DisplayName("情境：Apache POI 引擎下 Java 21 Record 宣告式匯出與匯入 (經由 ApplicationService 調度)")
 	void shouldWriteAndReadRecordsWithApachePoiSuccessfully() {
 		// Given
-		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new PoiSxssfWriterAdapter());
-		ExcelImportApplicationService importService = new ExcelImportApplicationService(new PoiSaxReaderAdapter());
+		ExcelCommandService exportService = new ExcelCommandService(new PoiSxssfWriterAdapter());
+		ExcelQueryService importService = new ExcelQueryService(new PoiSaxReaderAdapter());
 
 		LocalDateTime now = LocalDateTime.of(2026, 11, 1, 10, 30, 0);
 		List<ProductRecordModel> products = List.of(
@@ -243,7 +243,7 @@ class ExcelBeanAssemblerTest {
 	@DisplayName("情境：Map 結構寫入與 getDataRowsAsMaps / Assembler 轉 Bean 雙軌相容驗證")
 	void shouldRetainMapMethodsAndSupportBidirectionalConversion() {
 		// Given
-		ExcelExportApplicationService exportService = new ExcelExportApplicationService(new FastExcelWriterAdapter());
+		ExcelCommandService exportService = new ExcelCommandService(new FastExcelWriterAdapter());
 		ExcelReaderPort reader = new FastExcelReaderAdapter();
 
 		List<String> headers = List.of("訂單編號", "訂購人", "購買金額", "數量", "下單日期", "訂單狀態");
