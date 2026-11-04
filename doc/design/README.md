@@ -13,46 +13,60 @@
 ```mermaid
 flowchart TD
     subgraph Presentation ["Presentation Layer (表現層 - Inbound Adapters)"]
-        Controller["ExcelController / REST API"]
+        Controller["ExcelController / BomController / REST API"]
+        TaskController["ExcelTaskController (/tasks/{id}/progress, /download)"]
         ResourceIn["Request Resource (V + N + Resource)"]
         ResourceOut["Response Resource (N + Ved + Resource)"]
         PresAssembler["ResourceAssembler (ACL 防腐層)"]
     end
 
     subgraph Application ["Application Layer (應用層 - CQRS & 業務合約)"]
-        InPort["Inbound Ports (UseCase)<br/>• ExportExcelUseCase<br/>• ImportExcelUseCase"]
+        InPort["Inbound Ports (UseCase)<br/>• ExportExcelUseCase / ImportExcelUseCase<br/>• GetExcelTaskUseCase / SubmitAsyncUseCase"]
         AppService["ApplicationService / CommandService / QueryService"]
-        AppAssembler["DtoAssembler / ViewAssembler"]
-        Command["Command (V + N + Command)<br/>• WriteExcelCommand<br/>• WriteStreamExcelCommand"]
-        Query["Query (V + N + Query)<br/>• ReadExcelQuery"]
-        DTO["DTO (N + Gotten/Searched + Result)<br/>• ExcelGottenResult<br/>• ExcelSheetGottenResult"]
+        AppAssembler["ExcelBeanAssembler (雙向 Record/POJO 映射)"]
+        SharedModels["Shared Models (Java 21 Records)<br/>• Command (WriteExcelCommand, ExportBomCommand...)<br/>• Query (ReadExcelQuery, GetExcelTaskQuery)<br/>• DTO (ExcelGottenResult, ExcelTaskGottenResult)"]
         OutPortWriter["ExcelWriterPort (Outbound Port)"]
         OutPortReader["ExcelReaderPort (Outbound Port)"]
+        OutPortTask["ExcelTaskRepositoryPort (Outbound Port)"]
     end
 
     subgraph Domain ["Domain Layer (核心領域層 - Pure Java / 零外層依賴)"]
-        Aggregate["Excel Aggregate Root"]
-        Entity["SheetEntity / CellEntity"]
-        VO["ExcelId / FileStatus / CellCoordinate"]
-        Event["Domain Events (N + Ved + Event)"]
-        DomainException["ExcelValidationException"]
+        Aggregate["Material / Bom Aggregate Root"]
+        Entity["BomItem Entity"]
+        VO["MaterialCode / BomVersion / Quantity"]
     end
 
     subgraph Infrastructure ["Infrastructure Layer (基礎設施層 - Outbound Adapters)"]
-        WriterAdapter["FastExcelWriterAdapter<br/>(org.dhatim:fastexcel)"]
-        ReaderAdapter["FastExcelReaderAdapter<br/>(org.dhatim:fastexcel-reader)"]
-        Persistence["persistence/excel/<br/>• ExcelJpaEntity<br/>• ExcelJpaRepository"]
-        Messaging["messaging/<br/>• ExcelMqProducer"]
+        subgraph Adapters ["I/O Adapters"]
+            WriterAdapter["FastExcel / POI Writer Adapter (@TrackExcelTask)"]
+            ReaderAdapter["FastExcel / POI Reader Adapter"]
+            TaskRepoAdapter["ExcelTaskRepositoryAdapter (Propagation.REQUIRES_NEW)"]
+        end
+        subgraph AOP ["AOP 橫切基礎設施"]
+            Aspect["ExcelTaskTrackingAspect (SpEL / 執行緒池委派)"]
+            Context["ExcelTaskContextHolder (ThreadLocal 進度累計)"]
+        end
+        subgraph Persistence ["Persistence Module (Spring Data JPA)"]
+            TaskJpa["ExcelTaskJpaEntity / ExcelTaskJpaRepository"]
+        end
     end
 
     Controller --> PresAssembler
+    TaskController --> PresAssembler
     PresAssembler --> InPort
     InPort --> AppService
     AppService --> Aggregate
+    AppService --> AppAssembler
     AppService --> OutPortWriter
     AppService --> OutPortReader
+    AppService --> OutPortTask
     OutPortWriter -.-> WriterAdapter
     OutPortReader -.-> ReaderAdapter
+    OutPortTask -.-> TaskRepoAdapter
+    TaskRepoAdapter --> TaskJpa
+    Aspect -. 攔截 .-> WriterAdapter
+    Aspect --> Context
+    Aspect --> OutPortTask
 ```
 
 ---
@@ -160,7 +174,7 @@ flowchart TD
 
 ---
 
-### 四、 非同步長任務與進度追蹤 (Async Import/Export Task)
+### 四、 非同步長任務與進度追蹤 (Async Import/Export Task) [已完成實作 ✅]
 
 * **架構定位與設計決策**：
   * **模組定位（Module Positioning）**：本專案定位為**通用技術功能模組 (Reusable Capability Module / Starter)**，而非具備獨立核心商業領域邊界的微服務 (Microservice)。
@@ -224,21 +238,24 @@ flowchart TD
 gantt
     title Excel 模組演進里程碑
     dateFormat  YYYY-MM-DD
-    section 基礎建設與串流模組 (Done)
+    section 基礎建設與串流模組 (已完成)
     IDE 跨平臺相容性設定           :done, 2026-10-31, 1d
     DDD 目錄垂直切片與規範落地       :done, 2026-10-31, 1d
     FastExcel Writer Port-Adapter  :done, 2026-10-31, 1d
     FastExcel Reader Port-Adapter  :done, 2026-10-31, 1d
     大數據分塊串流處理 (Streaming)  :done, 2026-10-31, 1d
     
-    section 階段一：實用業務擴充
-    宣告式 @ExcelColumn 註解與 Bean 映射 :done, 2026-11-01, 1d
-    匯入檢核與「錯誤回標檔」生成機制       :active, 2026-11-04, 3d
+    section 階段一：宣告式與 Record 重構 (已完成)
+    宣告式 @ExcelColumn 註解與 Bean 映射 :done, 2026-11-01, 2d
+    應用層 Command / DTO 全面 Record 重構 :done, 2026-11-04, 1d
     
-    section 階段二：非同步與長任務
-    基礎設施層非同步長任務實體與進度追蹤 :2026-11-07, 4d
+    section 階段二：非同步長任務與進度追蹤 (已完成)
+    宣告式 @TrackExcelTask 註解與 AOP 切面 :done, 2026-11-03, 2d
+    REQUIRES_NEW 獨立事務長任務持久化與 Context :done, 2026-11-04, 1d
+    ExcelTaskController 輪詢與產物下載 API :done, 2026-11-04, 1d
     
     section 階段三：安全性與模組協同
+    匯入檢核與「錯誤回標檔」生成機制       :active, 2026-11-05, 3d
     工作表密碼保護與公式合併樣式強化       :2026-11-14, 2d
     與 file-transmission 遠端傳輸串接   :2026-11-16, 2d
 ```

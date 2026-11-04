@@ -22,6 +22,10 @@ tags:
     description: 提供物料清單 (BOM) Excel 檔案動態產生、多階展開與下載 REST API
   - name: Excel 檔案處理介面
     description: 提供 Excel 檔案標準批次匯入/匯出與百萬級大數據串流讀寫 REST API
+  - name: Excel 宣告式物件映射介面
+    description: 提供基於 @ExcelSheet 與 @ExcelColumn 註解之 JavaBean 與 Record 宣告式匯入與匯出 REST API
+  - name: Excel 長任務監控介面
+    description: 提供非同步大數據長任務生命週期進度查詢與二進位產出檔案下載 REST API
 
 paths:
   /api/v1/bom/excel:
@@ -385,6 +389,232 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExcelStreamImportedResource'
 
+  /api/v1/excel/tasks/{taskId}/progress:
+    get:
+      tags:
+        - Excel 長任務監控介面
+      summary: 查詢 Excel 任務進度與狀態 (GET)
+      description: |
+        供前端輪詢當前任務狀態、總列數、已處理列數、完成百分比、下載連結與錯誤訊息。
+      operationId: getExcelTaskProgress
+      parameters:
+        - name: taskId
+          in: path
+          description: 任務唯一識別碼 (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: 成功取得任務進度資訊
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelTaskRetrievedResource'
+        '404':
+          description: 查無指定之任務記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/tasks/{taskId}/download:
+    get:
+      tags:
+        - Excel 長任務監控介面
+      summary: 下載已完成任務之 Excel 產出檔案 (GET)
+      description: |
+        任務狀態為 COMPLETED 且檔案產出後，可經由此端點下載產製之二進位 Excel 檔案。
+      operationId: downloadExcelTaskFile
+      parameters:
+        - name: taskId
+          in: path
+          description: 任務唯一識別碼 (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: 成功下載產出之 Excel 活頁簿
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 任務尚未處理完成，暫時無法下載
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+        '404':
+          description: 查無指定之任務或檔案實體不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/bean-mapping/orders/export:
+    get:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 快速下載訂單展示 Excel (JavaBean) (GET)
+      description: |
+        自動載入 3 筆預設展示訂單資料，透過 ExcelBeanAssembler 與 @ExcelSheet / @ExcelColumn 宣告式產製格式化 Excel 檔案。
+      operationId: exportSampleOrders
+      responses:
+        '200':
+          description: 成功產製訂單 Excel 檔案並提供下載
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+    post:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 自訂 JSON 宣告式匯出訂單 Excel (JavaBean) (POST)
+      description: |
+        接收自訂訂單清單 JSON 資料，依據 OrderModel 註解定義匯出格式化 Excel 活頁簿。
+      operationId: exportOrders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportOrderResource'
+      responses:
+        '200':
+          description: 成功產製並下載訂單 Excel 檔案
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/bean-mapping/orders/stream-export:
+    post:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 大數據串流匯出訂單 Excel (JavaBean) (POST)
+      description: |
+        接收訂單清單，以串流模式直接向 Servlet Response 沖刷二進位資料，保持極低記憶體佔用。
+      operationId: streamExportOrders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportOrderResource'
+      responses:
+        '200':
+          description: 串流匯出成功
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/bean-mapping/orders/import:
+    post:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 上傳 Excel 並宣告式解析為 OrderModel 清單 (POST Multipart)
+      description: |
+        透過 Multipart 上傳 Excel 檔案，底層透過反射與註解自動綁定並轉譯為 OrderModel JavaBean 清單。
+      operationId: importOrders
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲解析之訂單 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 成功解析 Excel 資料為 OrderModel 物件清單
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderImportedResource'
+
+  /api/v1/excel/bean-mapping/products/export:
+    get:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 快速下載商品主檔展示 Excel (Java 21 Record) (GET)
+      description: |
+        自動載入商品主檔展示資料，透過 Java 21 原生不可變 Record 與宣告式註解匯出 Excel。
+      operationId: exportSampleProducts
+      responses:
+        '200':
+          description: 成功產製商品主檔 Excel 檔案
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+    post:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 自訂 JSON 宣告式匯出商品主檔 (Java 21 Record) (POST)
+      description: |
+        接收自訂商品資料清單，依據 ProductRecordModel 宣告式註解定義匯出格式化 Excel。
+      operationId: exportProducts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportProductResource'
+      responses:
+        '200':
+          description: 成功產製並下載商品主檔 Excel
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/bean-mapping/products/import:
+    post:
+      tags:
+        - Excel 宣告式物件映射介面
+      summary: 上傳 Excel 並宣告式解析為 ProductRecordModel 清單 (POST Multipart)
+      description: |
+        透過 Multipart 上傳 Excel 檔案，自動依據規範建構子反射組裝不可變 Java 21 Record 清單。
+      operationId: importProducts
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲解析之商品 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 成功解析 Excel 資料為 Record 物件清單
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImportedResource'
+
 components:
   schemas:
     ExportBomResource:
@@ -552,4 +782,187 @@ components:
         message:
           type: string
           example: 查無指定料號之物料主檔
+
+    ExcelTaskRetrievedResource:
+      type: object
+      description: Excel 長任務進度查詢回應載體
+      properties:
+        taskId:
+          type: string
+          format: uuid
+          example: e0b9685a-0638-4e89-be21-d0554b50d998
+        taskType:
+          type: string
+          enum: [IMPORT, EXPORT]
+          example: EXPORT
+        taskStatus:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+          example: PROCESSING
+        totalRows:
+          type: integer
+          format: int64
+          example: 10000
+        processedRows:
+          type: integer
+          format: int64
+          example: 4500
+        progressPercentage:
+          type: number
+          format: double
+          example: 45.0
+        fileName:
+          type: string
+          example: 使用者名冊.xlsx
+        fileUrl:
+          type: string
+          example: /api/v1/excel/tasks/e0b9685a-0638-4e89-be21-d0554b50d998/download
+        errorMessage:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-04T10:00:00"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-11-04T10:00:30"
+
+    ExportOrderResource:
+      type: object
+      description: 訂單匯出請求資源載體
+      properties:
+        sheetName:
+          type: string
+          example: 11月份訂單清單
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemResource'
+
+    OrderItemResource:
+      type: object
+      description: 單筆訂單請求資料項
+      properties:
+        orderNo:
+          type: string
+          example: ORD-2026-001
+        customerName:
+          type: string
+          example: 王小明
+        amount:
+          type: number
+          example: 12500.50
+        quantity:
+          type: integer
+          example: 2
+        orderDate:
+          type: string
+          format: date
+          example: "2026-11-01"
+        status:
+          type: string
+          example: PAID
+
+    OrderImportedResource:
+      type: object
+      description: 訂單匯入解析完成回應結構
+      properties:
+        totalCount:
+          type: integer
+          example: 3
+        sheetName:
+          type: string
+          example: 訂單匯入清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderRetrievedResource'
+
+    OrderRetrievedResource:
+      type: object
+      description: 已解析訂單項目
+      properties:
+        orderNo:
+          type: string
+          example: ORD-2026-001
+        customerName:
+          type: string
+          example: 王小明
+        amount:
+          type: number
+          example: 12500.50
+        quantity:
+          type: integer
+          example: 2
+        orderDate:
+          type: string
+          format: date
+          example: "2026-11-01"
+        status:
+          type: string
+          example: PAID
+
+    ExportProductResource:
+      type: object
+      description: 商品匯出請求資源載體
+      properties:
+        sheetName:
+          type: string
+          example: 熱銷商品主檔
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductItemResource'
+
+    ProductItemResource:
+      type: object
+      description: 單筆商品請求資料項
+      properties:
+        productCode:
+          type: string
+          example: PROD-001
+        productName:
+          type: string
+          example: 4K 專業航拍無人機
+        price:
+          type: number
+          example: 35000.00
+        onSale:
+          type: boolean
+          example: true
+
+    ProductImportedResource:
+      type: object
+      description: 商品匯入解析完成回應結構
+      properties:
+        totalCount:
+          type: integer
+          example: 2
+        sheetName:
+          type: string
+          example: 商品主檔清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductRetrievedResource'
+
+    ProductRetrievedResource:
+      type: object
+      description: 已解析商品項目
+      properties:
+        productCode:
+          type: string
+          example: PROD-001
+        productName:
+          type: string
+          example: 4K 專業航拍無人機
+        price:
+          type: number
+          example: 35000.00
+        onSale:
+          type: boolean
+          example: true
 
