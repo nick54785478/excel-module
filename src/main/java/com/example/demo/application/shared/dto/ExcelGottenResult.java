@@ -6,21 +6,28 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Excel 活頁簿讀取結果物件 (Excel Gotten Result)
+ * Excel 活頁簿讀取結果物件 (Excel Gotten Result DTO)
  * <p>
- * 遵循 {@code N + Gotten/Searched + Result} 命名規範 (3-6 規範)，作為純資料載體封裝整個 Excel 檔案各工作表資料。
- * 內部禁止寫入 {@code fromDomain} 等領域轉換邏輯。
+ * 遵循 AGENTS.md 3-6 DTO 命名規範 ({@code N + Gotten/Searched + Result})，採用 Java Record 作為應用層不可變純資料載體。
+ * 封裝整份 Excel 檔案內所有工作表的讀取結果，嚴禁於內部實作領域轉換邏輯。
+ *
+ * @param sheets 工作表讀取結果清單 (不可變清單)
  */
-public class ExcelGottenResult {
+public record ExcelGottenResult(
+		List<ExcelSheetGottenResult> sheets
+) {
 
-	private final List<ExcelSheetGottenResult> sheets;
-
-	public ExcelGottenResult(List<ExcelSheetGottenResult> sheets) {
-		this.sheets = sheets != null ? Collections.unmodifiableList(new ArrayList<>(sheets)) : Collections.emptyList();
+	/**
+	 * 緊湊建構子 (Compact Constructor)，執行集合不可變安全防禦
+	 */
+	public ExcelGottenResult {
+		sheets = sheets != null ? Collections.unmodifiableList(new ArrayList<>(sheets)) : Collections.emptyList();
 	}
 
+	// ==================== 向後相容與便利查詢方法 ====================
+
 	public List<ExcelSheetGottenResult> getSheets() {
-		return sheets;
+		return sheets();
 	}
 
 	public int getSheetCount() {
@@ -64,7 +71,7 @@ public class ExcelGottenResult {
 			return Optional.empty();
 		}
 		return sheets.stream()
-				.filter(s -> s.getSheetName().equalsIgnoreCase(sheetName))
+				.filter(s -> s.sheetName().equalsIgnoreCase(sheetName))
 				.findFirst();
 	}
 }

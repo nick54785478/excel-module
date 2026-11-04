@@ -39,11 +39,20 @@ public record StreamExportExcelResource(
 
 		@Schema(description = "欲生成之串流資料列數", example = "10000", requiredMode = Schema.RequiredMode.REQUIRED)
 		@Min(value = 1, message = "串流生成筆數 (rowCount) 至少需為 1 筆")
-		int rowCount,
+		Integer rowCount,
 
 		@Schema(description = "批次沖刷筆數 (Flush Interval，每滿指定筆數即 Flush 至客戶端串流)", example = "500", requiredMode = Schema.RequiredMode.REQUIRED)
 		@NotNull(message = "批次沖刷筆數 (batchFlushSize) 不能為 null")
 		@Min(value = 1, message = "批次沖刷筆數 (batchFlushSize) 必須大於等於 1")
 		Integer batchFlushSize
 ) {
+
+	public StreamExportExcelResource {
+		if (rowCount == null) {
+			rowCount = 1000;
+		}
+		if (batchFlushSize == null) {
+			batchFlushSize = 500;
+		}
+	}
 }

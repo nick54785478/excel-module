@@ -176,12 +176,18 @@ flowchart TD
      * **Spring Data JPA 儲存庫**：`infrastructure/persistence/task/repository/ExcelTaskJpaRepository.java`
      * **技術適配器 (Outbound Adapter)**：`infrastructure/adapter/ExcelTaskRepositoryAdapter.java`（實作應用層 Outbound Port，嚴格轉換領域/應用 DTO，禁止對外洩漏 JPA Entity）。
   2. **Application Layer (應用層 - 技術合約與進度回呼)**：
-     * **Outbound Port**：`application/port/out/ExcelTaskPort.java`（定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById` 等純資料合約）。
+     * **Outbound Port**：`application/port/out/ExcelTaskRepositoryPort.java`（定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById` 等純資料合約）。
      * **串流生命週期聯動**：結合現有 `ExcelStreamListener`，於串流讀寫的 `onChunk` / `onRow` 時即時回呼觸發進度更新，達成極低耦合度。
   3. **非同步執行流程 (Asynchronous Flow)**：
      * **接收請求**：Controller 接收匯出/匯入請求後，調用應用層 UseCase，建立初始狀態並立即回傳 `taskId` 予前端（HTTP 202 Accepted）。
      * **背景執行**：由背景執行緒池（`@Async` 或 Spring `ThreadPoolTaskExecutor`）進行實際的大數據串流讀寫。
-     * **進度推播與查詢**：背景執行期間透過 `ExcelTaskPort` 持續更新 `ExcelTaskJpaEntity`，表現層提供 `GET /api/v1/excel/tasks/{taskId}/progress` 供前端輪詢（Polling），或透過 SSE / WebSocket 即時推播進度百分比（如「已完成 45% (4,500 / 10,000 列)」）。
+     * **進度推播與查詢**：背景執行期間透過 `ExcelTaskRepositoryPort` 持續更新 `ExcelTaskJpaEntity`，表現層提供 `GET /api/v1/excel/tasks/{taskId}/progress` 供前端輪詢（Polling），或透過 SSE / WebSocket 即時推播進度百分比（如「已完成 45% (4,500 / 10,000 列)」）。
+   4. **宣告式註解驅動長任務追蹤 (Annotation-Driven Task Tracking)**：
+     * **設計指南專文**：詳細設計哲學、時序圖與完整使用範例請參閱獨立設計文件 [`annotation-driven-task-tracking.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/annotation-driven-task-tracking.md)。
+     * **宣告式註解**：`application/annotation/TrackExcelTask.java`，支援定義任務類型 (`IMPORT`/`EXPORT`)、SpEL 表達式動態檔名解析與非同步旗標 (`async = true/false`)。
+     * **切面生命週期攔截**：`infrastructure/aop/ExcelTaskTrackingAspect.java`，自動完成任務持久化建檔、處理中標記、ThreadLocal 上下文綁定、進度同步、正常結束與異常兜底。
+     * **上下文進度傳遞**：`application/shared/context/ExcelTaskContextHolder.java`，提供串流過程中的進度回報，若當前執行緒已存在作用中任務上下文則無縫沿用，防止重複建檔。
+     * **Adapter 整合**：於 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/FastExcelWriterAdapter.java) 與 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/PoiSxssfWriterAdapter.java) 的串流匯出方法 (`writeStream`) 標註 `@TrackExcelTask`，於巨量資料串流輸出與分批 flush 時自動追蹤與回報非同步長任務狀態。
 
 ---
 

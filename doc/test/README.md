@@ -9,6 +9,7 @@
 | 檔案名稱 | 格式 | 說明與用途 |
 | :--- | :---: | :--- |
 | [`declarative_bean_mapping_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/declarative_bean_mapping_guide.md) | Markdown | **維度一「宣告式物件映射 (Declarative Bean Mapping)」完整測試與使用指引** |
+| [`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md) | Markdown | **宣告式長任務監控模組 (@TrackExcelTask) 觸發、進度輪詢與下載完整測試指引** |
 | [`excel_bom_module_postman_collection.json`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/excel_bom_module_postman_collection.json) | JSON (v2.1) | 完整 Postman 測試集合，內建自動斷言腳本（Status Code、Header、檔名、錯誤結構等） |
 | [`openapi_specification.yaml`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/openapi_specification.yaml) | YAML (v3.0.3) | OpenAPI 3.0 標準規範檔，可直接匯入 Swagger Editor、Postman 或 APIDog |
 | [`README.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/README.md) | Markdown | 測試指引與測試矩陣操作文件 |
@@ -51,6 +52,12 @@
   5. `GET 快速下載商品主檔範例 Excel (Java 21 Record)`：驗證 Java 21 Record 宣告式匯出。
   6. `POST 自訂 JSON 匯出商品主檔 (Java 21 Record)`：驗證 Record 批次資料匯出。
   7. `POST 上傳 Excel 並宣告式解析為 Record 清單`：驗證 Multipart 自動映射 Java 21 Record。
+* **`4. Excel 宣告式長任務監控模組 (Annotation-Driven Task Tracking)`**：
+  * 詳細指引參閱：[`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md)
+  1. `POST 結構化條件大數據串流下載 BOM (觸發長任務與 flushInterval)`：驗證 `@TrackExcelTask` 切面自動攔截、建檔並同步串流沖刷進度。
+  2. `GET 查詢 Excel 長任務進度與狀態 (/progress)`：驗證任務執行階段即時輪詢 (`PENDING` $\to$ `PROCESSING` $\to$ `COMPLETED`)、百分比與已處理列數。
+  3. `GET 下載已完成長任務之產出 Excel 檔案 (/download)`：驗證任務完成後二進位產物安全下載。
+  4. `GET 異常驗證 - 查詢不存在之任務 (404 Not Found)`：驗證查無任務時之全域錯誤回應。
 
 ### 4. 執行自動化測試 (Collection Runner)
 點選集合右側的 **`Run collection`**，可一鍵自動執行全部 11 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。

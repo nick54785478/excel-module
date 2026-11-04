@@ -7,26 +7,34 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Excel 工作表讀取結果物件 (Excel Sheet Gotten Result)
+ * Excel 工作表讀取結果物件 (Excel Sheet Gotten Result DTO)
  * <p>
- * 遵循 {@code N + Gotten/Searched + Result} 命名規範 (3-6 規範)，作為純資料載體封裝單一工作表解析之資料。
- * 內部禁止寫入 {@code fromDomain} 等領域轉換邏輯。
+ * 遵循 AGENTS.md 3-6 DTO 命名規範 ({@code N + Gotten/Searched + Result})，採用 Java Record 作為應用層不可變純資料載體。
+ * 封裝單一工作表之索引、名稱、標題欄位、原始物件列與純文字資料列。
+ * 內部嚴格遵守單一職責，禁止在 DTO 內部寫入領域轉換邏輯。
+ *
+ * @param sheetIndex 工作表索引 (0-based)
+ * @param sheetName  工作表名稱
+ * @param headers    標題欄位清單 (不可變清單)
+ * @param rows       二維儲存格物件資料列 (不可變清單)
+ * @param textRows   二維純文字格式化資料列 (不可變清單)
  */
-public class ExcelSheetGottenResult {
+public record ExcelSheetGottenResult(
+		int sheetIndex,
+		String sheetName,
+		List<String> headers,
+		List<List<Object>> rows,
+		List<List<String>> textRows
+) {
 
-	private final int sheetIndex;
-	private final String sheetName;
-	private final List<String> headers;
-	private final List<List<Object>> rows;
-	private final List<List<String>> textRows;
-
-	public ExcelSheetGottenResult(int sheetIndex, String sheetName, List<String> headers,
-			List<List<Object>> rows, List<List<String>> textRows) {
-		this.sheetIndex = sheetIndex;
-		this.sheetName = sheetName != null ? sheetName : "Sheet" + sheetIndex;
-		this.headers = headers != null ? Collections.unmodifiableList(new ArrayList<>(headers)) : Collections.emptyList();
-		this.rows = rows != null ? Collections.unmodifiableList(new ArrayList<>(rows)) : Collections.emptyList();
-		this.textRows = textRows != null ? Collections.unmodifiableList(new ArrayList<>(textRows)) : Collections.emptyList();
+	/**
+	 * 緊湊建構子 (Compact Constructor)，執行名稱預設補正與所有巢狀集合不可變防禦
+	 */
+	public ExcelSheetGottenResult {
+		sheetName = sheetName != null && !sheetName.isBlank() ? sheetName : "Sheet" + sheetIndex;
+		headers = headers != null ? Collections.unmodifiableList(new ArrayList<>(headers)) : Collections.emptyList();
+		rows = rows != null ? Collections.unmodifiableList(new ArrayList<>(rows)) : Collections.emptyList();
+		textRows = textRows != null ? Collections.unmodifiableList(new ArrayList<>(textRows)) : Collections.emptyList();
 	}
 
 	/**
@@ -49,24 +57,26 @@ public class ExcelSheetGottenResult {
 		return new ExcelSheetGottenResult(sheetIndex, sheetName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 	}
 
+	// ==================== 向後相容別名方法 (Backward Compatible Accessors) ====================
+
 	public int getSheetIndex() {
-		return sheetIndex;
+		return sheetIndex();
 	}
 
 	public String getSheetName() {
-		return sheetName;
+		return sheetName();
 	}
 
 	public List<String> getHeaders() {
-		return headers;
+		return headers();
 	}
 
 	public List<List<Object>> getRows() {
-		return rows;
+		return rows();
 	}
 
 	public List<List<String>> getTextRows() {
-		return textRows;
+		return textRows();
 	}
 
 	public int getRowCount() {

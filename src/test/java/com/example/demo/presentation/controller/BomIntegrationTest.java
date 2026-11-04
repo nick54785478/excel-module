@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import com.example.demo.application.port.out.ExcelReaderPort;
+import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 
@@ -43,6 +44,12 @@ class BomIntegrationTest {
 
 	@Autowired
 	private ExcelReaderPort excelReaderPort;
+
+	@Autowired
+	private ExcelWriterPort excelWriterPort;
+
+	@Autowired
+	private com.example.demo.infrastructure.persistence.task.repository.ExcelTaskJpaRepository excelTaskJpaRepository;
 
 	private MockMvc mockMvc;
 
@@ -157,6 +164,9 @@ class BomIntegrationTest {
 		ExcelGottenResult gotten = excelReaderPort.read(excelBytes);
 		assertThat(gotten.getSheets()).hasSize(1);
 		assertThat(gotten.getSheets().get(0).getSheetName()).isEqualTo("單階BOM匯入清單");
+
+		// 驗證批次匯出亦成功觸發 @TrackExcelTask 並於 t_excel_task 建立記錄
+		assertThat(excelTaskJpaRepository.count()).isGreaterThan(0);
 	}
 
 	/**
@@ -200,6 +210,9 @@ class BomIntegrationTest {
 		assertThat(gotten.getSheets()).hasSize(3);
 		assertThat(gotten.getSheets().get(0).getSheetName()).isEqualTo("多階層BOM展開清單");
 		assertThat(gotten.getSheets().get(0).getRows()).isNotEmpty();
+
+		// 驗證 ExcelTaskTrackingAspect 成功攔截並於資料表 t_excel_task 建立持久化長任務記錄
+		assertThat(excelTaskJpaRepository.count()).isGreaterThan(0);
 	}
 
 	/**
@@ -238,5 +251,8 @@ class BomIntegrationTest {
 		assertThat(gotten.getSheets()).hasSize(2);
 		assertThat(gotten.getSheets().get(0).getSheetName()).isEqualTo("多階層BOM展開清單");
 		assertThat(gotten.getSheets().get(1).getSheetName()).isEqualTo("單階BOM匯入清單");
+
+		// 驗證結構化 POST 串流匯出成功觸發 @TrackExcelTask 並寫入 t_excel_task
+		assertThat(excelTaskJpaRepository.count()).isGreaterThan(0);
 	}
 }

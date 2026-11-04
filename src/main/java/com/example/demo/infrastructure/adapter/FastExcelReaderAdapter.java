@@ -18,6 +18,7 @@ import org.dhatim.fastexcel.reader.ReadableWorkbook;
 import org.dhatim.fastexcel.reader.Row;
 import org.dhatim.fastexcel.reader.Sheet;
 import com.example.demo.application.port.out.ExcelReaderPort;
+import com.example.demo.application.shared.context.ExcelTaskContextHolder;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.exception.ExcelReadException;
@@ -237,6 +238,9 @@ public class FastExcelReaderAdapter implements ExcelReaderPort {
 					chunkBuffer.add(rowMap);
 
 					if (chunkBuffer.size() >= chunkSize) {
+						if (ExcelTaskContextHolder.isActive()) {
+							ExcelTaskContextHolder.incrementProgress(chunkBuffer.size());
+						}
 						if (chunkConsumer != null) {
 							chunkConsumer.accept(Collections.unmodifiableList(new ArrayList<>(chunkBuffer)), lastContext);
 						}
@@ -260,6 +264,9 @@ public class FastExcelReaderAdapter implements ExcelReaderPort {
 			if (chunkBuffer != null && !chunkBuffer.isEmpty()) {
 				if (lastContext == null) {
 					lastContext = new ExcelRowContext(sheet.getIndex(), sheet.getName(), currentRowIndex, headers, false, totalDataRowsRead);
+				}
+				if (ExcelTaskContextHolder.isActive()) {
+					ExcelTaskContextHolder.incrementProgress(chunkBuffer.size());
 				}
 				if (chunkConsumer != null) {
 					chunkConsumer.accept(Collections.unmodifiableList(chunkBuffer), lastContext);

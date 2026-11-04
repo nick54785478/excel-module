@@ -8,65 +8,83 @@ import java.util.List;
 /**
  * Excel 串流工作表寫入命令 (Write Stream Sheet Command)
  * <p>
- * 遵循 {@code V + N + Command} 命名規範，封裝串流寫入單一工作表之迭代器或可迭代資料源。
- * 支援設定 {@code flushInterval}，每寫入指定筆數自動將記憶體快取刷入輸出流，達成常數級 O(1) 記憶體開銷。
+ * 遵循 AGENTS.md 3-4 命名規範 ({@code V + N + Command})，採用 Java Record 作為應用層不可變純資料載體。
+ * 封裝串流寫入單一工作表之可迭代資料來源 ({@link Iterable})、標題列、欄寬設定與串流沖刷間隔 (flushInterval)。
+ *
+ * @param sheetName       工作表名稱 (預設 Sheet1)
+ * @param headers         標題欄位清單 (不可變清單)
+ * @param rowIterable     可迭代之資料列來源 (支援延遲載入以達成 O(1) 記憶體空間)
+ * @param columnWidths    自訂欄寬清單 (不可變清單)
+ * @param freezeHeader    是否凍結標題列首行
+ * @param flushInterval   每寫入指定筆數自動 Flush 至底層串流 (預設 1000 筆)
+ * @param headerFillColor 標題列背景填色 HEX 碼
+ * @param headerFontColor 標題列字體顏色 HEX 碼
  */
-public class WriteStreamSheetCommand {
+public record WriteStreamSheetCommand(
+		String sheetName,
+		List<String> headers,
+		Iterable<List<Object>> rowIterable,
+		List<Double> columnWidths,
+		boolean freezeHeader,
+		int flushInterval,
+		String headerFillColor,
+		String headerFontColor
+) {
 
-	private final String sheetName;
-	private final List<String> headers;
-	private final Iterable<List<Object>> rowIterable;
-	private final List<Double> columnWidths;
-	private final boolean freezeHeader;
-	private final int flushInterval;
-	private final String headerFillColor;
-	private final String headerFontColor;
-
-	private WriteStreamSheetCommand(Builder builder) {
-		this.sheetName = builder.sheetName == null || builder.sheetName.isBlank() ? "Sheet1" : builder.sheetName;
-		this.headers = builder.headers == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.headers));
-		this.rowIterable = builder.rowIterable != null ? builder.rowIterable : Collections.emptyList();
-		this.columnWidths = builder.columnWidths == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(builder.columnWidths));
-		this.freezeHeader = builder.freezeHeader;
-		this.flushInterval = builder.flushInterval > 0 ? builder.flushInterval : 1000;
-		this.headerFillColor = builder.headerFillColor;
-		this.headerFontColor = builder.headerFontColor;
+	/**
+	 * 緊湊建構子 (Compact Constructor)，執行預設值填補與安全防禦
+	 */
+	public WriteStreamSheetCommand {
+		sheetName = sheetName == null || sheetName.isBlank() ? "Sheet1" : sheetName;
+		headers = headers == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(headers));
+		rowIterable = rowIterable != null ? rowIterable : Collections.emptyList();
+		columnWidths = columnWidths == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(columnWidths));
+		flushInterval = flushInterval > 0 ? flushInterval : 1000;
+		headerFillColor = headerFillColor == null || headerFillColor.isBlank() ? "F2F2F2" : headerFillColor;
+		headerFontColor = headerFontColor == null || headerFontColor.isBlank() ? "000000" : headerFontColor;
 	}
 
+	/**
+	 * 取得建造者物件
+	 *
+	 * @return 新建的 {@link Builder} 實例
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
 
+	// ==================== 向後相容別名方法 (Backward Compatible Accessors) ====================
+
 	public String getSheetName() {
-		return sheetName;
+		return sheetName();
 	}
 
 	public List<String> getHeaders() {
-		return headers;
+		return headers();
 	}
 
 	public Iterable<List<Object>> getRowIterable() {
-		return rowIterable;
+		return rowIterable();
 	}
 
 	public List<Double> getColumnWidths() {
-		return columnWidths;
+		return columnWidths();
 	}
 
 	public boolean isFreezeHeader() {
-		return freezeHeader;
+		return freezeHeader();
 	}
 
 	public int getFlushInterval() {
-		return flushInterval;
+		return flushInterval();
 	}
 
 	public String getHeaderFillColor() {
-		return headerFillColor;
+		return headerFillColor();
 	}
 
 	public String getHeaderFontColor() {
-		return headerFontColor;
+		return headerFontColor();
 	}
 
 	/**
@@ -88,7 +106,7 @@ public class WriteStreamSheetCommand {
 		}
 
 		public Builder headers(List<String> headers) {
-			this.headers = headers;
+			this.headers = headers != null ? headers : new ArrayList<>();
 			return this;
 		}
 
@@ -103,7 +121,7 @@ public class WriteStreamSheetCommand {
 		}
 
 		public Builder columnWidths(List<Double> columnWidths) {
-			this.columnWidths = columnWidths;
+			this.columnWidths = columnWidths != null ? columnWidths : new ArrayList<>();
 			return this;
 		}
 
@@ -128,7 +146,16 @@ public class WriteStreamSheetCommand {
 		}
 
 		public WriteStreamSheetCommand build() {
-			return new WriteStreamSheetCommand(this);
+			return new WriteStreamSheetCommand(
+					sheetName,
+					headers,
+					rowIterable,
+					columnWidths,
+					freezeHeader,
+					flushInterval,
+					headerFillColor,
+					headerFontColor
+			);
 		}
 	}
 }

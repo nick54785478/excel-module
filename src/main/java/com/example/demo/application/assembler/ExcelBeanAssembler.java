@@ -33,52 +33,99 @@ import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 /**
  * Excel 宣告式物件與純資料載體組裝器 (Excel Declarative Bean & Record Assembler)
  * <p>
- * 遵循 Clean Architecture 規範，座落於應用層組裝器套件 ({@code application/assembler/})，
- * 負責在純資料載體 (Excel 活頁簿命令、讀取結果、Map 集合) 與強型別 Java Model 物件 (POJO 或 Java 21 Record) 之間進行雙向轉換。
+ * <b>【架構定位與職責規範】</b><br>
+ * 本類別位於 Clean Architecture 與六角形架構 (Hexagonal Architecture) 的 <b>Application Assembler 層</b>
+ * ({@code application/assembler/})，遵循 {@code AGENTS.md} 規則 21 與 33~35 規範。<br>
+ * 嚴守單一職責原則 (Single Responsibility Principle, SRP)，作為防腐層 (Anti-Corruption Layer, ACL) 的重要基石，
+ * 負責將純資料載體 (Excel 活頁簿寫入命令 {@link WriteExcelCommand}、讀取結果 DTO {@link ExcelGottenResult}、資料字典 Map)
+ * 與強型別領域/應用層資料模型 (Java 21 Record 或標準 JavaBean POJO) 進行雙向安全轉換，
+ * 確保 DTO 與 Resource 保持純淨資料載體屬性，不侵入任何物件轉換與反射解析邏輯。
+ * </p>
  * <p>
- * 核心特性：
+ * <b>【核心特性與技術亮點】</b>
  * <ul>
- *   <li><b>原生支援 Java 21 Record</b>：自動探測標準建構子 (Canonical Constructor) 與 Record 元件，保證不可變模型的優雅綁定。</li>
- *   <li><b>高效能快取機制</b>：以 {@link ConcurrentHashMap} 快取 Model 類別的反射元數據與屬性存取器，消除原生反射的重複剖析開銷。</li>
- *   <li><b>多維度欄位匹配</b>：支援依照 {@link ExcelColumn} 指定的表頭名稱 (Header Name) 或索引值 (Column Index) 雙重定位。</li>
- *   <li><b>豐富型別安全轉換</b>：涵蓋常見之數值、浮點數、高精度 {@link BigDecimal}、日期時間 (Java 8 Time 與 legacy Date) 及枚舉 (Enum)。</li>
- *   <li><b>雙向相容 Map 結構</b>：完整支援 Bean $\leftrightarrow$ {@code Map<String, Object>} 互相轉換，滿足靈活與強型別雙軌需求。</li>
+ *   <li><b>原生支援 Java 21 Record</b>：
+ *       自動探測 Record 的標準規範建構子 (Canonical Constructor) 與 Record Components，
+ *       透過參數型別陣列精準實例化不可變 (Immutable) 資料物件，完美契合現代 Java 函式庫風格。</li>
+ *   <li><b>高效能元數據快取 (Concurrent Metadata Cache)</b>：
+ *       以類別 {@link Class} 為鍵，使用 {@link ConcurrentHashMap} 快取剖析後的 {@link ModelMetadata} 與存取器 (Method / Field)，
+ *       消除原生反射機制每次呼叫 {@code getDeclaredFields()} 或 {@code getAnnotation()} 的重複運算與性能瓶頸。</li>
+ *   <li><b>雙模智慧欄位比對 (Intelligent Column Matching)</b>：
+ *       匯入時採用雙向寬鬆比對機制：優先依據 {@link ExcelColumn} 指定的表頭名稱 (忽略大小寫與前後空白) 比對，
+ *       若表頭順序更換或未匹配，則自動回退至 {@code index} 絕對索引，保證高度的檔案相容性。</li>
+ *   <li><b>多維度型別安全轉換與清洗 (Robust Type Coercion)</b>：
+ *       內建支援整數、長整數、浮點數、高精度 {@link BigDecimal}、貨幣符號清洗 (自動剔除 {@code $}, {@code ¥}, 千分位逗號)、
+ *       多元日期時間解析 ({@link LocalDate}, {@link LocalDateTime}, {@link Date} 支援多種常見日期樣式)、
+ *       枚舉 ({@link Enum}) 名稱對應，以及布林值多語系寬鬆識別 ({@code true}, {@code 1}, {@code y}, {@code 是})。</li>
+ *   <li><b>自訂格式化與預設值防禦 (Formatting & Default Value Fallback)</b>：
+ *       支援 {@link ExcelColumn#format()} 搭配 {@link DecimalFormat} 或 {@link DateTimeFormatter} 於寫入時格式化；
+ *       當來源為 {@code null} 或空白時，自動套用 {@link ExcelColumn#defaultValue()} 或型別安全初值，杜絕空指標例外。</li>
+ *   <li><b>強型別與弱型別雙軌支援 (Map $\leftrightarrow$ Bean Interchangeability)</b>：
+ *       完整支援與 {@code List<Map<String, Object>>} 的互相轉換，並以 {@link LinkedHashMap} 嚴格保留欄位宣告順序。</li>
  * </ul>
+ * </p>
+ *
+ * @author Antigravity
+ * @see ExcelSheet
+ * @see ExcelColumn
+ * @see WriteExcelCommand
+ * @see WriteSheetCommand
+ * @see ExcelGottenResult
+ * @see ExcelSheetGottenResult
  */
 public final class ExcelBeanAssembler {
 
+	/**
+	 * 模型元數據全域執行緒安全快取 (類別 Class $\to$ 模型元數據 ModelMetadata)
+	 */
 	private static final Map<Class<?>, ModelMetadata> METADATA_CACHE = new ConcurrentHashMap<>();
+
+	/**
+	 * 預設標準日期時間格式化器 (yyyy-MM-dd HH:mm:ss)
+	 */
 	private static final DateTimeFormatter DEFAULT_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+	/**
+	 * 預設標準日期格式化器 (yyyy-MM-dd)
+	 */
 	private static final DateTimeFormatter DEFAULT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+	/**
+	 * 工具類別私有建構子，防止外部直接實例化
+	 */
 	private ExcelBeanAssembler() {
 		// 工具類禁止實例化
 	}
 
 	// =========================================================================
-	// 1. Model $\to$ WriteExcelCommand / WriteSheetCommand
+	// 1. Model $\to$ WriteExcelCommand / WriteSheetCommand (寫入命令轉換管線)
 	// =========================================================================
 
 	/**
-	 * 將強型別 Model 清單組裝為 Excel 活頁簿寫入命令 (單一工作表)。
+	 * 將強型別 Model 清單組裝為 Excel 活頁簿寫入命令 (預設包含單一工作表)。
+	 * <p>
+	 * 工作表名稱依據 {@link ExcelSheet} 註解解析；若未宣告則預設為模型類別名稱 (Simple Name)。
+	 * </p>
 	 *
 	 * @param <T>        模型型別
-	 * @param dataList   資料物件清單
-	 * @param modelClass 模型類別 Class (支援 POJO 與 Record)
-	 * @return Excel 寫入命令 {@link WriteExcelCommand}
+	 * @param dataList   資料物件清單 (可為空清單，此時僅產出表頭列)
+	 * @param modelClass 模型類別 Class (支援 POJO 與 Java 21 Record)
+	 * @return 封裝完整活頁簿資料之 Excel 寫入命令 {@link WriteExcelCommand}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> WriteExcelCommand toWriteCommand(List<T> dataList, Class<T> modelClass) {
 		return toWriteCommand(dataList, modelClass, null);
 	}
 
 	/**
-	 * 將強型別 Model 清單組裝為 Excel 活頁簿寫入命令 (可指定工作表名稱覆蓋註解預設)。
+	 * 將強型別 Model 清單組裝為 Excel 活頁簿寫入命令 (可指定工作表名稱覆蓋註解預設值)。
 	 *
 	 * @param <T>             模型型別
 	 * @param dataList        資料物件清單
-	 * @param modelClass      模型類別 Class
-	 * @param customSheetName 自訂工作表名稱 (若為 null 則套用註解或類別名稱)
-	 * @return Excel 寫入命令 {@link WriteExcelCommand}
+	 * @param modelClass      模型類別 Class (支援 POJO 與 Java 21 Record)
+	 * @param customSheetName 自訂工作表名稱 (若為 {@code null} 或空白，則自動套用 {@link ExcelSheet} 註解設定)
+	 * @return 封裝完整活頁簿資料之 Excel 寫入命令 {@link WriteExcelCommand}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> WriteExcelCommand toWriteCommand(List<T> dataList, Class<T> modelClass, String customSheetName) {
 		WriteSheetCommand sheetCommand = toSheetCommand(dataList, modelClass, customSheetName);
@@ -87,29 +134,44 @@ public final class ExcelBeanAssembler {
 
 	/**
 	 * 將強型別 Model 清單組裝為單一工作表寫入命令 {@link WriteSheetCommand}。
+	 * <p>
+	 * <b>轉換管線細節：</b>
+	 * <ol>
+	 *   <li>自快取取得或解析 {@code modelClass} 之 {@link ModelMetadata}。</li>
+	 *   <li>決定工作表名稱 (優先順序: 自訂名稱 $\to$ {@link ExcelSheet} 註解 $\to$ 類別名稱)。</li>
+	 *   <li>依據欄位設定產製標題列文字清單 (Headers)。</li>
+	 *   <li>遍歷每一筆實體物件，透過反射存取器抽取屬性值，並套用 {@link #formatValueForWrite(Object, ColumnMetadata)} 格式化。</li>
+	 *   <li>組裝並回傳不可變之 {@link WriteSheetCommand}。</li>
+	 * </ol>
+	 * </p>
 	 *
 	 * @param <T>             模型型別
 	 * @param dataList        資料物件清單
 	 * @param modelClass      模型類別 Class
-	 * @param customSheetName 自訂工作表名稱
-	 * @return 工作表寫入命令 {@link WriteSheetCommand}
+	 * @param customSheetName 自訂工作表名稱 (可為 {@code null})
+	 * @return 單一工作表寫入命令 {@link WriteSheetCommand}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> WriteSheetCommand toSheetCommand(List<T> dataList, Class<T> modelClass, String customSheetName) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
 		ModelMetadata metadata = getMetadata(modelClass);
 
+		// 1. 決定工作表名稱
 		String sheetName = (customSheetName != null && !customSheetName.isBlank())
 				? customSheetName.trim()
 				: metadata.sheetName();
 
+		// 2. 產製表頭名稱清單
 		List<String> headers = metadata.columns().stream()
 				.map(ColumnMetadata::columnName)
 				.toList();
 
+		// 3. 防禦空清單：若無資料則直接產出僅含表頭的工作表
 		if (dataList == null || dataList.isEmpty()) {
 			return WriteSheetCommand.of(sheetName, headers, Collections.emptyList());
 		}
 
+		// 4. 逐筆遍歷資料列並透過反射存取器抽取數值
 		List<List<Object>> rows = new ArrayList<>(dataList.size());
 		for (T item : dataList) {
 			if (item == null) {
@@ -129,10 +191,13 @@ public final class ExcelBeanAssembler {
 
 	/**
 	 * 將資料字典清單 (Map List) 與標題清單組裝為 Excel 活頁簿寫入命令 {@link WriteExcelCommand}。
+	 * <p>
+	 * 適用於無法預先定義 Java Model 或動態生成欄位之匯出場景。
+	 * </p>
 	 *
 	 * @param sheetName 工作表名稱
-	 * @param headers   標題列清單
-	 * @param mapRows   資料字典清單 (Key 為 Header 名稱)
+	 * @param headers   標題列清單 (作為對應 Map 欄位鍵值的基準)
+	 * @param mapRows   資料字典清單 (Key 需對應 headers 之文字)
 	 * @return Excel 寫入命令 {@link WriteExcelCommand}
 	 */
 	public static WriteExcelCommand toWriteCommandFromMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
@@ -143,9 +208,9 @@ public final class ExcelBeanAssembler {
 	/**
 	 * 將資料字典清單 (Map List) 與標題清單組裝為工作表寫入命令 {@link WriteSheetCommand}。
 	 *
-	 * @param sheetName 工作表名稱
+	 * @param sheetName 工作表名稱 (為空時預設為 "Sheet1")
 	 * @param headers   標題列清單
-	 * @param mapRows   資料字典清單 (Key 為 Header 名稱)
+	 * @param mapRows   資料字典清單
 	 * @return 工作表寫入命令 {@link WriteSheetCommand}
 	 */
 	public static WriteSheetCommand toSheetCommandFromMaps(String sheetName, List<String> headers, List<Map<String, Object>> mapRows) {
@@ -167,16 +232,17 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 2. ExcelGottenResult / ExcelSheetGottenResult $\to$ List<T>
+	// 2. ExcelGottenResult / ExcelSheetGottenResult $\to$ List<T> (讀取結果解析管線)
 	// =========================================================================
 
 	/**
 	 * 將整份 Excel 讀取結果的第一個工作表解析並組裝為強型別 Model 清單。
 	 *
 	 * @param <T>        目標模型型別
-	 * @param result     Excel 讀取結果物件
-	 * @param modelClass 目標模型類別 Class
-	 * @return 解析後之 Model 物件清單
+	 * @param result     Excel 讀取結果 DTO 物件 (若為 {@code null} 或無工作表則回傳空清單)
+	 * @param modelClass 目標模型類別 Class (支援 POJO 與 Record)
+	 * @return 解析後之不可變 Model 物件清單
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> List<T> toBeanList(ExcelGottenResult result, Class<T> modelClass) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
@@ -188,11 +254,21 @@ public final class ExcelBeanAssembler {
 
 	/**
 	 * 將特定工作表讀取結果解析並組裝為強型別 Model 清單。
+	 * <p>
+	 * <b>解析管線細節：</b>
+	 * <ol>
+	 *   <li>提取工作表讀取結果的標題 (Headers) 與原始資料列 (Rows)。</li>
+	 *   <li>調用 {@link #resolveColumnIndices(ModelMetadata, List)} 計算模型屬性與 Excel 表頭位置的映射關係。</li>
+	 *   <li>針對每一筆資料列調用 {@link #instantiateModel(ModelMetadata, int[], List, Class)} 實例化強型別物件。</li>
+	 *   <li>自動套用數值清洗、字串轉型、日期時間與枚舉解析。</li>
+	 * </ol>
+	 * </p>
 	 *
 	 * @param <T>         目標模型型別
-	 * @param sheetResult 工作表讀取結果物件
+	 * @param sheetResult 工作表讀取結果 DTO 物件
 	 * @param modelClass  目標模型類別 Class
-	 * @return 解析後之 Model 物件清單
+	 * @return 解析後之不可變 Model 物件清單
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> List<T> toBeanList(ExcelSheetGottenResult sheetResult, Class<T> modelClass) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
@@ -201,8 +277,8 @@ public final class ExcelBeanAssembler {
 		}
 
 		ModelMetadata metadata = getMetadata(modelClass);
-		List<String> sheetHeaders = sheetResult.getHeaders();
-		List<List<Object>> dataRows = sheetResult.getRows();
+		List<String> sheetHeaders = sheetResult.headers();
+		List<List<Object>> dataRows = sheetResult.rows();
 
 		// 建立欄位位置映射索引表 (Column Index Mapping)
 		int[] colIndices = resolveColumnIndices(metadata, sheetHeaders);
@@ -222,16 +298,20 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 3. Map $\leftrightarrow$ Bean 雙向組裝支援 (保留並相容 Map 方法)
+	// 3. Map $\leftrightarrow$ Bean 雙向組裝支援 (資料字典與強型別互轉)
 	// =========================================================================
 
 	/**
 	 * 將以標題名稱為鍵的資料字典清單 (Map List) 轉換為強型別 Model 清單。
+	 * <p>
+	 * 支援從 Map 中依據表頭名稱 (Header Name) 或類別屬性名稱 (Field Name) 雙重匹配資料鍵。
+	 * </p>
 	 *
 	 * @param <T>        目標模型型別
 	 * @param mapList    資料字典清單 (Key: 標題欄位名, Value: 儲存格值)
 	 * @param modelClass 目標模型類別 Class
-	 * @return 強型別 Model 清單
+	 * @return 強型別 Model 清單 (不可變清單)
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> List<T> fromMaps(List<Map<String, Object>> mapList, Class<T> modelClass) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
@@ -256,11 +336,15 @@ public final class ExcelBeanAssembler {
 
 	/**
 	 * 將強型別 Model 清單轉換為以標題名稱為鍵的資料字典清單 (Map List)。
+	 * <p>
+	 * 內部使用 {@link LinkedHashMap}，確保產出的鍵值順序完全符合 Model 元數據之欄位排序宣告。
+	 * </p>
 	 *
 	 * @param <T>        模型型別
 	 * @param dataList   Model 物件清單
 	 * @param modelClass 模型類別 Class
-	 * @return 鍵值字典清單 (保留欄位順序之 LinkedHashMap)
+	 * @return 鍵值字典清單 (保留欄位排序之不可變 Map 清單)
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> List<Map<String, Object>> toMaps(List<T> dataList, Class<T> modelClass) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
@@ -285,15 +369,34 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 4. 核心反射與模型實例化引擎
+	// 4. 核心反射與模型實例化引擎 (Reflection & Instantiation Engine)
 	// =========================================================================
 
+	/**
+	 * 依據資料列與位置對照表實例化強型別 Model 物件。
+	 * <p>
+	 * <b>分流機制：</b>
+	 * <ul>
+	 *   <li><b>Java 21 Record</b>：將所有轉換後的欄位參數收集為 {@code Object[]} 陣列，調用標準建構子 (Canonical Constructor) 進行不可變實例化。</li>
+	 *   <li><b>標準 JavaBean</b>：調用公開無參建構子產生實體後，逐一透過 Field 或 Setter 注入轉換後的屬性值。</li>
+	 * </ul>
+	 * </p>
+	 *
+	 * @param <T>        模型型別
+	 * @param metadata   模型元數據
+	 * @param colIndices 欄位位置映射表
+	 * @param row        Excel 資料列
+	 * @param modelClass 模型類別 Class
+	 * @return 實例化完成之強型別物件
+	 * @throws IllegalArgumentException 若實例化失敗或型別不相容
+	 */
 	@SuppressWarnings("unchecked")
 	private static <T> T instantiateModel(ModelMetadata metadata, int[] colIndices, List<Object> row, Class<T> modelClass) {
 		try {
 			int colCount = metadata.columns().size();
 			Object[] convertedValues = new Object[colCount];
 
+			// 1. 逐一提取並安全轉換儲存格數值
 			for (int i = 0; i < colCount; i++) {
 				ColumnMetadata col = metadata.columns().get(i);
 				int targetIdx = colIndices[i];
@@ -301,6 +404,7 @@ public final class ExcelBeanAssembler {
 				convertedValues[i] = convertValue(rawVal, col);
 			}
 
+			// 2. 依據是否為 Java Record 進行實例化分流
 			if (metadata.isRecord()) {
 				// Java 21 Record：調用標準建構子 (Canonical Constructor)
 				return (T) metadata.canonicalConstructor().newInstance(convertedValues);
@@ -318,6 +422,16 @@ public final class ExcelBeanAssembler {
 		}
 	}
 
+	/**
+	 * 從單筆資料字典 Map 實例化強型別 Model 物件。
+	 *
+	 * @param <T>        模型型別
+	 * @param metadata   模型元數據
+	 * @param map        單筆資料 Map
+	 * @param modelClass 模型類別 Class
+	 * @return 實例化完成之強型別物件
+	 * @throws IllegalArgumentException 若實例化失敗
+	 */
 	@SuppressWarnings("unchecked")
 	private static <T> T instantiateFromMap(ModelMetadata metadata, Map<String, Object> map, Class<T> modelClass) {
 		try {
@@ -350,7 +464,19 @@ public final class ExcelBeanAssembler {
 	}
 
 	/**
-	 * 計算模型屬性與 Excel 表頭之映射索引。
+	 * 計算模型屬性與 Excel 表頭之映射索引 (Column Index Resolution)。
+	 * <p>
+	 * <b>比對策略：</b>
+	 * <ol>
+	 *   <li><b>名稱模糊比對 (優先)</b>：將模型中的 {@code columnName} 或 {@code fieldName} 與 Excel 實際表頭逐一比對 (忽略空白與大小寫)。</li>
+	 *   <li><b>絕對索引比對 (次優)</b>：若表頭比對未中且宣告了 {@link ExcelColumn#index()} (大於等於 0)，則套用該絕對索引。</li>
+	 *   <li><b>自然順序回退</b>：若完全無表頭，則依欄位自然宣告順序映射索引。</li>
+	 * </ol>
+	 * </p>
+	 *
+	 * @param metadata     模型元數據
+	 * @param sheetHeaders Excel 工作表實際表頭清單
+	 * @return 與 {@code metadata.columns()} 長度一致的整數陣列，內容為對應之 Excel 欄位索引 (未匹配則為 -1)
 	 */
 	private static int[] resolveColumnIndices(ModelMetadata metadata, List<String> sheetHeaders) {
 		int colCount = metadata.columns().size();
@@ -385,9 +511,20 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 5. 型別轉換與格式化處理
+	// 5. 型別轉換與格式化處理 (Type Coercion & Formatting)
 	// =========================================================================
 
+	/**
+	 * 匯出時格式化儲存格數值。
+	 * <p>
+	 * 支援日期時間樣式格式化 (如 {@code "yyyy-MM-dd"})、數值千分位或小數格式化 (如 {@code "#,##0.00"})、
+	 * 以及 Enum 名稱序列化。
+	 * </p>
+	 *
+	 * @param rawValue 原始屬性值
+	 * @param col      欄位元數據設定
+	 * @return 格式化後的文字或物件；若為空且有預設值則回傳預設值
+	 */
 	private static Object formatValueForWrite(Object rawValue, ColumnMetadata col) {
 		if (rawValue == null) {
 			return (col.defaultValue() != null && !col.defaultValue().isBlank()) ? col.defaultValue() : null;
@@ -419,10 +556,21 @@ public final class ExcelBeanAssembler {
 		return rawValue;
 	}
 
+	/**
+	 * 匯入時將 Excel 原始儲存格數值轉換為目標屬性型別。
+	 * <p>
+	 * 包含空值防禦、預設值套用與基本型別安全初值處理。
+	 * </p>
+	 *
+	 * @param rawVal 原始儲存格數值 (如 String, Double, Date)
+	 * @param col    目標欄位元數據
+	 * @return 轉換後之目標型別實體
+	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static Object convertValue(Object rawVal, ColumnMetadata col) {
 		Class<?> targetType = col.type();
 
+		// 1. 空值或空白字串防禦
 		if (rawVal == null || (rawVal instanceof String s && s.trim().isEmpty())) {
 			if (col.defaultValue() != null && !col.defaultValue().isBlank()) {
 				return parseStringToType(col.defaultValue().trim(), targetType, col.format());
@@ -433,14 +581,35 @@ public final class ExcelBeanAssembler {
 			return null;
 		}
 
+		// 2. 若型別已完全相符，直接返回
 		if (targetType.isInstance(rawVal)) {
 			return rawVal;
 		}
 
+		// 3. 轉為字串後調用智慧型別解析器
 		String strVal = String.valueOf(rawVal).trim();
 		return parseStringToType(strVal, targetType, col.format());
 	}
 
+	/**
+	 * 字串至強型別之核心解析器。
+	 * <p>
+	 * <b>支援轉型類型：</b>
+	 * <ul>
+	 *   <li><b>整數 / 浮點數</b>：{@link Integer}, {@link Long}, {@link Double}, {@link Float} (自動清除貨幣符號 {@code $}, {@code ¥} 與千分位逗號)。</li>
+	 *   <li><b>高精度數值</b>：{@link BigDecimal}, {@link BigInteger}。</li>
+	 *   <li><b>布林值</b>：寬鬆識別 {@code true}, {@code 1}, {@code y}, {@code yes}, {@code 是}。</li>
+	 *   <li><b>日期時間</b>：{@link LocalDate}, {@link LocalDateTime}, {@link Date}。</li>
+	 *   <li><b>枚舉</b>：{@link Enum} 依名稱匹配。</li>
+	 * </ul>
+	 * </p>
+	 *
+	 * @param str        待解析字串
+	 * @param targetType 目標型別 Class
+	 * @param format     自訂日期或數值格式樣式
+	 * @return 解析後之目標型別實例
+	 * @throws IllegalArgumentException 若無法解析為目標型別
+	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static Object parseStringToType(String str, Class<?> targetType, String format) {
 		if (String.class.equals(targetType)) {
@@ -496,6 +665,16 @@ public final class ExcelBeanAssembler {
 		return str;
 	}
 
+	/**
+	 * 解析 {@link LocalDate} 本地日期。
+	 * <p>
+	 * 支援自訂格式、標準橫線格式 (yyyy-MM-dd) 與斜線格式 (yyyy/MM/dd)。
+	 * </p>
+	 *
+	 * @param str    日期字串
+	 * @param format 自訂格式 (可為空)
+	 * @return 解析後之 {@link LocalDate}
+	 */
 	private static LocalDate parseLocalDate(String str, String format) {
 		if (format != null && !format.isBlank()) {
 			return LocalDate.parse(str, DateTimeFormatter.ofPattern(format.trim()));
@@ -509,6 +688,16 @@ public final class ExcelBeanAssembler {
 		return LocalDate.parse(str, DEFAULT_DATE_FORMATTER);
 	}
 
+	/**
+	 * 解析 {@link LocalDateTime} 本地日期時間。
+	 * <p>
+	 * 支援自訂格式、僅日期補齊至當天 00:00:00、ISO-8601 (包含 'T')、標準 (yyyy-MM-dd HH:mm:ss)。
+	 * </p>
+	 *
+	 * @param str    日期時間字串
+	 * @param format 自訂格式 (可為空)
+	 * @return 解析後之 {@link LocalDateTime}
+	 */
 	private static LocalDateTime parseLocalDateTime(String str, String format) {
 		if (format != null && !format.isBlank()) {
 			return LocalDateTime.parse(str, DateTimeFormatter.ofPattern(format.trim()));
@@ -525,6 +714,12 @@ public final class ExcelBeanAssembler {
 		return LocalDateTime.parse(str, DEFAULT_DATE_TIME_FORMATTER);
 	}
 
+	/**
+	 * 取得 Java 原生基本型別之預設安全初值。
+	 *
+	 * @param type 基本型別 Class
+	 * @return 預設初值 (如 int 回傳 0, boolean 回傳 false)
+	 */
 	private static Object getPrimitiveDefault(Class<?> type) {
 		if (type == int.class) return 0;
 		if (type == long.class) return 0L;
@@ -538,13 +733,35 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 6. 模型元數據剖析與快取
+	// 6. 模型元數據剖析與快取 (Metadata Parsing & Reflection Cache)
 	// =========================================================================
 
+	/**
+	 * 取得模型元數據 (若快取無記錄則自動剖析並快取)。
+	 *
+	 * @param modelClass 模型類別 Class
+	 * @return 已剖析完畢之 {@link ModelMetadata}
+	 */
 	private static ModelMetadata getMetadata(Class<?> modelClass) {
 		return METADATA_CACHE.computeIfAbsent(modelClass, ExcelBeanAssembler::buildMetadata);
 	}
 
+	/**
+	 * 深入剖析模型類別結構並建構元數據物件。
+	 * <p>
+	 * <b>剖析流程：</b>
+	 * <ol>
+	 *   <li>讀取類別層級 {@link ExcelSheet} 決定工作表名稱。</li>
+	 *   <li>判斷是否為 Java 21 Record (透過 {@link Class#isRecord()})。</li>
+	 *   <li>若為 Record：讀取 {@link RecordComponent}，尋找 {@link ExcelColumn} 註解並取得 Accessor 方法與標準建構子。</li>
+	 *   <li>若為 JavaBean：讀取無參建構子與所有宣告欄位 (包含父類別)，尋找 {@link ExcelColumn} 註解。</li>
+	 *   <li>排序欄位：若有宣告 {@code explicitIndex >= 0} 則優先按其排序，否則依類別宣告自然順序排序。</li>
+	 * </ol>
+	 * </p>
+	 *
+	 * @param clazz 模型類別 Class
+	 * @return 完整解析後之 {@link ModelMetadata}
+	 */
 	private static ModelMetadata buildMetadata(Class<?> clazz) {
 		ExcelSheet sheetAnno = clazz.getAnnotation(ExcelSheet.class);
 		String sheetName = clazz.getSimpleName();
@@ -562,6 +779,7 @@ public final class ExcelBeanAssembler {
 		Constructor<?> noArgConstructor = null;
 
 		if (isRecord) {
+			// ==================== Java 21 Record 剖析流程 ====================
 			RecordComponent[] components = clazz.getRecordComponents();
 			Class<?>[] paramTypes = new Class<?>[components.length];
 			for (int i = 0; i < components.length; i++) {
@@ -605,7 +823,7 @@ public final class ExcelBeanAssembler {
 				throw new IllegalStateException("無法解析 Record 的標準建構子: " + clazz.getName(), e);
 			}
 		} else {
-			// 標準 JavaBean
+			// ==================== 標準 JavaBean POJO 剖析流程 ====================
 			try {
 				noArgConstructor = clazz.getDeclaredConstructor();
 				noArgConstructor.setAccessible(true);
@@ -650,6 +868,12 @@ public final class ExcelBeanAssembler {
 		return new ModelMetadata(sheetName, isRecord, columns, canonicalConstructor, noArgConstructor);
 	}
 
+	/**
+	 * 遞迴獲取類別及其所有父類別所宣告之所有屬性欄位。
+	 *
+	 * @param clazz 目標類別
+	 * @return 欄位清單
+	 */
 	private static List<Field> getAllDeclaredFields(Class<?> clazz) {
 		List<Field> fields = new ArrayList<>();
 		Class<?> current = clazz;
@@ -662,9 +886,18 @@ public final class ExcelBeanAssembler {
 	}
 
 	// =========================================================================
-	// 7. 內部記錄元數據 Record
+	// 7. 內部記錄元數據 Record (Internal Metadata Structures)
 	// =========================================================================
 
+	/**
+	 * 模型層級元數據記錄
+	 *
+	 * @param sheetName            預設工作表名稱
+	 * @param isRecord             是否為 Java 21 Record
+	 * @param columns              欄位元數據排序清單
+	 * @param canonicalConstructor 若為 Record 時的標準建構子
+	 * @param noArgConstructor     若為 POJO 時的無參建構子
+	 */
 	private record ModelMetadata(
 			String sheetName,
 			boolean isRecord,
@@ -673,6 +906,20 @@ public final class ExcelBeanAssembler {
 			Constructor<?> noArgConstructor
 	) {}
 
+	/**
+	 * 欄位層級元數據記錄
+	 *
+	 * @param columnName    Excel 表頭對外名稱
+	 * @param fieldName     Java 屬性欄位名稱
+	 * @param type          屬性型別 Class
+	 * @param explicitIndex 註解明確指定之絕對索引 (-1 代表未指定)
+	 * @param naturalOrder  類別中宣告的自然先後順序
+	 * @param format        數值或日期自訂格式化字串
+	 * @param defaultValue  為空時之預設值字串
+	 * @param accessor      Record 專用屬性存取方法 (Getter)
+	 * @param setter        JavaBean 屬性設定方法 (可選)
+	 * @param field         JavaBean 直接欄位反射參考
+	 */
 	private record ColumnMetadata(
 			String columnName,
 			String fieldName,
@@ -685,6 +932,12 @@ public final class ExcelBeanAssembler {
 			Method setter,
 			Field field
 	) {
+		/**
+		 * 從目標物件實體中讀取該欄位數值。
+		 *
+		 * @param target 目標物件實例
+		 * @return 欄位值
+		 */
 		public Object getValue(Object target) {
 			try {
 				if (accessor != null) {
@@ -699,6 +952,12 @@ public final class ExcelBeanAssembler {
 			return null;
 		}
 
+		/**
+		 * 將數值寫入目標物件實體中。
+		 *
+		 * @param target 目標物件實例
+		 * @param value  欲寫入之屬性值
+		 */
 		public void setValue(Object target, Object value) {
 			try {
 				if (setter != null) {
@@ -712,4 +971,3 @@ public final class ExcelBeanAssembler {
 		}
 	}
 }
-

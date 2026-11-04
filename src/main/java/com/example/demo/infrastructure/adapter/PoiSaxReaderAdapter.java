@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import com.example.demo.application.port.out.ExcelReaderPort;
+import com.example.demo.application.shared.context.ExcelTaskContextHolder;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.exception.ExcelReadException;
@@ -265,6 +266,9 @@ public class PoiSaxReaderAdapter implements ExcelReaderPort {
 				chunkBuffer.add(rowMap);
 
 				if (chunkBuffer.size() >= chunkSize) {
+					if (ExcelTaskContextHolder.isActive()) {
+						ExcelTaskContextHolder.incrementProgress(chunkBuffer.size());
+					}
 					if (chunkConsumer != null) {
 						chunkConsumer.accept(Collections.unmodifiableList(new ArrayList<>(chunkBuffer)), lastContext);
 					}
@@ -288,6 +292,9 @@ public class PoiSaxReaderAdapter implements ExcelReaderPort {
 				lastContext = new ExcelRowContext(sheetIndex, sheet.getSheetName(), 0, headers, false, totalDataRowsRead);
 			}
 			List<Map<String, Object>> remainingChunk = Collections.unmodifiableList(new ArrayList<>(chunkBuffer));
+			if (ExcelTaskContextHolder.isActive()) {
+				ExcelTaskContextHolder.incrementProgress(remainingChunk.size());
+			}
 			if (chunkConsumer != null) {
 				chunkConsumer.accept(remainingChunk, lastContext);
 			}
