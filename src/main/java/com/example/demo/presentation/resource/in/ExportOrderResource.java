@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 /**
  * 訂單匯出請求資源載體 (Request Data Carrier)
@@ -13,14 +15,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * 作為純資料載體，嚴禁於內部實作任何轉換邏輯。
  *
  * @param sheetName 自訂工作表名稱 (選填，若為空則套用預設值)
- * @param orders    欲匯出的訂單清單 (選填，若為空則由展示端生成範例資料)
+ * @param orders    欲匯出的訂單清單，不可為空
  */
 @Schema(description = "訂單匯出請求資源載體")
 public record ExportOrderResource(
 		@Schema(description = "自訂工作表名稱 (若無則使用模型預設名稱)", example = "11月份訂單清單")
 		String sheetName,
 
-		@Schema(description = "欲匯出的訂單資料清單")
+		@Schema(description = "欲匯出的訂單資料清單", requiredMode = Schema.RequiredMode.REQUIRED)
+		@Valid
+		@NotEmpty(message = "訂單資料清單不能為空")
 		List<OrderItemResource> orders
 ) {
 
@@ -56,4 +60,3 @@ public record ExportOrderResource(
 	) {
 	}
 }
-

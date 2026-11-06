@@ -101,7 +101,7 @@ flowchart TD
 
 | 物件名稱 | 所在分層與套件 | DDD / 六角形架構角色 | 職責與架構意圖 |
 | :--- | :--- | :--- | :--- |
-| [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/TrackExcelTask.java) | `application.annotation` | 宣告式切面合約 | 標註於方法上，聲明任務類型、SpEL 檔名/列數表達式與是否非同步執行 (`async`) |
+| [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java) | `application.annotation.task` | 宣告式切面合約 | 標註於方法上，聲明任務類型、SpEL 檔名/列數表達式與是否非同步執行 (`async`) |
 | [`ExcelTaskType`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/ExcelTaskType.java) | `application.shared.vo` | Value Object (VO) | 任務類型列舉實質物件（`IMPORT` 匯入解析 / `EXPORT` 匯出產製），天然不可變 |
 | [`ExcelTaskStatus`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/ExcelTaskStatus.java) | `application.shared.vo` | Value Object (VO) | 任務狀態列舉實質物件（`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`） |
 | [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java) | `application.shared.context` | 執行期執行緒上下文 | 基於 `ThreadLocal` 封裝，持有當前執行緒作用中的任務識別碼、累計筆數與 Port 代理 |
@@ -109,7 +109,7 @@ flowchart TD
 | [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelTaskRepositoryPort.java) | `application.port.out` | Outbound Port | 應用層定義之資料庫操作純契約，嚴禁洩漏 JPA 實體 |
 | [`ExcelTaskJpaEntity`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/persistence/task/entity/ExcelTaskJpaEntity.java) | `infrastructure.persistence.task.entity` | Infrastructure 技術實體 | 儲存任務 ID、狀態、進度百分比、處理列數、錯誤訊息與檔案下載 URL |
 | [`ExcelTaskJpaRepository`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/persistence/task/repository/ExcelTaskJpaRepository.java) | `infrastructure.persistence.task.repository` | Spring Data Repository | 存取資料庫之 JPA 技術介面 |
-| [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/ExcelTaskRepositoryAdapter.java) | `infrastructure.adapter` | Outbound Adapter | 實作 `ExcelTaskRepositoryPort`，負責 JPA Entity 與應用層 DTO 之間的純淨轉換 |
+| [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapter.java) | `infrastructure.adapter.persistence` | Outbound Adapter | 實作 `ExcelTaskRepositoryPort`，負責 JPA Entity 與應用層 DTO 之間的純淨轉換 |
 | [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelTaskController.java) | `presentation.controller` | Inbound Adapter | 對外提供 `GET /{taskId}/progress` 與 `GET /{taskId}/download` 端點 |
 
 ---
@@ -202,7 +202,7 @@ public Object trackTask(ProceedingJoinPoint joinPoint, TrackExcelTask trackExcel
 **效益**：內層 Adapter 能夠透明地融入外層任務，在執行 `flush()` 時直接為外層任務回報進度，達成完美的協同無縫整合。
 
 ### 3.4 串流寫入自動回報 (Streaming Auto-Progress)
-在 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/FastExcelWriterAdapter.java) 與 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/PoiSxssfWriterAdapter.java) 的 `writeStreamWorksheet` 核心迴圈中：
+在 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) 與 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) 的 `writeStreamWorksheet` 核心迴圈中：
 
 ```java
 // 串流迭代資料列，定期執行 flush 釋放記憶體

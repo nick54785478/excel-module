@@ -178,10 +178,17 @@ class ExcelControllerTest {
 		String requestJson = """
 				{
 					"fileName": "large_orders.xlsx",
-					"sheetName": "大數據工作表",
-					"headers": ["序號", "數據"],
-					"rowCount": 500,
-					"batchFlushSize": 100
+					"batchFlushSize": 100,
+					"sheets": [
+						{
+							"sheetName": "大數據工作表",
+							"headers": ["序號", "數據"],
+							"rows": [
+								[1, "Data_1"],
+								[2, "Data_2"]
+							]
+						}
+					]
 				}
 				""";
 
@@ -208,10 +215,39 @@ class ExcelControllerTest {
 		String invalidJson = """
 				{
 					"fileName": "large.xlsx",
-					"sheetName": "Sheet1",
-					"headers": ["A"],
-					"rowCount": 100,
-					"batchFlushSize": 0
+					"batchFlushSize": 0,
+					"sheets": [
+						{
+							"sheetName": "Sheet1",
+							"headers": ["A"],
+							"rows": []
+						}
+					]
+				}
+				""";
+
+		mockMvc.perform(post("/api/v1/excel/export/stream")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(invalidJson))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400));
+	}
+
+	/**
+	 * Feature: Excel 大數據串流匯出參數校驗 (Spring Validation)
+	 * Scenario: 前端傳送 sheets 為空清單，觸發 @NotEmpty 校驗失敗
+	 * Given 傳送 sheets 為空陣列之 JSON 載體
+	 * When 發送 POST /api/v1/excel/export/stream
+	 * Then 回應 400 Bad Request
+	 */
+	@Test
+	@DisplayName("場景：POST /api/v1/excel/export/stream sheets 為空時拒絕並回傳 400")
+	void shouldRejectStreamExportWhenSheetsIsEmpty() throws Exception {
+		String invalidJson = """
+				{
+					"fileName": "large.xlsx",
+					"batchFlushSize": 500,
+					"sheets": []
 				}
 				""";
 

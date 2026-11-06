@@ -14,7 +14,7 @@ import java.util.Objects;
 import org.dhatim.fastexcel.Workbook;
 import org.dhatim.fastexcel.Worksheet;
 
-import com.example.demo.application.annotation.TrackExcelTask;
+import com.example.demo.application.annotation.task.TrackExcelTask;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
@@ -33,17 +33,14 @@ import com.example.demo.application.shared.exception.ExcelWriteException;
  */
 public class FastExcelWriterAdapter implements ExcelWriterPort {
 
-	@TrackExcelTask(
-			type = ExcelTaskType.EXPORT,
-			fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'export.xlsx'",
-			description = "FastExcel 批次資料匯出長任務"
-	)
+	@TrackExcelTask(type = ExcelTaskType.EXPORT, fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'export.xlsx'", description = "FastExcel 批次資料匯出長任務")
 	@Override
 	public void write(OutputStream outputStream, WriteExcelCommand command) {
 		Objects.requireNonNull(outputStream, "OutputStream must not be null");
 		Objects.requireNonNull(command, "WriteExcelCommand must not be null");
 
-		try (Workbook workbook = new Workbook(outputStream, command.getApplicationName(), command.getApplicationVersion())) {
+		try (Workbook workbook = new Workbook(outputStream, command.getApplicationName(),
+				command.getApplicationVersion())) {
 			List<WriteSheetCommand> sheets = command.getSheets();
 			if (sheets.isEmpty()) {
 				// Excel 活頁簿規範至少需具備一個工作表
@@ -61,11 +58,7 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 		}
 	}
 
-	@TrackExcelTask(
-			type = ExcelTaskType.EXPORT,
-			fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'export.xlsx'",
-			description = "FastExcel 批次資料匯出長任務"
-	)
+	@TrackExcelTask(type = ExcelTaskType.EXPORT, fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'export.xlsx'", description = "FastExcel 批次資料匯出長任務")
 	@Override
 	public byte[] write(WriteExcelCommand command) {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -81,25 +74,23 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 	 * <p>
 	 * 標註 {@link TrackExcelTask} 宣告式任務監控註解：
 	 * <ul>
-	 *     <li>當在非同步背景工作緒或長任務情境中執行大數據串流輸出時，自動於持久化儲存庫建立任務記錄並維護其生命週期狀態</li>
-	 *     <li>串流迭代過程中依據 {@code flushInterval} 自動將寫入進度回報至 {@link ExcelTaskContextHolder}</li>
-	 *     <li>若外層業務呼叫方已建立作用中的任務上下文，則直接沿用現有上下文並持續更新進度，避免重複建檔</li>
+	 * <li>當在非同步背景工作緒或長任務情境中執行大數據串流輸出時，自動於持久化儲存庫建立任務記錄並維護其生命週期狀態</li>
+	 * <li>串流迭代過程中依據 {@code flushInterval} 自動將寫入進度回報至
+	 * {@link ExcelTaskContextHolder}</li>
+	 * <li>若外層業務呼叫方已建立作用中的任務上下文，則直接沿用現有上下文並持續更新進度，避免重複建檔</li>
 	 * </ul>
 	 *
 	 * @param outputStream 輸出串流
 	 * @param command      大數據串流寫入命令
 	 */
-	@TrackExcelTask(
-			type = ExcelTaskType.EXPORT,
-			fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'stream_export.xlsx'",
-			description = "FastExcel 串流大量資料匯出長任務"
-	)
+	@TrackExcelTask(type = ExcelTaskType.EXPORT, fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'stream_export.xlsx'", description = "FastExcel 串流大量資料匯出長任務")
 	@Override
 	public void writeStream(OutputStream outputStream, WriteStreamExcelCommand command) {
 		Objects.requireNonNull(outputStream, "OutputStream must not be null");
 		Objects.requireNonNull(command, "WriteStreamExcelCommand must not be null");
 
-		try (Workbook workbook = new Workbook(outputStream, command.getApplicationName(), command.getApplicationVersion())) {
+		try (Workbook workbook = new Workbook(outputStream, command.getApplicationName(),
+				command.getApplicationVersion())) {
 			List<WriteStreamSheetCommand> sheets = command.getSheets();
 			if (sheets.isEmpty()) {
 				workbook.newWorksheet("Sheet1");
@@ -122,11 +113,7 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 	 * @param command 大數據串流寫入命令
 	 * @return Excel 二進位檔案 byte 陣列
 	 */
-	@TrackExcelTask(
-			type = ExcelTaskType.EXPORT,
-			fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'stream_export.xlsx'",
-			description = "FastExcel 串流大量資料匯出長任務"
-	)
+	@TrackExcelTask(type = ExcelTaskType.EXPORT, fileName = "#command != null && #command.applicationName != null ? #command.applicationName + '.xlsx' : 'stream_export.xlsx'", description = "FastExcel 串流大量資料匯出長任務")
 	@Override
 	public byte[] writeStream(WriteStreamExcelCommand command) {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -196,7 +183,8 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 					if ((currentRowIndex - startRow) % flushInterval == 0) {
 						worksheet.flush();
 						if (ExcelTaskContextHolder.isActive()) {
-							ExcelTaskContextHolder.updateProgress(currentRowIndex - startRow, ExcelTaskContextHolder.getTotalRows());
+							ExcelTaskContextHolder.updateProgress(currentRowIndex - startRow,
+									ExcelTaskContextHolder.getTotalRows());
 						}
 					}
 				}

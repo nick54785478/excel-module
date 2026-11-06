@@ -3,8 +3,8 @@ package com.example.demo.application.shared.model;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 
 /**
  * 物料聚合根對應之 Excel 宣告式映射模型 (Material Aggregate Excel Model)

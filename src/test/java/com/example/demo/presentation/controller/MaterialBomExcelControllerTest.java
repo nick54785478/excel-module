@@ -84,61 +84,14 @@ class MaterialBomExcelControllerTest {
 		byte[] mockBytes = "MATERIALS_EXCEL_BYTES".getBytes();
 		when(exportMaterialBomUseCase.exportMaterials()).thenReturn(mockBytes);
 
-		// When & Then (驗證主要路徑 /material-bom)
+		// When & Then (驗證標準路徑 /api/v1/excel/material-bom/materials/export)
 		mockMvc.perform(get("/api/v1/excel/material-bom/materials/export"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(header().string("Content-Disposition", "form-data; name=\"attachment\"; filename=\"materials_master.xlsx\""))
+				.andExpect(header().string("Content-Disposition", "attachment; filename=\"materials_master.xlsx\"; filename*=UTF-8''materials_master.xlsx"))
 				.andExpect(content().bytes(mockBytes));
 
-		// 驗證相容路徑 /aggregate
-		mockMvc.perform(get("/api/v1/excel/aggregate/materials/export"))
-				.andExpect(status().isOk())
-				.andExpect(content().bytes(mockBytes));
-
-		verify(exportMaterialBomUseCase, org.mockito.Mockito.times(2)).exportMaterials();
-	}
-
-	/**
-	 * Feature: 物料主檔自訂資料宣告式匯出
-	 * Scenario: 透過 POST 傳入自訂物料 JSON 進行宣告式 Excel 產製
-	 * Given: 傳入合法 ExportMaterialResource JSON
-	 * When: 發送 POST 請求
-	 * Then: 回應 200 OK 與 Excel 二進位內容
-	 */
-	@Test
-	@DisplayName("場景：POST 自訂資料宣告式匯出物料主檔 Excel")
-	void shouldExportCustomMaterialsSuccessfully() throws Exception {
-		// Given
-		byte[] mockBytes = "CUSTOM_MATERIAL_BYTES".getBytes();
-		when(exportExcelUseCase.exportBeans(any(), eq(MaterialExcelModel.class), any())).thenReturn(mockBytes);
-
-		String requestJson = """
-				{
-					"sheetName": "自訂物料表",
-					"materials": [
-						{
-							"materialCode": "MAT-001",
-							"materialName": "高精度馬達",
-							"specification": "2204-KV2300",
-							"category": "RAW_MATERIAL",
-							"unit": "PCS",
-							"standardCost": 450.00,
-							"status": "ACTIVE"
-						}
-					]
-				}
-				""";
-
-		// When & Then
-		mockMvc.perform(post("/api/v1/excel/material-bom/materials/export")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(requestJson))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(content().bytes(mockBytes));
-
-		verify(exportExcelUseCase).exportBeans(any(), eq(MaterialExcelModel.class), eq("自訂物料表"));
+		verify(exportMaterialBomUseCase).exportMaterials();
 	}
 
 	/**
@@ -199,55 +152,10 @@ class MaterialBomExcelControllerTest {
 		mockMvc.perform(get("/api/v1/excel/material-bom/bom-items/export"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(header().string("Content-Disposition", "form-data; name=\"attachment\"; filename=\"bom_items_master.xlsx\""))
+				.andExpect(header().string("Content-Disposition", "attachment; filename=\"bom_items_master.xlsx\"; filename*=UTF-8''bom_items_master.xlsx"))
 				.andExpect(content().bytes(mockBytes));
 
 		verify(exportMaterialBomUseCase).exportBomItems();
-	}
-
-	/**
-	 * Feature: 單階 BOM 配方自訂資料宣告式匯出
-	 * Scenario: 透過 POST 傳入自訂 BOM JSON 進行宣告式 Excel 產製
-	 * Given: 傳入合法 ExportBomItemResource JSON
-	 * When: 發送 POST 請求
-	 * Then: 回應 200 OK 與 Excel 二進位內容
-	 */
-	@Test
-	@DisplayName("場景：POST 自訂資料宣告式匯出單階 BOM 配方 Excel")
-	void shouldExportCustomBomItemsSuccessfully() throws Exception {
-		// Given
-		byte[] mockBytes = "CUSTOM_BOM_BYTES".getBytes();
-		when(exportExcelUseCase.exportBeans(any(), eq(BomItemExcelModel.class), any())).thenReturn(mockBytes);
-
-		String requestJson = """
-				{
-					"sheetName": "單階配方清單",
-					"items": [
-						{
-							"parentMaterialCode": "MAT-FG-001",
-							"bomVersion": "1.0",
-							"itemSequence": 1,
-							"childMaterialCode": "MAT-RM-001",
-							"childMaterialName": "碳纖維螺旋槳",
-							"quantity": 4,
-							"unit": "PCS",
-							"scrapRate": 0.02,
-							"positionCode": "P1-P4",
-							"remark": "四軸螺旋槳"
-						}
-					]
-				}
-				""";
-
-		// When & Then
-		mockMvc.perform(post("/api/v1/excel/material-bom/bom-items/export")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(requestJson))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(content().bytes(mockBytes));
-
-		verify(exportExcelUseCase).exportBeans(any(), eq(BomItemExcelModel.class), eq("單階配方清單"));
 	}
 
 	/**

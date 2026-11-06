@@ -23,12 +23,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
+import com.example.demo.application.shared.model.ExcelRowError;
 
 /**
  * Excel 宣告式物件與純資料載體組裝器 (Excel Declarative Bean & Record Assembler)
@@ -65,7 +66,6 @@ import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
  * </ul>
  * </p>
  *
- * @author Antigravity
  * @see ExcelSheet
  * @see ExcelColumn
  * @see WriteExcelCommand
@@ -295,6 +295,126 @@ public final class ExcelBeanAssembler {
 		}
 
 		return Collections.unmodifiableList(resultList);
+	}
+
+	/**
+	 * 模型組裝結果資料載體 (封裝成功模型清單、儲存格轉換錯誤事實與資料總列數)。
+	 * <p>
+	 * 用於資料校驗與匯入管線中，將型別不相容之儲存格收集為 {@link ExcelRowError}，
+	 * 避免因個別儲存格錯誤而中斷整份試算表之校驗流程。
+	 * </p>
+	 *
+	 * @param <T>              目標模型型別
+	 * @param items            完全合格且成功實例化之模型物件清單
+	 * @param conversionErrors 儲存格型別轉換失敗之錯誤事實清單
+	 * @param totalRows        工作表資料總列數
+	 */
+	public record BeanAssemblyResult<T>(
+			List<T> items,
+			List<ExcelRowError> conversionErrors,
+			int totalRows
+	) {
+		/**
+		 * 判斷組裝過程中是否存在儲存格型別轉換錯誤
+		 *
+		 * @return 若存在錯誤則為 {@code true}
+		 */
+		public boolean hasErrors() {
+			return conversionErrors != null && !conversionErrors.isEmpty();
+		}
+	}
+
+	/**
+	 * 將工作表讀取結果容錯組裝為強型別 Model 清單，並主動收集儲存格型別不合之錯誤事實。
+	 * <p>
+	 * <b>【容錯組裝管線細節】</b>
+	 * <ol>
+	 *   <li>逐一走訪每筆資料列與目標欄位。</li>
+	 *   <li>當儲存格數值無法轉為目標欄位型別時，主動封裝為 {@link ExcelRowError} 收集入清單，不拋出中斷例外。</li>
+	 *   <li>若該列無任何型別錯誤，實例化模型並納入合格清單；若有錯誤則排除該筆物件並精準記錄錯誤座標。</li>
+	 * </ol>
+	 * </p>
+	 *
+	 * @param <T>         目標模型型別
+	 * @param sheetResult 工作表讀取結果 DTO 物件
+	 * @param modelClass  目標模型類別 Class
+	 * @return 包含模型清單與型別轉換錯誤事實之組裝結果 {@link BeanAssemblyResult}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> BeanAssemblyResult<T> toBeanListWithErrors(ExcelSheetGottenResult sheetResult, Class<T> modelClass) {
+		Objects.requireNonNull(modelClass, "modelClass 不得為空");
+		if (sheetResult == null || sheetResult.isEmpty()) {
+			return new BeanAssemblyResult<>(Collections.emptyList(), Collections.emptyList(), 0);
+		}
+
+		ModelMetadata metadata = getMetadata(modelClass);
+		List<String> sheetHeaders = sheetResult.headers();
+		List<List<Object>> dataRows = sheetResult.rows();
+
+		int[] colIndices = resolveColumnIndices(metadata, sheetHeaders);
+		int colCount = metadata.columns().size();
+
+		List<T> resultList = new ArrayList<>(dataRows.size());
+		List<ExcelRowError> conversionErrors = new ArrayList<>();
+
+		for (int r = 0; r < dataRows.size(); r++) {
+			List<Object> row = dataRows.get(r);
+			if (row == null || row.isEmpty()) {
+				continue;
+			}
+			int excelRowIndex = r + 2; // 表頭為第 1 列，資料自第 2 列起 (1-based)
+			Object[] convertedValues = new Object[colCount];
+			boolean rowHasConversionError = false;
+
+			for (int i = 0; i < colCount; i++) {
+				ColumnMetadata col = metadata.columns().get(i);
+				int targetIdx = colIndices[i];
+				Object rawVal = (targetIdx >= 0 && targetIdx < row.size()) ? row.get(targetIdx) : null;
+				try {
+					convertedValues[i] = convertValue(rawVal, col);
+				} catch (Exception ex) {
+					rowHasConversionError = true;
+					conversionErrors.add(ExcelRowError.ofCell(
+							excelRowIndex,
+							col.explicitIndex() >= 0 ? col.explicitIndex() : targetIdx,
+							col.columnName(),
+							rawVal,
+							"儲存格格式不相容 (無法轉換為 " + col.type().getSimpleName() + "): " + ex.getMessage(),
+							"TYPE_CONVERSION_ERROR"
+					));
+					convertedValues[i] = col.type().isPrimitive() ? getPrimitiveDefault(col.type()) : null;
+				}
+			}
+
+			if (!rowHasConversionError) {
+				try {
+					if (metadata.isRecord()) {
+						T instance = (T) metadata.canonicalConstructor().newInstance(convertedValues);
+						resultList.add(instance);
+					} else {
+						T instance = (T) metadata.noArgConstructor().newInstance();
+						for (int i = 0; i < colCount; i++) {
+							ColumnMetadata col = metadata.columns().get(i);
+							col.setValue(instance, convertedValues[i]);
+						}
+						resultList.add(instance);
+					}
+				} catch (Exception e) {
+					conversionErrors.add(ExcelRowError.ofRow(
+							excelRowIndex,
+							"資料列實例化失敗: " + e.getMessage(),
+							"ROW_INSTANTIATION_ERROR"
+					));
+				}
+			}
+		}
+
+		return new BeanAssemblyResult<>(
+				Collections.unmodifiableList(resultList),
+				Collections.unmodifiableList(conversionErrors),
+				dataRows.size()
+		);
 	}
 
 	// =========================================================================
@@ -586,7 +706,40 @@ public final class ExcelBeanAssembler {
 			return rawVal;
 		}
 
-		// 3. 轉為字串後調用智慧型別解析器
+		// 3. 日期時間與數值型別原生交錯互轉 (防禦 Excel 序號與 Date/Temporal 互相指派)
+		if (LocalDate.class.equals(targetType)) {
+			if (rawVal instanceof LocalDateTime ldt) {
+				return ldt.toLocalDate();
+			}
+			if (rawVal instanceof Date d) {
+				return d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+			}
+			if (rawVal instanceof Number num) {
+				return parseExcelSerialDate(num.doubleValue());
+			}
+		} else if (LocalDateTime.class.equals(targetType)) {
+			if (rawVal instanceof LocalDate ld) {
+				return ld.atStartOfDay();
+			}
+			if (rawVal instanceof Date d) {
+				return d.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+			}
+			if (rawVal instanceof Number num) {
+				return parseExcelSerialDateTime(num.doubleValue());
+			}
+		} else if (Date.class.equals(targetType)) {
+			if (rawVal instanceof LocalDate ld) {
+				return Date.from(ld.atStartOfDay(ZoneId.systemDefault()).toInstant());
+			}
+			if (rawVal instanceof LocalDateTime ldt) {
+				return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+			}
+			if (rawVal instanceof Number num) {
+				return Date.from(parseExcelSerialDateTime(num.doubleValue()).atZone(ZoneId.systemDefault()).toInstant());
+			}
+		}
+
+		// 4. 轉為字串後調用智慧型別解析器
 		String strVal = String.valueOf(rawVal).trim();
 		return parseStringToType(strVal, targetType, col.format());
 	}
@@ -668,7 +821,8 @@ public final class ExcelBeanAssembler {
 	/**
 	 * 解析 {@link LocalDate} 本地日期。
 	 * <p>
-	 * 支援自訂格式、標準橫線格式 (yyyy-MM-dd) 與斜線格式 (yyyy/MM/dd)。
+	 * 支援 Excel 浮點數日期序號 (如 {@code 46327.0})、自訂格式、標準橫線格式 (yyyy-MM-dd)、
+	 * 斜線格式 (yyyy/MM/dd)、點號格式 (yyyy.MM.dd) 與緊密數字格式 (yyyyMMdd)。
 	 * </p>
 	 *
 	 * @param str    日期字串
@@ -676,22 +830,55 @@ public final class ExcelBeanAssembler {
 	 * @return 解析後之 {@link LocalDate}
 	 */
 	private static LocalDate parseLocalDate(String str, String format) {
+		String clean = str.trim();
+
+		// 1. 檢查是否為 Excel 數值序號或純數字日期
+		if (isNumeric(clean)) {
+			// 若為純 8 碼整數 (如 20261101)，優先以 yyyyMMdd 解析
+			if (clean.length() == 8 && !clean.contains(".")) {
+				try {
+					return LocalDate.parse(clean, DateTimeFormatter.ofPattern("yyyyMMdd"));
+				} catch (Exception ignored) {
+				}
+			}
+			try {
+				double serial = Double.parseDouble(clean);
+				return parseExcelSerialDate(serial);
+			} catch (Exception ignored) {
+			}
+		}
+
+		// 2. 若指定格式，優先嘗試自訂格式
 		if (format != null && !format.isBlank()) {
-			return LocalDate.parse(str, DateTimeFormatter.ofPattern(format.trim()));
+			try {
+				return LocalDate.parse(clean, DateTimeFormatter.ofPattern(format.trim()));
+			} catch (Exception ignored) {
+				// 自訂格式失敗時容錯向下匹配常見格式
+			}
 		}
-		if (str.length() >= 10 && str.charAt(4) == '-' && str.charAt(7) == '-') {
-			return LocalDate.parse(str.substring(0, 10), DEFAULT_DATE_FORMATTER);
+
+		// 3. 常見日期格式容錯匹配
+		if (clean.length() >= 10 && clean.charAt(4) == '-' && clean.charAt(7) == '-') {
+			return LocalDate.parse(clean.substring(0, 10), DEFAULT_DATE_FORMATTER);
 		}
-		if (str.length() >= 10 && str.charAt(4) == '/' && str.charAt(7) == '/') {
-			return LocalDate.parse(str.substring(0, 10), DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+		if (clean.length() >= 10 && clean.charAt(4) == '/' && clean.charAt(7) == '/') {
+			return LocalDate.parse(clean.substring(0, 10), DateTimeFormatter.ofPattern("yyyy/MM/dd"));
 		}
-		return LocalDate.parse(str, DEFAULT_DATE_FORMATTER);
+		if (clean.length() >= 10 && clean.charAt(4) == '.' && clean.charAt(7) == '.') {
+			return LocalDate.parse(clean.substring(0, 10), DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+		}
+		if (clean.contains("T")) {
+			return LocalDateTime.parse(clean).toLocalDate();
+		}
+
+		return LocalDate.parse(clean, DEFAULT_DATE_FORMATTER);
 	}
 
 	/**
 	 * 解析 {@link LocalDateTime} 本地日期時間。
 	 * <p>
-	 * 支援自訂格式、僅日期補齊至當天 00:00:00、ISO-8601 (包含 'T')、標準 (yyyy-MM-dd HH:mm:ss)。
+	 * 支援 Excel 浮點數日期時間序號、自訂格式、僅日期補齊至當天 00:00:00、
+	 * ISO-8601 (包含 'T')、標準 (yyyy-MM-dd HH:mm:ss) 與斜線樣式。
 	 * </p>
 	 *
 	 * @param str    日期時間字串
@@ -699,19 +886,117 @@ public final class ExcelBeanAssembler {
 	 * @return 解析後之 {@link LocalDateTime}
 	 */
 	private static LocalDateTime parseLocalDateTime(String str, String format) {
+		String clean = str.trim();
+
+		// 1. 檢查是否為 Excel 數值序號或純數字日期
+		if (isNumeric(clean)) {
+			if (clean.length() == 8 && !clean.contains(".")) {
+				try {
+					return LocalDate.parse(clean, DateTimeFormatter.ofPattern("yyyyMMdd")).atStartOfDay();
+				} catch (Exception ignored) {
+				}
+			}
+			try {
+				double serial = Double.parseDouble(clean);
+				return parseExcelSerialDateTime(serial);
+			} catch (Exception ignored) {
+			}
+		}
+
+		// 2. 若指定格式，優先嘗試自訂格式
 		if (format != null && !format.isBlank()) {
-			return LocalDateTime.parse(str, DateTimeFormatter.ofPattern(format.trim()));
+			try {
+				return LocalDateTime.parse(clean, DateTimeFormatter.ofPattern(format.trim()));
+			} catch (Exception ignored) {
+				// 自訂格式失敗時容錯向下匹配常見格式
+			}
 		}
-		if (str.length() == 10) {
-			return parseLocalDate(str, null).atStartOfDay();
+
+		// 3. 常見格式容錯匹配
+		if (clean.length() == 10) {
+			return parseLocalDate(clean, null).atStartOfDay();
 		}
-		if (str.contains("T")) {
-			return LocalDateTime.parse(str);
+		if (clean.contains("T")) {
+			return LocalDateTime.parse(clean);
 		}
-		if (str.length() >= 19 && str.charAt(4) == '-' && str.charAt(7) == '-') {
-			return LocalDateTime.parse(str.substring(0, 19), DEFAULT_DATE_TIME_FORMATTER);
+		if (clean.length() >= 19 && clean.charAt(4) == '-' && clean.charAt(7) == '-') {
+			return LocalDateTime.parse(clean.substring(0, 19), DEFAULT_DATE_TIME_FORMATTER);
 		}
-		return LocalDateTime.parse(str, DEFAULT_DATE_TIME_FORMATTER);
+		if (clean.length() >= 19 && clean.charAt(4) == '/' && clean.charAt(7) == '/') {
+			return LocalDateTime.parse(clean.substring(0, 19), DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"));
+		}
+
+		return LocalDateTime.parse(clean, DEFAULT_DATE_TIME_FORMATTER);
+	}
+
+	/**
+	 * 將 Excel 數值序號 (OADate / Serial Number) 轉換為 {@link LocalDate}。
+	 * <p>
+	 * Excel 日期系統以 1899-12-30 為基準日 (校正 Lotus 1-2-3 歷史 1900 閏年偏差)，
+	 * 浮點數之整數部分代表自基準日起之天數。
+	 * </p>
+	 *
+	 * @param serial Excel 日期浮點數序號 (如 46327.0 對應 2026-11-01)
+	 * @return 解析後之 {@link LocalDate}
+	 */
+	public static LocalDate parseExcelSerialDate(double serial) {
+		long days = (long) serial;
+		if (days >= 61) {
+			return LocalDate.of(1899, 12, 30).plusDays(days);
+		} else if (days > 0) {
+			return LocalDate.of(1899, 12, 31).plusDays(days);
+		} else {
+			return LocalDate.of(1899, 12, 30);
+		}
+	}
+
+	/**
+	 * 將 Excel 數值序號 (OADate / Serial Number) 轉換為 {@link LocalDateTime}。
+	 * <p>
+	 * 浮點數之整數部分為天數，小數部分為一天中之時間比率 (24 小時制)。
+	 * </p>
+	 *
+	 * @param serial Excel 日期時間浮點數序號 (如 46327.5 對應 2026-11-01 12:00:00)
+	 * @return 解析後之 {@link LocalDateTime}
+	 */
+	public static LocalDateTime parseExcelSerialDateTime(double serial) {
+		LocalDate date = parseExcelSerialDate(serial);
+		double fraction = serial - (long) serial;
+		if (fraction <= 0.0) {
+			return date.atStartOfDay();
+		}
+		long nanoOfDay = Math.round(fraction * 86_400_000_000_000L);
+		nanoOfDay = Math.max(0, Math.min(86_399_999_999_999L, nanoOfDay));
+		return date.atTime(LocalTime.ofNanoOfDay(nanoOfDay));
+	}
+
+	/**
+	 * 判斷輸入字串是否為十進位數字 (可含可選符號與小數點)。
+	 *
+	 * @param str 待檢驗字串
+	 * @return 若為數值格式則為 {@code true}
+	 */
+	private static boolean isNumeric(String str) {
+		if (str == null || str.isEmpty()) {
+			return false;
+		}
+		int start = 0;
+		if (str.charAt(0) == '-' || str.charAt(0) == '+') {
+			start = 1;
+		}
+		boolean hasDot = false;
+		boolean hasDigit = false;
+		for (int i = start; i < str.length(); i++) {
+			char c = str.charAt(i);
+			if (c >= '0' && c <= '9') {
+				hasDigit = true;
+			} else if (c == '.' && !hasDot) {
+				hasDot = true;
+			} else {
+				return false;
+			}
+		}
+		return hasDigit;
 	}
 
 	/**

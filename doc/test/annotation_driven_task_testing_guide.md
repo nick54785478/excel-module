@@ -12,7 +12,7 @@
 相反地，本模組採用**宣告式註解驅動機制 (Annotation-Driven)**：
 1. **業務端點即觸發點**：
    * 當客戶端調用任何既有之大數據串流匯出 API（例如 [`BomController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/BomController.java) 的 `POST /api/v1/bom/excel/stream` 或 `GET /api/v1/bom/excel/stream`）時，調度鏈底層會進入 `ExcelWriterPort.writeStream(...)`。
-   * 基礎設施層的 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/FastExcelWriterAdapter.java) 或 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/PoiSxssfWriterAdapter.java) 的 `writeStream` 方法上方標註了 [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/TrackExcelTask.java)。
+   * 基礎設施層的 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) 或 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) 的 `writeStream` 方法上方標註了 [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java)。
 2. **切面無感接管生命週期**：
    * AOP 切面 [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspect.java) 自動攔截執行點，動態解析 SpEL 檔名與筆數，於資料庫表 `t_excel_task` 建立唯一 `taskId`（UUID）。
    * 將任務資訊綁定至當前執行緒上下文 [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java)。
@@ -411,7 +411,7 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
 | :--- | :--- | :--- |
 | [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspectTest.java) | Infrastructure (AOP) | 1. 驗證標註 `@TrackExcelTask` 方法成功自動建檔、狀態維護並標記 `COMPLETED`<br>2. 驗證方法拋出例外時自動標記 `FAILED` 且釋放上下文<br>3. 驗證 `async = true` 時立即返回受理初值並於背景完成<br>4. 驗證上下文已有作用中任務時自動沿用（防重複建檔 Task Context Joining）<br>5. 驗證 `FastExcelWriterAdapter.writeStream` 串流寫入自動回報進度<br>6. 驗證 `PoiSxssfWriterAdapter.writeStream` 串流沖刷自動回報進度 |
 | [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelTaskControllerTest.java) | Presentation (REST) | 1. 驗證 `GET /{taskId}/progress` 成功回傳 HTTP 200 OK 與進度結構<br>2. 驗證查詢不存在任務時由全域例外處理器轉譯為 HTTP 404 Not Found<br>3. 驗證 `GET /{taskId}/download` 成功下載已完成任務之 Excel 二進位檔案<br>4. 驗證檔案未就緒時安全回傳 HTTP 404 |
-| [`ExcelTaskRepositoryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/ExcelTaskRepositoryAdapterTest.java) | Infrastructure (Adapter) | 驗證 JPA ORM 實體映射、進度更新、狀態變更持久化與百分比浮點數精準計算 |
+| [`ExcelTaskRepositoryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapterTest.java) | Infrastructure (Adapter) | 驗證 JPA ORM 實體映射、進度更新、狀態變更持久化與百分比浮點數精準計算 |
 | [`ExcelTaskContextHolderTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/shared/context/ExcelTaskContextHolderTest.java) | Application (Context) | 驗證 ThreadLocal 執行緒隔離性、上下文綁定與安全釋放 (unbind) |
 
 ---
@@ -425,7 +425,7 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
   2. 若欲長時間觀察 `PROCESSING` 狀態，可匯出系統全部物料主檔（不帶 `parentMaterialCode`，展開 2000 筆物料），或在自訂 Service 方法中模擬短暫的資料庫查詢耗時。
 
 ### Q2：底層切換為 Apache POI (`excel.engine=APACHE_POI`) 時，任務追蹤功能是否一樣有效？
-* **答案**：**完全有效**！[`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/PoiSxssfWriterAdapter.java) 的 `writeStream` 同樣完整標註了 `@TrackExcelTask`，且在 POI SXSSF 執行磁碟快取沖刷時會自動同步累加進度，上層無縫切換無感知。
+* **答案**：**完全有效**！[`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) 的 `writeStream` 同樣完整標註了 `@TrackExcelTask`，且在 POI SXSSF 執行磁碟快取沖刷時會自動同步累加進度，上層無縫切換無感知。
 
 ### Q3：如果在已有外層任務的環境下呼叫了 `writeStream`，會不會產生兩個衝突的任務 ID？
 * **答案**：**不會**！切面具備智慧「Context Joining」穿透防護：

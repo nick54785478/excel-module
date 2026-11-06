@@ -4,14 +4,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 
 /**
- * 訂單展示模型 (Standard JavaBean Demo Model)
+ * 訂單模型 (Standard JavaBean Order Model)
  * <p>
  * 遵循維度一「宣告式物件映射」設計，以註解標註工作表與各欄位屬性。
- * 用於展示標準 JavaBean（包含無參建構子、全參建構子與 Getter/Setter）的雙向 Excel 解析與匯出。
+ * 支援標準 JavaBean（包含無參建構子、全參建構子與 Getter/Setter）的雙向 Excel 解析與匯出。
  */
 @ExcelSheet(name = "訂單匯入清單")
 public class OrderModel {

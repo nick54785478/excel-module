@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * 作為純資料載體，嚴禁於內部實作任何轉換邏輯。
  *
  * @param sheetName 自訂工作表名稱 (選填)
- * @param materials 欲匯出的物料清單 (選填，若為空則由展示端生成範例資料)
+ * @param materials 欲匯出的物料清單 (選填)
  */
 @Schema(description = "物料主檔匯出請求資源載體")
 public record ExportMaterialResource(

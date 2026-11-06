@@ -34,9 +34,12 @@ public record ExportExcelResource(
 	/**
 	 * 工作表請求載體
 	 *
-	 * @param sheetName 工作表名稱，不可為空
-	 * @param headers   工作表表頭，至少需包含一個欄位名稱
-	 * @param rows      資料列清單，不可為 null
+	 * @param sheetName       工作表名稱，不可為空
+	 * @param headers         工作表表頭，至少需包含一個欄位名稱
+	 * @param rows            資料列清單，不可為 null
+	 * @param freezeHeader    是否凍結表頭首列 (選填，預設 true)
+	 * @param headerFillColor 表頭背景填色 HEX 碼 (選填，例如 1F4E78)
+	 * @param headerFontColor 表頭字體顏色 HEX 碼 (選填，例如 FFFFFF)
 	 */
 	@Schema(description = "單一工作表結構與資料載體")
 	public record ExportSheetResource(
@@ -50,7 +53,27 @@ public record ExportExcelResource(
 
 			@Schema(description = "各列資料二維陣列", example = "[[\"E001\", \"王小明\", \"資訊部\"], [\"E002\", \"李小華\", \"財務部\"]]", requiredMode = Schema.RequiredMode.REQUIRED)
 			@NotNull(message = "資料列清單 (rows) 不能為 null")
-			List<List<Object>> rows
+			List<List<Object>> rows,
+
+			@Schema(description = "是否凍結表頭首列 (預設 true)", example = "true")
+			Boolean freezeHeader,
+
+			@Schema(description = "表頭背景填色 HEX 碼 (RGB，例如 1F4E78)", example = "1F4E78")
+			String headerFillColor,
+
+			@Schema(description = "表頭字體顏色 HEX 碼 (RGB，例如 FFFFFF)", example = "FFFFFF")
+			String headerFontColor
 	) {
+
+		/**
+		 * 向後相容建構子 (提供僅傳入基本資料之情境使用，預設凍結首列)
+		 *
+		 * @param sheetName 工作表名稱
+		 * @param headers   表頭欄位
+		 * @param rows      資料列
+		 */
+		public ExportSheetResource(String sheetName, List<String> headers, List<List<Object>> rows) {
+			this(sheetName, headers, rows, true, null, null);
+		}
 	}
 }

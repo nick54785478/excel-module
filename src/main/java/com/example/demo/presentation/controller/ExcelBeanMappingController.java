@@ -10,7 +10,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,14 +40,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 /**
- * 宣告式物件映射測試 REST 控制器 (Declarative Bean Mapping Presentation Controller)
+ * 宣告式物件映射 REST 控制器 (Declarative Bean Mapping Presentation Controller)
  * <p>
  * 遵循 Clean Architecture 六角形架構表現層規範，作為外部 HTTP 請求進入點。
- * 專門用於驗證與測試維度一「宣告式物件映射 (Declarative Bean Mapping)」功能，
+ * 專門用於「宣告式物件映射 (Declarative Bean Mapping)」功能，
  * 支援以宣告式註解 {@code @ExcelSheet} 與 {@code @ExcelColumn} 標註之標準 JavaBean (如 {@link OrderModel})
  * 與 Java 21 原生 Record (如 {@link ProductRecordModel}) 之雙向 Excel 解析與匯出。
  */
-@Tag(name = "Excel 宣告式物件映射測試介面", description = "提供測試維度一「宣告式物件映射 (Declarative Bean Mapping)」的匯出與匯入 REST API，支援 JavaBean 與 Java 21 Record 雙向流轉")
+@Tag(name = "Excel 宣告式物件映射介面", description = "提供「宣告式物件映射 (Declarative Bean Mapping)」的匯出與匯入 REST API，支援 JavaBean 與 Java 21 Record 雙向流轉")
 @Validated
 @RestController
 @RequestMapping("/api/v1/excel/bean-mapping")
@@ -74,29 +73,13 @@ public class ExcelBeanMappingController {
 	}
 
 	// =========================================================================
-	// 1. JavaBean 宣告式匯出與匯入 (OrderModel 測試端點)
+	// 1. JavaBean 宣告式匯出與匯入 (OrderModel 端點)
 	// =========================================================================
-
-	/**
-	 * 透過 HTTP GET 快速下載訂單範例 Excel 檔案 (JavaBean 模式)
-	 *
-	 * @return Excel 二進位檔案下載回應
-	 */
-	@Operation(
-			summary = "快速下載訂單範例 Excel (JavaBean 模式)",
-			description = "使用系統內建展示資料，經由 ExportExcelUseCase.exportBeans 將 OrderModel 清單宣告式產製為 Excel 活頁簿二進位檔案下載。"
-	)
-	@GetMapping("/orders/export")
-	public ResponseEntity<byte[]> exportSampleOrders() {
-		List<OrderModel> sampleOrders = resourceAssembler.createSampleOrders();
-		byte[] excelBytes = exportExcelUseCase.exportBeans(sampleOrders, OrderModel.class);
-		return createDownloadResponse(excelBytes, "orders_sample.xlsx");
-	}
 
 	/**
 	 * 透過 HTTP POST 依傳入 JSON 資料宣告式匯出訂單 Excel 檔案
 	 *
-	 * @param resource 訂單匯出請求資源 (選填，若為空則套用預設展示資料)
+	 * @param resource 訂單匯出請求資源 (必填)
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
@@ -105,8 +88,8 @@ public class ExcelBeanMappingController {
 	)
 	@PostMapping("/orders/export")
 	public ResponseEntity<byte[]> exportOrders(
-			@Parameter(description = "訂單匯出設定與資料清單 (可選)")
-			@Valid @RequestBody(required = false) ExportOrderResource resource
+			@Parameter(description = "訂單匯出設定與資料清單", required = true)
+			@Valid @RequestBody ExportOrderResource resource
 	) {
 		List<OrderModel> models = resourceAssembler.toOrderModels(resource);
 		String sheetName = (resource != null && resource.sheetName() != null && !resource.sheetName().isBlank())
@@ -123,7 +106,7 @@ public class ExcelBeanMappingController {
 	/**
 	 * 透過 HTTP POST 串流匯出訂單 Excel (大數據串流模式)
 	 *
-	 * @param resource 訂單匯出請求資源 (可選)
+	 * @param resource 訂單匯出請求資源 (必填)
 	 * @param response Servlet HTTP 回應物件
 	 * @throws IOException 當串流寫入發生 I/O 異常時拋出
 	 */
@@ -133,8 +116,8 @@ public class ExcelBeanMappingController {
 	)
 	@PostMapping("/orders/stream-export")
 	public void streamExportOrders(
-			@Parameter(description = "訂單匯出設定與資料清單 (可選)")
-			@Valid @RequestBody(required = false) ExportOrderResource resource,
+			@Parameter(description = "訂單匯出設定與資料清單", required = true)
+			@Valid @RequestBody ExportOrderResource resource,
 			HttpServletResponse response
 	) throws IOException {
 		List<OrderModel> models = resourceAssembler.toOrderModels(resource);
@@ -198,29 +181,13 @@ public class ExcelBeanMappingController {
 	}
 
 	// =========================================================================
-	// 2. Java 21 Record 宣告式匯出與匯入 (ProductRecordModel 測試端點)
+	// 2. Java 21 Record 宣告式匯出與匯入 (ProductRecordModel 端點)
 	// =========================================================================
-
-	/**
-	 * 透過 HTTP GET 快速下載商品主檔範例 Excel 檔案 (Java 21 Record 模式)
-	 *
-	 * @return Excel 二進位檔案下載回應
-	 */
-	@Operation(
-			summary = "快速下載商品主檔範例 Excel (Java 21 Record 模式)",
-			description = "使用系統展示資料，經由 ExportExcelUseCase.exportBeans 將不可變 ProductRecordModel 清單宣告式產製為 Excel 下載。"
-	)
-	@GetMapping("/products/export")
-	public ResponseEntity<byte[]> exportSampleProducts() {
-		List<ProductRecordModel> sampleProducts = resourceAssembler.createSampleProducts();
-		byte[] excelBytes = exportExcelUseCase.exportBeans(sampleProducts, ProductRecordModel.class);
-		return createDownloadResponse(excelBytes, "products_sample.xlsx");
-	}
 
 	/**
 	 * 透過 HTTP POST 依傳入 JSON 資料宣告式匯出商品主檔 Excel (Java 21 Record 模式)
 	 *
-	 * @param resource 商品匯出請求資源 (選填)
+	 * @param resource 商品匯出請求資源 (必填)
 	 * @return Excel 二進位檔案下載回應
 	 */
 	@Operation(
@@ -229,8 +196,8 @@ public class ExcelBeanMappingController {
 	)
 	@PostMapping("/products/export")
 	public ResponseEntity<byte[]> exportProducts(
-			@Parameter(description = "商品匯出設定與資料清單 (可選)")
-			@Valid @RequestBody(required = false) ExportProductResource resource
+			@Parameter(description = "商品匯出設定與資料清單", required = true)
+			@Valid @RequestBody ExportProductResource resource
 	) {
 		List<ProductRecordModel> models = resourceAssembler.toProductModels(resource);
 		String sheetName = (resource != null && resource.sheetName() != null && !resource.sheetName().isBlank())
@@ -300,4 +267,3 @@ public class ExcelBeanMappingController {
 		return ResponseEntity.ok().headers(headers).body(content);
 	}
 }
-

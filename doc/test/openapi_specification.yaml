@@ -459,21 +459,6 @@ paths:
                 $ref: '#/components/schemas/ValidationFailedResource'
 
   /api/v1/excel/bean-mapping/orders/export:
-    get:
-      tags:
-        - Excel 宣告式物件映射介面
-      summary: 快速下載訂單展示 Excel (JavaBean) (GET)
-      description: |
-        自動載入 3 筆預設展示訂單資料，透過 ExcelBeanAssembler 與 @ExcelSheet / @ExcelColumn 宣告式產製格式化 Excel 檔案。
-      operationId: exportSampleOrders
-      responses:
-        '200':
-          description: 成功產製訂單 Excel 檔案並提供下載
-          content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
-              schema:
-                type: string
-                format: binary
     post:
       tags:
         - Excel 宣告式物件映射介面
@@ -549,21 +534,6 @@ paths:
                 $ref: '#/components/schemas/OrderImportedResource'
 
   /api/v1/excel/bean-mapping/products/export:
-    get:
-      tags:
-        - Excel 宣告式物件映射介面
-      summary: 快速下載商品主檔展示 Excel (Java 21 Record) (GET)
-      description: |
-        自動載入商品主檔展示資料，透過 Java 21 原生不可變 Record 與宣告式註解匯出 Excel。
-      operationId: exportSampleProducts
-      responses:
-        '200':
-          description: 成功產製商品主檔 Excel 檔案
-          content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
-              schema:
-                type: string
-                format: binary
     post:
       tags:
         - Excel 宣告式物件映射介面
@@ -614,6 +584,272 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductImportedResource'
+
+  /api/v1/excel/material-bom/materials/export:
+    get:
+      tags:
+        - 物料與 BOM Excel 宣告式映射介面
+      summary: 1. 匯出系統現有物料主檔 Excel (Material 業務模型)
+      description: 直接從物料儲存庫查詢現有物料聚合根，產製 materials_master.xlsx 之 Excel 檔案。
+      operationId: exportLiveMaterials
+      responses:
+        '200':
+          description: 成功產製並下載物料主檔 Excel
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/material-bom/materials/import:
+    post:
+      tags:
+        - 物料與 BOM Excel 宣告式映射介面
+      summary: 2. 檔案上傳並宣告式解析為 MaterialExcelModel
+      description: 上傳物料 Excel 檔案，宣告式解析並映射為 MaterialExcelModel 清單。
+      operationId: importMaterials
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲上傳之物料 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 成功解析物料 Excel 內容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialImportedResource'
+        '400':
+          description: 檔案為空或解析失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/material-bom/bom-items/export:
+    get:
+      tags:
+        - 物料與 BOM Excel 宣告式映射介面
+      summary: 3. 匯出系統現有單階 BOM 配方 Excel (BOM 業務模型)
+      description: 直接從 BOM 與物料儲存庫查詢現有單階關聯，產製 bom_items_master.xlsx 檔案。
+      operationId: exportLiveBomItems
+      responses:
+        '200':
+          description: 成功產製並下載單階 BOM 配方 Excel
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/material-bom/bom-items/import:
+    post:
+      tags:
+        - 物料與 BOM Excel 宣告式映射介面
+      summary: 4. 檔案上傳並宣告式解析為 BomItemExcelModel
+      description: 上傳 BOM 配方 Excel 檔案，宣告式解析並映射為 BomItemExcelModel 清單。
+      operationId: importBomItems
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 欲上傳之單階 BOM Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 成功解析 BOM Excel 內容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BomItemImportedResource'
+        '400':
+          description: 檔案為空或解析失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationFailedResource'
+
+  /api/v1/excel/validation/templates:
+    get:
+      tags:
+        - Excel 客製驗證與錯誤回標介面
+      summary: 1. 查詢所有已註冊之可用範本列表 (Template Discovery)
+      description: 回傳目前系統已註冊之所有 Excel 業務範本資訊 (鍵值、名稱、工作表名稱與預設回標檔名)。
+      operationId: getRegisteredTemplates
+      responses:
+        '200':
+          description: 成功取得可用範本清單
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateDescriptor'
+
+  /api/v1/excel/validation/{templateKey}/feedback:
+    post:
+      tags:
+        - Excel 客製驗證與錯誤回標介面
+      summary: 2. 統一動態範本校驗並生成「錯誤回標檔」(OCP 核心統一接口)
+      description: 支援任意已註冊之業務範本。違規自動產製標註淡紅底深紅字之 Excel 回標檔；合格則降級回傳 JSON 統計。
+      operationId: validateWithFeedback
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本鍵值 (如 orders, products, materials, boms)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待檢核之 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 檢核完全合格 (JSON 報告) 或成功產製錯誤回標檔 (.xlsx) 下載
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelValidatedResource'
+        '400':
+          description: 無效請求、檔案為空或查無範本鍵值
+
+  /api/v1/excel/validation/{templateKey}:
+    post:
+      tags:
+        - Excel 客製驗證與錯誤回標介面
+      summary: 3. 統一動態範本校驗 (回傳 JSON 統計結果 - OCP 核心統一接口)
+      description: 支援任意已註冊之業務範本，執行 EasyRules 規則檢核，回傳全量檢核錯誤清單與統計數據。
+      operationId: validateTemplateJson
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本鍵值 (如 orders, products, materials, boms)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待檢核之 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 完全合格報告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelValidatedResource'
+        '422':
+          description: 檢核發現違規資料 (包含錯誤細節清單)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelValidatedResource'
+        '400':
+          description: 無效請求或檔案為空
+
+  /api/v1/excel/validation/feedback:
+    post:
+      tags:
+        - Excel 客製驗證與錯誤回標介面
+      summary: 4. 智慧自動偵測範本並生成「錯誤回標檔」(Zero-Config 自動路由接口)
+      description: 無須指定 templateKey，後端自動依據上傳 Excel 第一個工作表名稱 (Sheet Name) 自動匹配對應之模型規範並校驗產製回標檔。
+      operationId: validateAutoDetectWithFeedback
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待檢核之 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 檢核完全合格 (JSON 報告) 或成功產製錯誤回標檔 (.xlsx) 下載
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 無效請求、檔案為空或查無匹配工作表之範本
+
+  /api/v1/excel/validation/declarative/orders:
+    post:
+      tags:
+        - Excel 客製驗證與錯誤回標介面
+      summary: 5. 宣告式訂單匯入 (AOP 自動回標短路攔截最佳實踐示範)
+      description: 透過 @ValidateExcel 切面攔截，違規直接短路下載回標檔，合格自動注入合規清單。
+      operationId: declarativeValidateOrders
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待檢核之訂單 Excel 檔案 (.xlsx)
+      responses:
+        '200':
+          description: 完全合格回傳成功報告，或違規時直接下載錯誤回標檔 (.xlsx)
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelValidatedResource'
+        '400':
+          description: 無效請求或檔案為空
 
 components:
   schemas:
@@ -708,7 +944,7 @@ components:
         fileName:
           type: string
           example: 百萬筆資料串流.xlsx
-        flushRows:
+        batchFlushSize:
           type: integer
           default: 1000
           example: 1000
@@ -934,6 +1170,156 @@ components:
           type: boolean
           example: true
 
+    TemplateDescriptor:
+      type: object
+      description: 範本元數據描述符
+      properties:
+        key:
+          type: string
+          example: orders
+        sheetName:
+          type: string
+          example: 訂單匯入清單
+        displayName:
+          type: string
+          example: 訂單
+        feedbackFilename:
+          type: string
+          example: 訂單檢核錯誤回標檔.xlsx
+
+    ExcelValidatedResource:
+      type: object
+      description: 試算表檢核結果資源
+      properties:
+        success:
+          type: boolean
+          example: false
+        totalRows:
+          type: integer
+          example: 10
+        validCount:
+          type: integer
+          example: 8
+        errorCount:
+          type: integer
+          example: 2
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcelRowErrorResource'
+
+    ExcelRowErrorResource:
+      type: object
+      description: 單一檢核錯誤細節
+      properties:
+        rowIndex:
+          type: integer
+          example: 2
+        columnIndex:
+          type: integer
+          example: 2
+        columnName:
+          type: string
+          example: 購買金額
+        invalidValue:
+          type: object
+          example: -50.00
+        errorMessage:
+          type: string
+          example: 購買金額必須大於 0.00
+        ruleCode:
+          type: string
+          example: INVALID_ORDER_AMOUNT
+
+    MaterialImportedResource:
+      type: object
+      description: 物料主檔匯入解析完成結構
+      properties:
+        totalCount:
+          type: integer
+          example: 10
+        sheetName:
+          type: string
+          example: 物料主檔清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialDetailResource'
+
+    MaterialDetailResource:
+      type: object
+      properties:
+        materialCode:
+          type: string
+          example: MAT-001
+        materialName:
+          type: string
+          example: 高精度馬達
+        specification:
+          type: string
+          example: 2204-KV2300
+        category:
+          type: string
+          example: RAW_MATERIAL
+        unit:
+          type: string
+          example: PCS
+        standardCost:
+          type: number
+          example: 450.00
+        status:
+          type: string
+          example: ACTIVE
+
+    BomItemImportedResource:
+      type: object
+      description: 單階 BOM 配方匯入解析完成結構
+      properties:
+        totalCount:
+          type: integer
+          example: 15
+        sheetName:
+          type: string
+          example: 單階BOM清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BomItemDetailResource'
+
+    BomItemDetailResource:
+      type: object
+      properties:
+        parentMaterialCode:
+          type: string
+          example: MAT-FG-001
+        bomVersion:
+          type: string
+          example: "1.0"
+        itemSequence:
+          type: integer
+          example: 1
+        childMaterialCode:
+          type: string
+          example: MAT-RM-001
+        childMaterialName:
+          type: string
+          example: 碳纖維螺旋槳
+        quantity:
+          type: number
+          example: 4
+        unit:
+          type: string
+          example: PCS
+        scrapRate:
+          type: number
+          example: 0.02
+        positionCode:
+          type: string
+          example: P1-P4
+        remark:
+          type: string
+          example: 四軸螺旋槳
+
     ProductImportedResource:
       type: object
       description: 商品匯入解析完成回應結構
@@ -965,4 +1351,154 @@ components:
         onSale:
           type: boolean
           example: true
+
+    TemplateDescriptor:
+      type: object
+      description: 範本元數據描述符
+      properties:
+        key:
+          type: string
+          example: orders
+        sheetName:
+          type: string
+          example: 訂單匯入清單
+        displayName:
+          type: string
+          example: 訂單
+        feedbackFilename:
+          type: string
+          example: 訂單檢核錯誤回標檔.xlsx
+
+    ExcelValidatedResource:
+      type: object
+      description: 試算表檢核結果資源
+      properties:
+        success:
+          type: boolean
+          example: false
+        totalRows:
+          type: integer
+          example: 10
+        validCount:
+          type: integer
+          example: 8
+        errorCount:
+          type: integer
+          example: 2
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcelRowErrorResource'
+
+    ExcelRowErrorResource:
+      type: object
+      description: 單一檢核錯誤細節
+      properties:
+        rowIndex:
+          type: integer
+          example: 2
+        columnIndex:
+          type: integer
+          example: 2
+        columnName:
+          type: string
+          example: 購買金額
+        invalidValue:
+          type: object
+          example: -50.00
+        errorMessage:
+          type: string
+          example: 購買金額必須大於 0.00
+        ruleCode:
+          type: string
+          example: INVALID_ORDER_AMOUNT
+
+    MaterialImportedResource:
+      type: object
+      description: 物料主檔匯入解析完成結構
+      properties:
+        totalCount:
+          type: integer
+          example: 10
+        sheetName:
+          type: string
+          example: 物料主檔清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialDetailResource'
+
+    MaterialDetailResource:
+      type: object
+      properties:
+        materialCode:
+          type: string
+          example: MAT-001
+        materialName:
+          type: string
+          example: 高精度馬達
+        specification:
+          type: string
+          example: 2204-KV2300
+        category:
+          type: string
+          example: RAW_MATERIAL
+        unit:
+          type: string
+          example: PCS
+        standardCost:
+          type: number
+          example: 450.00
+        status:
+          type: string
+          example: ACTIVE
+
+    BomItemImportedResource:
+      type: object
+      description: 單階 BOM 配方匯入解析完成結構
+      properties:
+        totalCount:
+          type: integer
+          example: 15
+        sheetName:
+          type: string
+          example: 單階BOM清單
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BomItemDetailResource'
+
+    BomItemDetailResource:
+      type: object
+      properties:
+        parentMaterialCode:
+          type: string
+          example: MAT-FG-001
+        bomVersion:
+          type: string
+          example: "1.0"
+        itemSequence:
+          type: integer
+          example: 1
+        childMaterialCode:
+          type: string
+          example: MAT-RM-001
+        childMaterialName:
+          type: string
+          example: 碳纖維螺旋槳
+        quantity:
+          type: number
+          example: 4
+        unit:
+          type: string
+          example: PCS
+        scrapRate:
+          type: number
+          example: 0.02
+        positionCode:
+          type: string
+          example: P1-P4
+        remark:
+          type: string
+          example: 四軸螺旋槳
 

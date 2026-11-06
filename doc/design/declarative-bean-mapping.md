@@ -98,7 +98,7 @@ flowchart TD
 
 ## 3. 宣告式註解系統
 
-位於套件 [`com.example.demo.application.annotation`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/)：
+位於套件 [`com.example.demo.application.annotation.mapping`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/)：
 
 ### 3.1 `@ExcelSheet`
 宣告在 Model Class 或 Record 上，定義對應之工作表基本資訊：
@@ -161,8 +161,8 @@ package com.example.demo.application.shared.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 
 @ExcelSheet(name = "訂單匯入清單")
 public class OrderModel {
@@ -196,8 +196,8 @@ public class OrderModel {
 package com.example.demo.application.shared.model;
 
 import java.math.BigDecimal;
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 
 @ExcelSheet(name = "商品主檔清單")
 public record ProductRecordModel(
@@ -222,13 +222,11 @@ public record ProductRecordModel(
 為了便於驗證與測試宣告式映射的完整生命週期，專案內建了 [`ExcelBeanMappingController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelBeanMappingController.java)，開放以下 REST 端點：
 
 * **基礎路徑**：`/api/v1/excel/bean-mapping`
-1. `GET /orders/export`：快速下載內建展示資料之訂單 Excel。
-2. `POST /orders/export`：傳入自訂 JSON 匯出訂單 Excel。
-3. `POST /orders/stream-export`：大數據串流直接沖刷至 HTTP 輸出流。
-4. `POST /orders/import`：Multipart 上傳 Excel 並宣告式解析為 `List<OrderModel>` JSON。
-5. `GET /products/export`：快速下載不可變 Record 範例 Excel。
-6. `POST /products/export`：傳入自訂 JSON 匯出 Record 商品主檔。
-7. `POST /products/import`：Multipart 上傳 Excel 並解析為 `List<ProductRecordModel>` JSON。
+1. `POST /orders/export`：傳入自訂 JSON 匯出訂單 Excel。
+2. `POST /orders/stream-export`：大數據串流直接沖刷至 HTTP 輸出流。
+3. `POST /orders/import`：Multipart 上傳 Excel 並宣告式解析為 `List<OrderModel>` JSON。
+4. `POST /products/export`：傳入自訂 JSON 匯出 Record 商品主檔。
+5. `POST /products/import`：Multipart 上傳 Excel 並解析為 `List<ProductRecordModel>` JSON。
 
 > **防腐機制**：控制器不直接接觸業務模型轉換，而是委託獨立的 [`ExcelBeanMappingResourceAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/assembler/ExcelBeanMappingResourceAssembler.java) 進行參數組裝，完全符合 [AGENTS.md](file:///d:/桌面/ModuleWorkSpace/excel-module/.agents/AGENTS.md) 規範第 33-35 條。
 

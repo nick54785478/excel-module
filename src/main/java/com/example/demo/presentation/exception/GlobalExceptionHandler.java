@@ -14,8 +14,11 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 import com.example.demo.application.shared.exception.ExcelReadException;
 import com.example.demo.application.shared.exception.ExcelTaskNotFoundException;
+import com.example.demo.application.shared.exception.ExcelValidationFailedException;
 import com.example.demo.application.shared.exception.ExcelWriteException;
 import com.example.demo.domain.material.exception.MaterialNotFoundException;
+import com.example.demo.presentation.assembler.ExcelValidationResourceAssembler;
+import com.example.demo.presentation.resource.out.ExcelValidatedResource;
 import com.example.demo.presentation.resource.out.ValidationFailedResource;
 import com.example.demo.presentation.resource.out.ValidationFailedResource.FieldErrorResource;
 
@@ -31,6 +34,42 @@ import jakarta.validation.ConstraintViolationException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private final ExcelValidationResourceAssembler validationResourceAssembler;
+
+	/**
+	 * 建構子注入資源組裝器
+	 *
+	 * @param validationResourceAssembler 檢核資源組裝器
+	 */
+	public GlobalExceptionHandler(ExcelValidationResourceAssembler validationResourceAssembler) {
+		this.validationResourceAssembler = validationResourceAssembler != null
+				? validationResourceAssembler
+				: new ExcelValidationResourceAssembler();
+	}
+
+	/**
+	 * 無參建構子
+	 */
+	public GlobalExceptionHandler() {
+		this(new ExcelValidationResourceAssembler());
+	}
+
+	/**
+	 * 攔截 Excel 宣告式資料檢核失敗例外 ({@code @ValidateExcel})
+	 * <p>
+	 * 當 AOP 切面在 {@code THROW_EXCEPTION} 模式下檢測到資料違規時拋出，
+	 * 將應用層全量錯誤清單組裝為表現層 {@link ExcelValidatedResource} 並回傳 HTTP 422。
+	 * </p>
+	 *
+	 * @param ex 檢核失敗例外
+	 * @return 422 Unprocessable Entity 結構化全量錯誤回應
+	 */
+	@ExceptionHandler(ExcelValidationFailedException.class)
+	public ResponseEntity<ExcelValidatedResource> handleExcelValidationFailed(ExcelValidationFailedException ex) {
+		ExcelValidatedResource resource = validationResourceAssembler.toResource(ex.getValidationResult());
+		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(resource);
+	}
 
 	/**
 	 * 攔截 {@code @Valid} 請求主體 (RequestBody) 參數校驗失敗例外

@@ -21,14 +21,15 @@ import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
-import com.example.demo.infrastructure.adapter.PoiSaxReaderAdapter;
-import com.example.demo.infrastructure.adapter.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
 
 /**
  * Apache POI 引擎整合測試 (BomPoiIntegrationTest)
  * <p>
  * 遵循 Clean Architecture 表現層與基礎設施整合測試規範，驗證在 {@code excel.engine=APACHE_POI}
- * 旗標啟用下，完整 REST API 請求能成功透過 Apache POI (SXSSF) 生成 Excel 檔案，並透過 Apache POI Reader 解析。
+ * 旗標啟用下，完整 REST API 請求能成功透過 Apache POI (SXSSF) 生成 Excel 檔案，並透過 Apache POI
+ * Reader 解析。
  */
 @SpringBootTest
 @TestPropertySource(properties = "excel.engine=APACHE_POI")
@@ -76,7 +77,7 @@ class BomPoiIntegrationTest {
 	@DisplayName("整合：透過 Apache POI 產製並下載 MAT-FG-001 BOM Excel")
 	void shouldDownloadBomExcelUsingPoiSuccessfully() throws Exception {
 		MvcResult mvcResult = mockMvc.perform(get("/api/v1/bom/excel")
-						.param("parentMaterialCode", "MAT-FG-001"))
+				.param("parentMaterialCode", "MAT-FG-001"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
 				.andExpect(header().string("Content-Disposition", "attachment; filename*=UTF-8''BOM_MAT-FG-001.xlsx"))
@@ -98,7 +99,8 @@ class BomPoiIntegrationTest {
 
 	/**
 	 * Feature: 使用 Apache POI 執行大數據串流輸出
-	 * Scenario: 發送 GET /api/v1/bom/excel/stream?parentMaterialCode=MAT-FG-001&flushInterval=100
+	 * Scenario: 發送 GET
+	 * /api/v1/bom/excel/stream?parentMaterialCode=MAT-FG-001&flushInterval=100
 	 * Given: 啟用 Apache POI SXSSF 串流寫入
 	 * When: 發送 GET 串流請求
 	 * Then: 回應 200 OK，驗證 Excel 二進位內容完整性
@@ -107,8 +109,8 @@ class BomPoiIntegrationTest {
 	@DisplayName("整合：透過 Apache POI SXSSF 邊寫入邊 Flush 串流下載 BOM Excel")
 	void shouldStreamDownloadBomExcelUsingPoiSuccessfully() throws Exception {
 		MvcResult mvcResult = mockMvc.perform(get("/api/v1/bom/excel/stream")
-						.param("parentMaterialCode", "MAT-FG-001")
-						.param("flushInterval", "100"))
+				.param("parentMaterialCode", "MAT-FG-001")
+				.param("flushInterval", "100"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
 				.andExpect(header().string("Content-Disposition", "attachment; filename*=UTF-8''BOM_MAT-FG-001.xlsx"))

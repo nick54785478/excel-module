@@ -10,6 +10,7 @@
 | :--- | :---: | :--- |
 | [`declarative_bean_mapping_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/declarative_bean_mapping_guide.md) | Markdown | **維度一「宣告式物件映射 (Declarative Bean Mapping)」完整測試與使用指引** |
 | [`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md) | Markdown | **宣告式長任務監控模組 (@TrackExcelTask) 觸發、進度輪詢與下載完整測試指引** |
+| [`custom_validation_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/custom_validation_testing_guide.md) | Markdown | **維度三「客製檢核與視覺化錯誤回標檔 (Custom Validation & Error Feedback)」完整測試操作手冊** |
 | [`excel_bom_module_postman_collection.json`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/excel_bom_module_postman_collection.json) | JSON (v2.1) | 完整 Postman 測試集合，內建自動斷言腳本（Status Code、Header、檔名、錯誤結構等） |
 | [`openapi_specification.yaml`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/openapi_specification.yaml) | YAML (v3.0.3) | OpenAPI 3.0 標準規範檔，可直接匯入 Swagger Editor、Postman 或 APIDog |
 | [`README.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/README.md) | Markdown | 測試指引與測試矩陣操作文件 |
@@ -45,22 +46,33 @@
   4. `POST 異常測試 - 匯出空白檔名 (400 Bad Request)`：驗證 Spring Validation 參數攔截。
 * **`3. Excel 宣告式物件映射模組 (Declarative Bean Mapping)`**：
   * 詳細指引參閱：[`declarative_bean_mapping_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/declarative_bean_mapping_guide.md)
-  1. `GET 快速下載訂單範例 Excel (JavaBean)`：驗證 OrderModel 宣告式標註與數值/日期格式化匯出。
-  2. `POST 自訂 JSON 匯出訂單 Excel (JavaBean)`：驗證 RequestBody 轉 OrderModel 匯出。
-  3. `POST 大數據串流匯出訂單 Excel (JavaBean)`：驗證常數記憶體串流直沖 Servlet Response。
-  4. `POST 上傳 Excel 並宣告式解析為 OrderModel 清單`：驗證 Multipart 上傳自動映射 JavaBean。
-  5. `GET 快速下載商品主檔範例 Excel (Java 21 Record)`：驗證 Java 21 Record 宣告式匯出。
-  6. `POST 自訂 JSON 匯出商品主檔 (Java 21 Record)`：驗證 Record 批次資料匯出。
-  7. `POST 上傳 Excel 並宣告式解析為 Record 清單`：驗證 Multipart 自動映射 Java 21 Record。
+  1. `POST 自訂 JSON 匯出訂單 Excel (JavaBean)`：驗證 RequestBody 轉 OrderModel 匯出。
+  2. `POST 大數據串流匯出訂單 Excel (JavaBean)`：驗證常數記憶體串流直沖 Servlet Response。
+  3. `POST 上傳 Excel 並宣告式解析為 OrderModel 清單`：驗證 Multipart 上傳自動映射 JavaBean。
+  4. `POST 自訂 JSON 匯出商品主檔 (Java 21 Record)`：驗證 Record 批次資料匯出。
+  5. `POST 上傳 Excel 並宣告式解析為 Record 清單`：驗證 Multipart 自動映射 Java 21 Record。
 * **`4. Excel 宣告式長任務監控模組 (Annotation-Driven Task Tracking)`**：
   * 詳細指引參閱：[`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md)
   1. `POST 結構化條件大數據串流下載 BOM (觸發長任務與 flushInterval)`：驗證 `@TrackExcelTask` 切面自動攔截、建檔並同步串流沖刷進度。
   2. `GET 查詢 Excel 長任務進度與狀態 (/progress)`：驗證任務執行階段即時輪詢 (`PENDING` $\to$ `PROCESSING` $\to$ `COMPLETED`)、百分比與已處理列數。
   3. `GET 下載已完成長任務之產出 Excel 檔案 (/download)`：驗證任務完成後二進位產物安全下載。
   4. `GET 異常驗證 - 查詢不存在之任務 (404 Not Found)`：驗證查無任務時之全域錯誤回應。
+* **`5. Excel 客製驗證與錯誤回標模組 (Custom Validation & Error Feedback)`**：
+  * 詳細指引參閱：[`custom_validation_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/custom_validation_testing_guide.md)
+  1. `GET 查詢已註冊可用範本清單 (/templates)`：驗證系統註冊之所有單據元數據。
+  2. `POST 統一動態範本錯誤回標檔生成 (/{templateKey}/feedback)`：支援 `orders`, `products`, `materials` 等，驗證淡紅底深紅字回標檔下載。
+  3. `POST 統一動態範本 JSON 檢核統計 (/{templateKey})`：驗證全量非短路累積錯誤事實 (HTTP 200 / 422)。
+  4. `POST Zero-Config 智慧自動探測回標檔 (/feedback)`：免傳 Key，依 Sheet Name 自動探測並回標。
+  5. `POST 宣告式 AOP 自動回標攔截匯入 (/declarative/orders)`：驗證 `@ValidateExcel` 切面短路防守與合規清單自動注入。
+* **`6. 物料與 BOM 聚合宣告式 Excel 映射模組 (Material & BOM Mapping)`**：
+  * 控制器：[`MaterialBomExcelController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/MaterialBomExcelController.java) (`/api/v1/excel/material-bom`)
+  1. `GET 匯出系統現有物料主檔 Excel (/materials/export)`：直接查詢 Material 聚合根，一鍵下載 `materials_master.xlsx`。
+  2. `POST 上傳物料 Excel 宣告式純解析 (/materials/import)`：反射反序列化為 `MaterialExcelModel` JSON。
+  3. `GET 匯出系統現有單階 BOM 配方 Excel (/bom-items/export)`：直接查詢 BOM 聚合根，一鍵下載 `bom_items_master.xlsx`。
+  4. `POST 上傳 BOM 配方 Excel 宣告式純解析 (/bom-items/import)`：反射反序列化為 `BomItemExcelModel` JSON。
 
 ### 4. 執行自動化測試 (Collection Runner)
-點選集合右側的 **`Run collection`**，可一鍵自動執行全部 22 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。
+點選集合右側的 **`Run collection`**，可一鍵自動執行全部 20 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。
 
 ---
 

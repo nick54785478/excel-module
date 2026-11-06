@@ -14,17 +14,17 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.example.demo.application.annotation.ExcelColumn;
-import com.example.demo.application.annotation.ExcelSheet;
+import com.example.demo.application.annotation.mapping.ExcelColumn;
+import com.example.demo.application.annotation.mapping.ExcelSheet;
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.service.ExcelCommandService;
 import com.example.demo.application.service.ExcelQueryService;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
-import com.example.demo.infrastructure.adapter.FastExcelReaderAdapter;
-import com.example.demo.infrastructure.adapter.FastExcelWriterAdapter;
-import com.example.demo.infrastructure.adapter.PoiSaxReaderAdapter;
-import com.example.demo.infrastructure.adapter.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
+import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
 
 @DisplayName("ExcelBeanAssembler 宣告式物件映射與 Application Service 流程測試")
 class ExcelBeanAssemblerTest {
@@ -128,21 +128,16 @@ class ExcelBeanAssemblerTest {
 	 */
 	@ExcelSheet("商品主檔清單")
 	public record ProductRecordModel(
-			@ExcelColumn(name = "商品代碼", index = 0)
-			String productCode,
+			@ExcelColumn(name = "商品代碼", index = 0) String productCode,
 
-			@ExcelColumn(name = "商品名稱", index = 1)
-			String productName,
+			@ExcelColumn(name = "商品名稱", index = 1) String productName,
 
-			@ExcelColumn(name = "售價", index = 2, format = "#,##0.00")
-			BigDecimal price,
+			@ExcelColumn(name = "售價", index = 2, format = "#,##0.00") BigDecimal price,
 
-			@ExcelColumn(name = "是否上架", index = 3)
-			boolean active,
+			@ExcelColumn(name = "是否上架", index = 3) boolean active,
 
-			@ExcelColumn(name = "建立時間", index = 4, format = "yyyy-MM-dd HH:mm:ss")
-			LocalDateTime createTime
-	) {}
+			@ExcelColumn(name = "建立時間", index = 4, format = "yyyy-MM-dd HH:mm:ss") LocalDateTime createTime) {
+	}
 
 	// =========================================================================
 	// 測試案例
@@ -150,9 +145,11 @@ class ExcelBeanAssemblerTest {
 
 	/**
 	 * Feature: JavaBean 宣告式匯出與匯入 (Clean Architecture 調度流程 - FastExcel 引擎)
-	 * Scenario: 透過 ExcelCommandService.exportBeans 產製 Excel，並透過 ExcelQueryService.importBeans 還原為強型別物件
+	 * Scenario: 透過 ExcelCommandService.exportBeans 產製 Excel，並透過
+	 * ExcelQueryService.importBeans 還原為強型別物件
 	 * Given: 建立包含 2 筆訂單之 OrderPojoModel 清單
-	 * When: Application Service 調用 Assembler 轉為 Command 後由 FastExcelWriterAdapter 產出 byte[]，再經由 FastExcelReaderAdapter 與 Assembler 還原
+	 * When: Application Service 調用 Assembler 轉為 Command 後由 FastExcelWriterAdapter
+	 * 產出 byte[]，再經由 FastExcelReaderAdapter 與 Assembler 還原
 	 * Then: 成功還原 2 筆物件，所有屬性型別 (String, BigDecimal, int, LocalDate, Enum) 與預設值皆正確
 	 */
 	@Test
@@ -163,13 +160,15 @@ class ExcelBeanAssemblerTest {
 		ExcelQueryService importService = new ExcelQueryService(new FastExcelReaderAdapter());
 
 		List<OrderPojoModel> orders = List.of(
-				new OrderPojoModel("ORD-2026-001", "張小明", new BigDecimal("12500.50"), 2, LocalDate.of(2026, 11, 1), OrderStatus.PAID),
-				new OrderPojoModel("ORD-2026-002", null, new BigDecimal("8800.00"), 1, LocalDate.of(2026, 11, 2), OrderStatus.SHIPPED)
-		);
+				new OrderPojoModel("ORD-2026-001", "張小明", new BigDecimal("12500.50"), 2, LocalDate.of(2026, 11, 1),
+						OrderStatus.PAID),
+				new OrderPojoModel("ORD-2026-002", null, new BigDecimal("8800.00"), 1, LocalDate.of(2026, 11, 2),
+						OrderStatus.SHIPPED));
 
 		// When
 		byte[] excelBytes = exportService.exportBeans(orders, OrderPojoModel.class);
-		List<OrderPojoModel> restoredOrders = importService.importBeans(new ByteArrayInputStream(excelBytes), OrderPojoModel.class);
+		List<OrderPojoModel> restoredOrders = importService.importBeans(new ByteArrayInputStream(excelBytes),
+				OrderPojoModel.class);
 
 		// Then
 		assertThat(restoredOrders).hasSize(2);
@@ -193,9 +192,11 @@ class ExcelBeanAssemblerTest {
 
 	/**
 	 * Feature: Java 21 Record 宣告式匯出與匯入 (Clean Architecture 調度流程 - Apache POI 引擎)
-	 * Scenario: 透過 ExcelCommandService.exportBeans 匯出 Record 清單，並透過 ExcelQueryService.importBeans 還原為不可變 Record
+	 * Scenario: 透過 ExcelCommandService.exportBeans 匯出 Record 清單，並透過
+	 * ExcelQueryService.importBeans 還原為不可變 Record
 	 * Given: 建立包含 2 筆商品之 ProductRecordModel 清單
-	 * When: Application Service 調度 PoiSxssfWriterAdapter 產製 byte[] 並調度 PoiSaxReaderAdapter 解析
+	 * When: Application Service 調度 PoiSxssfWriterAdapter 產製 byte[] 並調度
+	 * PoiSaxReaderAdapter 解析
 	 * Then: 成功還原 2 筆 Record 實例，各欄位數值與格式化字串還原正確
 	 */
 	@Test
@@ -208,12 +209,12 @@ class ExcelBeanAssemblerTest {
 		LocalDateTime now = LocalDateTime.of(2026, 11, 1, 10, 30, 0);
 		List<ProductRecordModel> products = List.of(
 				new ProductRecordModel("PROD-001", "4K 專業航拍無人機", new BigDecimal("35000.00"), true, now),
-				new ProductRecordModel("PROD-002", "高容量鋰電池模組", new BigDecimal("4500.00"), false, now.minusDays(1))
-		);
+				new ProductRecordModel("PROD-002", "高容量鋰電池模組", new BigDecimal("4500.00"), false, now.minusDays(1)));
 
 		// When
 		byte[] excelBytes = exportService.exportBeans(products, ProductRecordModel.class);
-		List<ProductRecordModel> restoredProducts = importService.importBeans(new ByteArrayInputStream(excelBytes), ProductRecordModel.class);
+		List<ProductRecordModel> restoredProducts = importService.importBeans(new ByteArrayInputStream(excelBytes),
+				ProductRecordModel.class);
 
 		// Then
 		assertThat(restoredProducts).hasSize(2);
@@ -237,7 +238,8 @@ class ExcelBeanAssemblerTest {
 	 * Scenario: 驗證寫入 Map 資料並使用 getDataRowsAsMaps 讀取，同時支援由 Assembler 轉換為 Bean
 	 * Given: 建立包含 2 筆以 Map 表示的訂單資料
 	 * When: 調用 writer.writeMaps 寫入，並透過 reader.readFirstSheet 讀取純資料載體
-	 * Then: 能正常使用 getDataRowsAsMaps 取得 Map 清單，且可經由 ExcelBeanAssembler.toBeanList 轉換為 OrderPojoModel
+	 * Then: 能正常使用 getDataRowsAsMaps 取得 Map 清單，且可經由 ExcelBeanAssembler.toBeanList
+	 * 轉換為 OrderPojoModel
 	 */
 	@Test
 	@DisplayName("情境：Map 結構寫入與 getDataRowsAsMaps / Assembler 轉 Bean 雙軌相容驗證")
@@ -321,5 +323,87 @@ class ExcelBeanAssemblerTest {
 		assertThat(restored.get(0).getQuantity()).isEqualTo(5);
 		assertThat(restored.get(0).getStatus()).isEqualTo(OrderStatus.PAID);
 	}
-}
 
+	/**
+	 * Feature: Excel 數值日期序號 (Serial Number / OADate) 解析
+	 * Scenario: 驗證 ExcelBeanAssembler 對浮點數日期與日期時間序號之精準還原
+	 * Given: 傳入 Excel 日期序號 46327.0 (對應 2026-11-01) 與 46327.5 (對應 2026-11-01 12:00:00)
+	 * When: 調用 parseExcelSerialDate 與 parseExcelSerialDateTime
+	 * Then: 成功還原為正確之 LocalDate 與 LocalDateTime
+	 */
+	@Test
+	@DisplayName("情境：Excel 浮點數日期序號 (46327.0) 精準還原為 LocalDate 與 LocalDateTime")
+	void shouldParseExcelDateSerialNumbersCorrectly() {
+		// Given & When
+		LocalDate date = ExcelBeanAssembler.parseExcelSerialDate(46327.0);
+		LocalDateTime dateTime = ExcelBeanAssembler.parseExcelSerialDateTime(46327.5);
+
+		// Then
+		assertThat(date).isEqualTo(LocalDate.of(2026, 11, 1));
+		assertThat(dateTime).isEqualTo(LocalDateTime.of(2026, 11, 1, 12, 0, 0));
+	}
+
+	/**
+	 * Feature: 試算表讀取包含 Excel 日期序號字串與數值時之宣告式組裝
+	 * Scenario: 驗證儲存格包含 "46327.0" 字串或 46327.0 浮點數時，toBeanList 能正確轉型為 LocalDate
+	 * Given: 建立包含 "46327.0" 與 46328.0 的 ExcelSheetGottenResult
+	 * When: 調用 ExcelBeanAssembler.toBeanList 轉為 OrderPojoModel
+	 * Then: 成功轉換，orderDate 正確解析為 2026-11-01 與 2026-11-02，不拋出 DateTimeParseException
+	 */
+	@Test
+	@DisplayName("情境：儲存格包含日期序號字串與數值時，toBeanList 正常組裝不拋錯")
+	void shouldAssembleBeansWithExcelSerialDateStringsAndNumbers() {
+		// Given
+		List<String> headers = List.of("訂單編號", "訂購人", "購買金額", "數量", "下單日期", "訂單狀態");
+		List<List<Object>> rows = List.of(
+				List.of("ORD-S01", "張三", 1000.0, 1, "46327.0", "PAID"),
+				List.of("ORD-S02", "李四", 2000.0, 2, 46328.0, "PAID")
+		);
+		List<List<String>> textRows = List.of(
+				List.of("ORD-S01", "張三", "1000.0", "1", "46327.0", "PAID"),
+				List.of("ORD-S02", "李四", "2000.0", "2", "46328.0", "PAID")
+		);
+		ExcelSheetGottenResult sheet = new ExcelSheetGottenResult(0, "訂單匯入清單", headers, rows, textRows);
+
+		// When
+		List<OrderPojoModel> beans = ExcelBeanAssembler.toBeanList(sheet, OrderPojoModel.class);
+
+		// Then
+		assertThat(beans).hasSize(2);
+		assertThat(beans.get(0).getOrderDate()).isEqualTo(LocalDate.of(2026, 11, 1));
+		assertThat(beans.get(1).getOrderDate()).isEqualTo(LocalDate.of(2026, 11, 2));
+	}
+
+	/**
+	 * Feature: 容錯組裝管線與型別轉換錯誤收集 (toBeanListWithErrors)
+	 * Scenario: 當儲存格包含非法的字串數值 (如無法轉換為數值或日期) 時，主動收集錯誤而非拋出中斷例外
+	 * Given: 包含違規字串 "INVALID_AMOUNT" 與 "NOT_A_DATE" 的儲存格列
+	 * When: 調用 toBeanListWithErrors
+	 * Then: 收集到型別轉換錯誤事實，不拋出 500/異常例外
+	 */
+	@Test
+	@DisplayName("情境：儲存格包含不合法格式時，toBeanListWithErrors 正確收集錯誤事實")
+	void shouldCollectConversionErrorsGracefullyInToBeanListWithErrors() {
+		// Given
+		List<String> headers = List.of("訂單編號", "訂購人", "購買金額", "數量", "下單日期", "訂單狀態");
+		List<List<Object>> rows = List.of(
+				List.of("ORD-ERR-1", "王五", "INVALID_AMOUNT", 1, "NOT_A_DATE", "PAID"),
+				List.of("ORD-OK-1", "趙六", 1500.0, 3, "2026-11-05", "PAID")
+		);
+		List<List<String>> textRows = List.of(
+				List.of("ORD-ERR-1", "王五", "INVALID_AMOUNT", "1", "NOT_A_DATE", "PAID"),
+				List.of("ORD-OK-1", "趙六", "1500.0", "3", "2026-11-05", "PAID")
+		);
+		ExcelSheetGottenResult sheet = new ExcelSheetGottenResult(0, "訂單匯入清單", headers, rows, textRows);
+
+		// When
+		ExcelBeanAssembler.BeanAssemblyResult<OrderPojoModel> result =
+				ExcelBeanAssembler.toBeanListWithErrors(sheet, OrderPojoModel.class);
+
+		// Then
+		assertThat(result.hasErrors()).isTrue();
+		assertThat(result.conversionErrors()).hasSize(2); // 購買金額與下單日期轉型失敗
+		assertThat(result.items()).hasSize(1);            // 第 2 列完全合格實例化
+		assertThat(result.items().get(0).getOrderNo()).isEqualTo("ORD-OK-1");
+	}
+}

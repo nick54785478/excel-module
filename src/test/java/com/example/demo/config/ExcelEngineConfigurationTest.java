@@ -8,10 +8,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
-import com.example.demo.infrastructure.adapter.FastExcelReaderAdapter;
-import com.example.demo.infrastructure.adapter.FastExcelWriterAdapter;
-import com.example.demo.infrastructure.adapter.PoiSaxReaderAdapter;
-import com.example.demo.infrastructure.adapter.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
+import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
+import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
 
 /**
  * ExcelEngineConfiguration 配置切換測試 (Configuration Layer Tests)

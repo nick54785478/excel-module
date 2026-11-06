@@ -1,7 +1,5 @@
 package com.example.demo.presentation.assembler;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,11 +30,11 @@ public class ExcelBeanMappingResourceAssembler {
 	 * 將訂單匯出請求資源轉換為 {@link OrderModel} 清單
 	 *
 	 * @param resource 訂單匯出請求資源
-	 * @return 訂單模型清單 (若傳入清單為空則回傳展示預設資料)
+	 * @return 訂單模型清單
 	 */
 	public List<OrderModel> toOrderModels(ExportOrderResource resource) {
 		if (resource == null || resource.orders() == null || resource.orders().isEmpty()) {
-			return createSampleOrders();
+			return Collections.emptyList();
 		}
 
 		List<OrderModel> models = new ArrayList<>(resource.orders().size());
@@ -87,11 +85,11 @@ public class ExcelBeanMappingResourceAssembler {
 	 * 將商品匯出請求資源轉換為 {@link ProductRecordModel} 清單
 	 *
 	 * @param resource 商品匯出請求資源
-	 * @return 商品 Record 模型清單 (若傳入清單為空則回傳展示預設資料)
+	 * @return 商品 Record 模型清單
 	 */
 	public List<ProductRecordModel> toProductModels(ExportProductResource resource) {
 		if (resource == null || resource.products() == null || resource.products().isEmpty()) {
-			return createSampleProducts();
+			return Collections.emptyList();
 		}
 
 		List<ProductRecordModel> models = new ArrayList<>(resource.products().size());
@@ -133,31 +131,4 @@ public class ExcelBeanMappingResourceAssembler {
 		}
 		return new ProductImportedResource(items.size(), sheetName != null ? sheetName : "商品主檔清單", items);
 	}
-
-	/**
-	 * 產製範例訂單展示資料
-	 *
-	 * @return 預設訂單模型清單
-	 */
-	public List<OrderModel> createSampleOrders() {
-		return List.of(
-				new OrderModel("ORD-2026-001", "陳大文", new BigDecimal("12500.50"), 2, LocalDate.of(2026, 11, 1), "PAID"),
-				new OrderModel("ORD-2026-002", "李曉芳", new BigDecimal("3200.00"), 1, LocalDate.of(2026, 11, 2), "SHIPPED"),
-				new OrderModel("ORD-2026-003", "張志豪", new BigDecimal("580.00"), 5, LocalDate.of(2026, 11, 3), "PENDING")
-		);
-	}
-
-	/**
-	 * 產製範例商品展示資料
-	 *
-	 * @return 預設商品 Record 模型清單
-	 */
-	public List<ProductRecordModel> createSampleProducts() {
-		return List.of(
-				new ProductRecordModel("PROD-001", "4K 專業航拍無人機", new BigDecimal("35000.00"), true),
-				new ProductRecordModel("PROD-002", "高容量鋰電池模組", new BigDecimal("4500.00"), false),
-				new ProductRecordModel("PROD-003", "多功能收納背包", new BigDecimal("1280.00"), true)
-		);
-	}
 }
-

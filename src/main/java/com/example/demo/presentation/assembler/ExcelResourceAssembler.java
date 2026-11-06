@@ -3,7 +3,6 @@ package com.example.demo.presentation.assembler;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import org.springframework.stereotype.Component;
 
@@ -42,11 +41,21 @@ public class ExcelResourceAssembler {
 		List<WriteSheetCommand> sheets = new ArrayList<>();
 		if (resource.sheets() != null) {
 			for (ExportExcelResource.ExportSheetResource sheetResource : resource.sheets()) {
-				sheets.add(WriteSheetCommand.builder()
+				WriteSheetCommand.Builder builder = WriteSheetCommand.builder()
 						.sheetName(sheetResource.sheetName())
 						.headers(sheetResource.headers())
-						.rows(sheetResource.rows())
-						.build());
+						.rows(sheetResource.rows());
+
+				if (sheetResource.freezeHeader() != null) {
+					builder.freezeHeader(sheetResource.freezeHeader());
+				}
+				if (sheetResource.headerFillColor() != null && !sheetResource.headerFillColor().isBlank()) {
+					builder.headerFillColor(sheetResource.headerFillColor());
+				}
+				if (sheetResource.headerFontColor() != null && !sheetResource.headerFontColor().isBlank()) {
+					builder.headerFontColor(sheetResource.headerFontColor());
+				}
+				sheets.add(builder.build());
 			}
 		}
 
@@ -56,7 +65,7 @@ public class ExcelResourceAssembler {
 	/**
 	 * 將串流匯出請求資源轉換為應用層串流匯出命令
 	 * <p>
-	 * 依據指定的行數動態生成測試惰性資料流，模擬大數據輸出。
+	 * 將前端傳入之真實工作表資料、標題與列資料包裝為可迭代串流工作表命令。
 	 *
 	 * @param resource 串流匯出請求資源
 	 * @return 應用層串流匯出命令
@@ -66,32 +75,28 @@ public class ExcelResourceAssembler {
 			throw new IllegalArgumentException("StreamExportExcelResource must not be null");
 		}
 
-		List<String> headers = resource.headers() != null && !resource.headers().isEmpty()
-				? resource.headers()
-				: List.of("序號", "欄位A", "欄位B", "時間戳記");
+		int flushSize = resource.batchFlushSize() != null ? resource.batchFlushSize() : 1000;
+		List<WriteStreamSheetCommand> streamSheets = new ArrayList<>();
 
-		int rowCount = Math.max(1, resource.rowCount());
-
-		// 產生惰性資料流
-		var rowStream = IntStream.rangeClosed(1, rowCount)
-				.mapToObj(i -> List.<Object>of(
-						i,
-						"Value_A_" + i,
-						"Value_B_" + i,
-						System.currentTimeMillis()
-				));
-
-		WriteStreamSheetCommand streamSheet = WriteStreamSheetCommand.builder()
-				.sheetName(resource.sheetName() != null ? resource.sheetName() : "Sheet1")
-				.headers(headers)
-				.rowIterable(rowStream::iterator)
-				.flushInterval(resource.batchFlushSize() != null ? resource.batchFlushSize() : 1000)
-				.build();
+		if (resource.sheets() != null) {
+			for (ExportExcelResource.ExportSheetResource sheetResource : resource.sheets()) {
+				List<List<Object>> rows = sheetResource.rows() != null ? sheetResource.rows() : Collections.emptyList();
+				streamSheets.add(WriteStreamSheetCommand.builder()
+						.sheetName(sheetResource.sheetName())
+						.headers(sheetResource.headers())
+						.rowIterable(rows)
+						.flushInterval(flushSize)
+						.freezeHeader(Boolean.TRUE.equals(sheetResource.freezeHeader()))
+						.headerFillColor(sheetResource.headerFillColor())
+						.headerFontColor(sheetResource.headerFontColor())
+						.build());
+			}
+		}
 
 		return new StreamExportExcelCommand(
 				resource.fileName() != null ? resource.fileName() : "stream_export.xlsx",
-				List.of(streamSheet),
-				resource.batchFlushSize() != null ? resource.batchFlushSize() : 1000
+				streamSheets,
+				flushSize
 		);
 	}
 

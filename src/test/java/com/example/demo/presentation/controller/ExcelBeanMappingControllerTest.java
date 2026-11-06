@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -69,27 +68,27 @@ class ExcelBeanMappingControllerTest {
 	}
 
 	/**
-	 * Feature: 訂單範例資料宣告式匯出 (JavaBean GET)
-	 * Scenario: 成功透過 GET 請求下載系統產製之訂單範例 Excel 檔案
-	 * Given 模擬 ExportExcelUseCase 回傳 Excel 二進位陣列
-	 * When 發送 GET /api/v1/excel/bean-mapping/orders/export 請求
-	 * Then 應回傳 HTTP 200、正確的 Excel MIME-TYPE 與 Content-Disposition 附件標頭
+	 * Feature: 訂單資料宣告式匯出參數校驗 (JavaBean POST)
+	 * Scenario: 當前端傳送空訂單清單時，觸發 @NotEmpty 校驗失敗
+	 * Given 傳入包含空訂單陣列的 JSON Payload
+	 * When 發送 POST /api/v1/excel/bean-mapping/orders/export 請求
+	 * Then 應回傳 HTTP 400 Bad Request
 	 */
 	@Test
-	@DisplayName("場景：成功透過 GET 下載訂單範例 Excel 檔案 (JavaBean)")
-	void shouldExportSampleOrdersSuccessfully() throws Exception {
-		// Given
-		byte[] mockBytes = "MOCK_EXCEL_BYTES".getBytes();
-		when(exportExcelUseCase.exportBeans(any(), eq(OrderModel.class))).thenReturn(mockBytes);
+	@DisplayName("場景：POST 匯出訂單時訂單清單為空應拒絕並回傳 400 (JavaBean)")
+	void shouldRejectExportOrdersWhenOrdersIsEmpty() throws Exception {
+		String invalidJson = """
+				{
+				  "sheetName": "特約客戶訂單",
+				  "orders": []
+				}
+				""";
 
-		// When & Then
-		mockMvc.perform(get("/api/v1/excel/bean-mapping/orders/export"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(header().string("Content-Disposition", "form-data; name=\"attachment\"; filename=\"orders_sample.xlsx\""))
-				.andExpect(content().bytes(mockBytes));
-
-		verify(exportExcelUseCase).exportBeans(any(), eq(OrderModel.class));
+		mockMvc.perform(post("/api/v1/excel/bean-mapping/orders/export")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(invalidJson))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400));
 	}
 
 	/**
@@ -136,19 +135,38 @@ class ExcelBeanMappingControllerTest {
 	/**
 	 * Feature: 訂單資料大數據串流匯出 (JavaBean Stream POST)
 	 * Scenario: 成功將 OrderModel 清單直接沖刷至 HTTP 輸出流中
-	 * Given 準備匯出請求
+	 * Given 準備匯出請求 JSON 載體
 	 * When 發送 POST /api/v1/excel/bean-mapping/orders/stream-export 請求
 	 * Then 應調用 streamExportExcelUseCase.streamExportBeans 並回傳 HTTP 200
 	 */
 	@Test
 	@DisplayName("場景：成功透過 POST 串流匯出訂單 Excel (JavaBean)")
 	void shouldStreamExportOrdersSuccessfully() throws Exception {
+		// Given
+		String requestJson = """
+				{
+				  "sheetName": "串流訂單清單",
+				  "orders": [
+				    {
+				      "orderNo": "ORD-STR-01",
+				      "customerName": "陳董",
+				      "amount": 55000.00,
+				      "quantity": 5,
+				      "orderDate": "2026-11-01",
+				      "status": "PAID"
+				    }
+				  ]
+				}
+				""";
+
 		// When & Then
-		mockMvc.perform(post("/api/v1/excel/bean-mapping/orders/stream-export"))
+		mockMvc.perform(post("/api/v1/excel/bean-mapping/orders/stream-export")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestJson))
 				.andExpect(status().isOk())
 				.andExpect(header().string("Content-Disposition", "attachment; filename*=UTF-8''orders_stream_export.xlsx"));
 
-		verify(streamExportExcelUseCase).streamExportBeans(any(OutputStream.class), any(), eq(OrderModel.class));
+		verify(streamExportExcelUseCase).streamExportBeans(any(OutputStream.class), any(), eq(OrderModel.class), eq("串流訂單清單"));
 	}
 
 	/**
@@ -187,27 +205,27 @@ class ExcelBeanMappingControllerTest {
 	}
 
 	/**
-	 * Feature: 商品主檔範例資料宣告式匯出 (Java 21 Record GET)
-	 * Scenario: 成功透過 GET 請求下載不可變 Record 範例 Excel 檔案
-	 * Given 模擬 ExportExcelUseCase 回傳 Excel 二進位資料
-	 * When 發送 GET /api/v1/excel/bean-mapping/products/export 請求
-	 * Then 應回傳 HTTP 200 與 Content-Disposition 附件標頭
+	 * Feature: 商品資料宣告式匯出參數校驗 (Java 21 Record POST)
+	 * Scenario: 當前端傳送空商品清單時，觸發 @NotEmpty 校驗失敗
+	 * Given 傳入包含空商品陣列的 JSON Payload
+	 * When 發送 POST /api/v1/excel/bean-mapping/products/export 請求
+	 * Then 應回傳 HTTP 400 Bad Request
 	 */
 	@Test
-	@DisplayName("場景：成功透過 GET 下載商品主檔範例 Excel (Java 21 Record)")
-	void shouldExportSampleProductsSuccessfully() throws Exception {
-		// Given
-		byte[] mockBytes = "PRODUCT_EXCEL_BYTES".getBytes();
-		when(exportExcelUseCase.exportBeans(any(), eq(ProductRecordModel.class))).thenReturn(mockBytes);
+	@DisplayName("場景：POST 匯出商品時商品清單為空應拒絕並回傳 400 (Java 21 Record)")
+	void shouldRejectExportProductsWhenProductsIsEmpty() throws Exception {
+		String invalidJson = """
+				{
+				  "sheetName": "商品清單",
+				  "products": []
+				}
+				""";
 
-		// When & Then
-		mockMvc.perform(get("/api/v1/excel/bean-mapping/products/export"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-				.andExpect(header().string("Content-Disposition", "form-data; name=\"attachment\"; filename=\"products_sample.xlsx\""))
-				.andExpect(content().bytes(mockBytes));
-
-		verify(exportExcelUseCase).exportBeans(any(), eq(ProductRecordModel.class));
+		mockMvc.perform(post("/api/v1/excel/bean-mapping/products/export")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(invalidJson))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400));
 	}
 
 	/**

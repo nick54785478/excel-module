@@ -439,7 +439,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"fileName\": \"百萬筆串流測試報表.xlsx\",\n    \"flushRows\": 1000,\n    \"sheets\": [\n        {\n            \"sheetName\": \"串流資料表\",\n            \"headers\": [\"流水號\", \"追蹤碼\", \"傳輸時間戳\", \"感測數值\"],\n            \"rows\": [\n                [1, \"TRK-10001\", \"2026-10-31 10:00:00\", 98.6],\n                [2, \"TRK-10002\", \"2026-10-31 10:00:01\", 99.1],\n                [3, \"TRK-10003\", \"2026-10-31 10:00:02\", 97.4]\n            ]\n        }\n    ]\n}"
+							"raw": "{\n    \"fileName\": \"百萬筆串流測試報表.xlsx\",\n    \"batchFlushSize\": 1000,\n    \"sheets\": [\n        {\n            \"sheetName\": \"串流資料表\",\n            \"headers\": [\"流水號\", \"追蹤碼\", \"傳輸時間戳\", \"感測數值\"],\n            \"rows\": [\n                [1, \"TRK-10001\", \"2026-10-31 10:00:00\", 98.6],\n                [2, \"TRK-10002\", \"2026-10-31 10:00:01\", 99.1],\n                [3, \"TRK-10003\", \"2026-10-31 10:00:02\", 97.4]\n            ]\n        }\n    ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/excel/export/stream",
@@ -583,57 +583,6 @@
 			"description": "基於 @ExcelSheet 與 @ExcelColumn 註解進行 JavaBean 與 Java 21 Record 雙軌宣告式匯出/匯入 API",
 			"item": [
 				{
-					"name": "GET 快速下載訂單範例 Excel (JavaBean)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/excel/bean-mapping/orders/export",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"excel",
-								"bean-mapping",
-								"orders",
-								"export"
-							]
-						},
-						"description": "下載 OrderModel 宣告式註解格式化訂單展示 Excel"
-					},
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"狀態碼為 200 OK\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"pm.test(\"Content-Type 為 Excel openxml 格式\", function () {",
-									"    pm.response.to.have.header(\"Content-Type\");",
-									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"spreadsheetml.sheet\");",
-									"});",
-									"pm.test(\"Content-Disposition 包含 attachment 檔名\", function () {",
-									"    var disposition = pm.response.headers.get(\"Content-Disposition\");",
-									"    pm.expect(disposition).to.include(\"attachment\");",
-									"    pm.expect(disposition).to.include(\".xlsx\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"response": []
-				},
-				{
 					"name": "POST 自訂 JSON 匯出訂單 Excel (JavaBean)",
 					"request": {
 						"method": "POST",
@@ -767,42 +716,6 @@
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData).to.have.property(\"totalCount\");",
 									"    pm.expect(jsonData).to.have.property(\"items\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"response": []
-				},
-				{
-					"name": "GET 快速下載商品主檔範例 Excel (Java 21 Record)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/excel/bean-mapping/products/export",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"excel",
-								"bean-mapping",
-								"products",
-								"export"
-							]
-						},
-						"description": "下載 ProductRecordModel 宣告式註解商品展示 Excel (Java 21 Record)"
-					},
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"狀態碼為 200 OK\", function () {",
-									"    pm.response.to.have.status(200);",
 									"});"
 								],
 								"type": "text/javascript"

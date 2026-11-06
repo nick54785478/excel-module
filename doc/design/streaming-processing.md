@@ -68,8 +68,8 @@ flowchart TD
 | [`ExcelStreamListener`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/stream/ExcelStreamListener.java) | `application.shared.stream` | 生命週期監聽器，提供 7 個關鍵節點回呼預設實作 |
 | [`WriteStreamExcelCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/WriteStreamExcelCommand.java) | `application.shared.command` | 寫出串流命令，封裝檔名、全域 flush 批次閥值與工作表列表 |
 | [`WriteStreamSheetCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/WriteStreamSheetCommand.java) | `application.shared.command` | 工作表串流命令，封裝 `Stream<List<Object>>` 或 `Iterator` 惰性資料流 |
-| [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/FastExcelWriterAdapter.java) | `infrastructure.adapter` | 寫入適配器，調用 FastExcel 的 `worksheet.flush()` 釋放記憶體 |
-| [`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/FastExcelReaderAdapter.java) | `infrastructure.adapter` | 讀取適配器，調用 FastExcel Reader 的 StAX `sheet.openStream()` |
+| [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) | `infrastructure.adapter.engine` | 寫入適配器，調用 FastExcel 的 `worksheet.flush()` 釋放記憶體 |
+| [`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapter.java) | `infrastructure.adapter.engine` | 讀取適配器，調用 FastExcel Reader 的 StAX `sheet.openStream()` |
 
 ---
 
@@ -238,7 +238,7 @@ FastExcel Reader 基於 Java StAX (Streaming API for XML) 解析技術，透過 
 
 ## 6. 測試驗證矩陣
 
-專案已包含完整的 BDD Gherkin 測試套件 [`FastExcelStreamingTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/FastExcelStreamingTest.java)，測試覆蓋率與執行成果：
+專案已包含完整的 BDD Gherkin 測試套件 [`FastExcelStreamingTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/FastExcelStreamingTest.java)，測試覆蓋率與執行成果：
 
 | 測試場景 (Scenario) | 測試重點與驗證指標 | 驗證結果 |
 | :--- | :--- | :---: |
