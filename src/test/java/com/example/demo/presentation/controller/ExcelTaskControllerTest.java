@@ -17,8 +17,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.example.demo.application.port.in.DownloadExcelTaskFileUseCase;
 import com.example.demo.application.port.in.GetExcelTaskUseCase;
-import com.example.demo.application.service.ExcelTaskCommandService;
 import com.example.demo.application.shared.dto.ExcelTaskGottenResult;
 import com.example.demo.application.shared.exception.ExcelTaskNotFoundException;
 import com.example.demo.application.shared.query.GetExcelTaskQuery;
@@ -39,17 +39,17 @@ class ExcelTaskControllerTest {
 
 	private MockMvc mockMvc;
 	private GetExcelTaskUseCase getExcelTaskUseCase;
-	private ExcelTaskCommandService excelTaskCommandService;
+	private DownloadExcelTaskFileUseCase downloadExcelTaskFileUseCase;
 
 	@BeforeEach
 	void setUp() {
 		this.getExcelTaskUseCase = mock(GetExcelTaskUseCase.class);
-		this.excelTaskCommandService = mock(ExcelTaskCommandService.class);
+		this.downloadExcelTaskFileUseCase = mock(DownloadExcelTaskFileUseCase.class);
 		ExcelTaskResourceAssembler resourceAssembler = new ExcelTaskResourceAssembler();
 
 		ExcelTaskController controller = new ExcelTaskController(
 				getExcelTaskUseCase,
-				excelTaskCommandService,
+				downloadExcelTaskFileUseCase,
 				resourceAssembler
 		);
 
@@ -141,7 +141,7 @@ class ExcelTaskControllerTest {
 				LocalDateTime.now()
 		);
 		when(getExcelTaskUseCase.getTask(new GetExcelTaskQuery("task-100"))).thenReturn(taskResult);
-		when(excelTaskCommandService.getExportedFile("task-100")).thenReturn(new byte[] { 1, 2, 3, 4, 5 });
+		when(downloadExcelTaskFileUseCase.getExportedFile("task-100")).thenReturn(new byte[] { 1, 2, 3, 4, 5 });
 
 		// When & Then
 		mockMvc.perform(get("/api/v1/excel/tasks/task-100/download"))
@@ -175,7 +175,7 @@ class ExcelTaskControllerTest {
 				LocalDateTime.now()
 		);
 		when(getExcelTaskUseCase.getTask(new GetExcelTaskQuery("task-100"))).thenReturn(taskResult);
-		when(excelTaskCommandService.getExportedFile("task-100")).thenReturn(null);
+		when(downloadExcelTaskFileUseCase.getExportedFile("task-100")).thenReturn(null);
 
 		// When & Then
 		mockMvc.perform(get("/api/v1/excel/tasks/task-100/download"))

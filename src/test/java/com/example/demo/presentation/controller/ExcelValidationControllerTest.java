@@ -30,7 +30,7 @@ import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.model.ExcelRowError;
 import com.example.demo.application.shared.model.OrderModel;
 import com.example.demo.application.shared.model.ProductRecordModel;
-import com.example.demo.infrastructure.aop.ExcelValidationAspect;
+import com.example.demo.presentation.aspect.ExcelValidationAspect;
 import com.example.demo.presentation.assembler.ExcelValidationResourceAssembler;
 import com.example.demo.presentation.exception.GlobalExceptionHandler;
 import com.example.demo.presentation.resolver.ValidatedExcelDataArgumentResolver;

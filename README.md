@@ -4,7 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Architecture](https://img.shields.io/badge/Architecture-DDD%20%7C%20Clean%20%7C%20Hexagonal-blue.svg)](#1-架構設計與雙引擎模型-architecture--dual-engine)
 [![Engine](https://img.shields.io/badge/Engine-FastExcel%20%2B%20Apache%20POI-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
-[![Tests](https://img.shields.io/badge/Tests-175%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
+[![Tests](https://img.shields.io/badge/Tests-177%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
 
 > 📌 本模組為企業級高性能試算表處理解決方案，原生結合製造業 **物料清單 (Bill of Materials, BOM)** 多階遞迴展開與匯出引擎。嚴格遵循 **領域驅動設計 (DDD)**、**Clean Architecture** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，實踐表現層、應用層、領域層與底層實作的完全解耦。
 
@@ -39,7 +39,7 @@
 * 🛡️ **高純度架構規範 (Strict Clean Architecture)**：
   * 領域層（Domain Layer）維持純粹 Java（Pure Java），**嚴禁使用 Lombok**，聚合根以業務語意封裝不變條件。
   * 應用層（Application Layer）嚴守 CQRS、Command/Query/Result 物件隔離與防腐層機制（ACL）。
-* 📋 **完整測試資產 (Comprehensive Testing Assets - 163/163 Passed)**：
+* 📋 **完整測試資產 (Comprehensive Testing Assets - 177/177 Passed)**：
   * 內建 OpenAPI 3.0 (Swagger UI) 與 Postman 整合測試集合（含 `pm.test` 自動斷言腳本）。
   * 單元與整合測試全量綠燈通過。
 
@@ -56,11 +56,12 @@ flowchart TD
         MatBomCtrl["MaterialBomExcelController<br/>/api/v1/excel/material-bom"]
         TaskCtrl["ExcelTaskController<br/>/api/v1/excel/tasks"]
         ValCtrl["ExcelValidationController<br/>/api/v1/excel/validation"]
+        ValAspect["ExcelValidationAspect<br/>(@ValidateExcel 前置防衛閘門)"]
         ResAssembler["ResourceAssembler<br/>(防腐層 ACL 轉換)"]
     end
 
     subgraph Application ["Application Layer (應用層 - CQRS & 業務契約)"]
-        InPorts["Inbound Ports (UseCase)<br/>• ExportBomUseCase / StreamExportBomUseCase<br/>• ExportExcelUseCase / StreamExportExcelUseCase<br/>• ImportExcelUseCase / StreamImportExcelUseCase<br/>• GetExcelTaskUseCase / ValidateExcelUseCase"]
+        InPorts["Inbound Ports (UseCase)<br/>• ExportBomUseCase / StreamExportBomUseCase<br/>• ExportExcelUseCase / StreamExportExcelUseCase<br/>• ImportExcelUseCase / StreamImportExcelUseCase<br/>• GetExcelTaskUseCase / DownloadExcelTaskFileUseCase<br/>• SubmitAsyncExcelExportUseCase / SubmitAsyncExcelImportUseCase<br/>• ValidateExcelUseCase"]
         AppServices["Application Services<br/>• BomCommandService / BomQueryService<br/>• ExcelCommandService / ExcelQueryService<br/>• ExcelTaskCommandService / ExcelTaskQueryService<br/>• ExcelValidationApplicationService"]
         AppAssembler["ExcelBeanAssembler<br/>(雙向 Record/POJO 映射)"]
         SharedModels["Shared Models (Java 21 Records)<br/>• Commands (WriteExcelCommand, ExportBomCommand...)<br/>• Queries (ReadExcelQuery, GetExcelTaskQuery...)<br/>• DTOs (ExcelGottenResult, ExcelValidationGottenResult...)"]
@@ -92,9 +93,7 @@ flowchart TD
         end
         subgraph AOP_Module ["AOP 橫切基礎設施 (Cross-Cutting AOP)"]
             TaskAspect["ExcelTaskTrackingAspect (@TrackExcelTask)"]
-            ValAspect["ExcelValidationAspect (@ValidateExcel)"]
             TaskContext["ExcelTaskContextHolder"]
-            ValContext["ExcelValidationContextHolder"]
         end
     end
 
@@ -106,6 +105,7 @@ flowchart TD
     BomCtrl --> ResAssembler
     ExcelCtrl --> ResAssembler
     BeanCtrl --> ResAssembler
+    MatBomCtrl --> ResAssembler
     TaskCtrl --> ResAssembler
     ValCtrl --> ResAssembler
     ResAssembler --> InPorts
@@ -177,7 +177,7 @@ excel.engine=FAST_EXCEL
 | :--- | :--- | :--- | :--- |
 | **長任務追蹤切面** | [`infrastructure.aop`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop) | [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspect.java) | 攔截 `@TrackExcelTask`，負責長任務獨立事務建檔 (`REQUIRES_NEW`)、SpEL 表達式解析、進度累加與 Context 綁定 |
 | **長任務上下文** | [`application.shared.context`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context) | [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java) | `ThreadLocal` 任務上下文持有者，提供串流處理期間跨方法、跨層級之安全進度回報 |
-| **檔案檢核切面** | [`infrastructure.aop`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop) | [`ExcelValidationAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelValidationAspect.java) | 攔截 `@ValidateExcel`，自動解析上傳檔案執行校驗，若出錯直接回標短路；若通過則將合規資料注入參數 |
+| **檔案檢核切面** | [`presentation.aspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/aspect) | [`ExcelValidationAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/aspect/ExcelValidationAspect.java) | 表現層前置防衛切面（Inbound Guard），攔截 `@ValidateExcel`，自動解析上傳檔案執行校驗，若出錯直接回標短路；若通過則將合規資料注入參數 |
 | **檢核上下文** | [`application.shared.context`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context) | [`ExcelValidationContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelValidationContextHolder.java) | `ThreadLocal` 檢核結果上下文持有者，供切面與參數解析器無縫共享合規資料集 |
 | **範本動態註冊表** | [`application.shared.registry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/registry) | [`ExcelTemplateRegistry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/registry/ExcelTemplateRegistry.java) | 集中管理 Excel 模型元數據（開放封閉原則 OCP），支援多重別名解析、Zero-Config 工作表名稱自動反查與統一動態路由 |
 
@@ -321,7 +321,7 @@ excel-module/
 │   │   │   │   │   └── vo/                     # 實質物件 (ExcelTaskStatus, ExcelTaskType)
 │   │   │   │   └── assembler/                  # DTO/Model 組裝器 (ExcelBeanAssembler, BomDtoAssembler)
 │   │   │   ├── infrastructure/                 # 【基礎設施層】Outbound Adapters
-│   │   │   │   ├── aop/                        # AOP 橫切切面 (ExcelTaskTrackingAspect, ExcelValidationAspect)
+│   │   │   │   ├── aop/                        # AOP 橫切切面 (ExcelTaskTrackingAspect)
 │   │   │   │   ├── adapter/                    # 垂直模組輸出適配器實作
 │   │   │   │   │   ├── engine/                 # FastExcel / Apache POI 核心讀寫適配器
 │   │   │   │   │   ├── persistence/            # Bom, Material, ExcelTask JPA 持久化適配器
@@ -331,6 +331,7 @@ excel-module/
 │   │   │   │   └── persistence/                # JPA ORM 實體與 Spring Data Repository
 │   │   │   ├── presentation/                   # 【表現層】Inbound Adapters
 │   │   │   │   ├── controller/                 # REST Controllers (Bom, Excel, Task, Bean, Validation)
+│   │   │   │   ├── aspect/                     # 表現層前置防衛切面 (ExcelValidationAspect)
 │   │   │   │   ├── resolver/                   # 自訂參數解析器 (ValidatedExcelDataArgumentResolver)
 │   │   │   │   ├── resource/                   # In/Out Resources (純資料載體)
 │   │   │   │   ├── assembler/                  # 表現層 Resource 組裝器
@@ -345,7 +346,7 @@ excel-module/
 │   │       ├── application.properties          # 系統與 excel.engine 配置檔
 │   │       ├── templates/                      # 內建業務與錯誤回標測試範本 (.xlsx)
 │   │       └── sql/material_bom_test_data.sql  # 2000 筆物料與 25 筆 BOM 測試 SQL
-│   └── test/java/com/example/demo/             # 【測試套件】涵蓋 163 個單元與整合測試 (全數通過 BUILD SUCCESS)
+│   └── test/java/com/example/demo/             # 【測試套件】涵蓋 177 個單元與整合測試 (全數通過 BUILD SUCCESS)
 ```
 
 ---
@@ -396,13 +397,13 @@ gantt
 ./mvnw clean test
 ```
 
-### 測試執行報告 (175/175 Passed)
+### 測試執行報告 (177/177 Passed)
 ```text
 [INFO] -------------------------------------------------------
 [INFO]  T E S T S
 [INFO] -------------------------------------------------------
 [INFO] Running BomDtoAssembler 資料與 BOM 資料組裝器測試 (4 tests)
-[INFO] Running ExcelBeanAssembler 宣告式映射與 Application Service 流程測試 (7 tests)
+[INFO] Running ExcelBeanAssembler 宣告式映射與 Application Service 流程測試 (9 tests)
 [INFO] Running BomCommandService 物料清單匯出命令服務測試 (3 tests)
 [INFO] Running BomQueryService 物料與 BOM 查詢服務測試 (6 tests)
 [INFO] Running ExcelCommandService 匯出命令業務服務測試 (3 tests)
@@ -416,22 +417,25 @@ gantt
 [INFO] Running ExcelEngineConfiguration 模組開關配置測試 (3 tests)
 [INFO] Running Bom 物料清單聚合根測試 (9 tests)
 [INFO] Running Material 物料主檔聚合根測試 (7 tests)
+[INFO] Running ExcelModuleApplicationTests Spring Boot 應用啟動測試 (1 test)
+[INFO] Running BomTemplateGeneratorTest 範本產製器測試 (1 test)
 [INFO] Running FastExcelReaderAdapter 讀取適配器測試 (4 tests)
 [INFO] Running FastExcelStreamingTest 大數據百萬級串流沖刷測試 (4 tests)
-[INFO] Running FastExcelWriterAdapter 寫入適配器測試 (3 tests)
+[INFO] Running FastExcelWriterAdapter 寫入適配器測試 (4 tests)
 [INFO] Running PoiSaxReaderAdapter 讀取適配器測試 (3 tests)
 [INFO] Running PoiSxssfWriterAdapter 寫入適配器測試 (3 tests)
-[INFO] Running BomTemplateGeneratorTest 範本產製器測試 (1 test)
 [INFO] Running TestTemplateGeneratorTest 業務範本自動生成測試 (1 test)
-[INFO] Running BomRepositoryAdapter BOM 儲存庫適配器持久化整合測試 (6 tests)
-[INFO] Running ExcelTaskRepositoryAdapter 儲存庫適配器持久化整合測試 (5 tests)
-[INFO] Running MaterialRepositoryAdapter 物料儲存庫適配器持久化整合測試 (7 tests)
-[INFO] Running EasyRulesExcelValidatorAdapter 規則引擎適配器測試 (3 tests)
 [INFO] Running PoiExcelErrorMarkerAdapter 錯誤標註適配器測試 (1 test)
-[INFO] Running ExcelTaskTrackingAspect 宣告式任務切面測試 (3 tests)
-[INFO] Running ExcelValidationAspect 宣告式驗證切面測試 (3 tests)
-[INFO] Running BomController 表現層 REST 控制器與參數校驗測試 (7 tests)
-[INFO] Running BomIntegrationTest 完整流程整合測試 (4 tests)
+[INFO] Running BomRepositoryAdapter BOM 儲存庫適配器持久化整合測試 (3 tests)
+[INFO] Running ExcelTaskRepositoryAdapter 儲存庫適配器持久化整合測試 (7 tests)
+[INFO] Running MaterialRepositoryAdapter 物料儲存庫適配器持久化整合測試 (4 tests)
+[INFO] Running EasyRulesExcelValidatorAdapter 規則引擎適配器測試 (3 tests)
+[INFO] Running ExcelTaskTrackingAspect 宣告式任務切面測試 (6 tests)
+[INFO] Running ExcelValidationAspect 宣告式驗證切面測試 (4 tests)
+[INFO] Running ExcelTaskResourceAssembler 表現層組裝器測試 (1 test)
+[INFO] Running MaterialBomResourceAssembler 物料與 BOM 表現層組裝器測試 (4 tests)
+[INFO] Running BomController 表現層 REST 控制器與參數校驗測試 (5 tests)
+[INFO] Running BomIntegrationTest 完整流程整合測試 (6 tests)
 [INFO] Running BomPoiIntegrationTest (Apache POI 模式下之 BOM 匯出整合測試) (3 tests)
 [INFO] Running ExcelBeanMappingController 宣告式 Bean 映射控制器測試 (8 tests)
 [INFO] Running ExcelController 表現層 REST 控制器與參數校驗測試 (9 tests)
@@ -439,10 +443,9 @@ gantt
 [INFO] Running ExcelValidationController 客製檢核與回標控制器測試 (9 tests)
 [INFO] Running ExcelValidationIntegrationTest 宣告式檢核與錯誤回標整合測試 (端到端真實檔案上傳) (6 tests)
 [INFO] Running MaterialBomExcelController 物料與 BOM 宣告式 Excel 控制器測試 (5 tests)
-[INFO] Running ExcelBeanAssemblerTest 宣告式物件映射組裝器測試 (14 tests)
 [INFO] 
 [INFO] Results:
-[INFO] Tests run: 175, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 177, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------

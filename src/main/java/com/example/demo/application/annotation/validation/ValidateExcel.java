@@ -11,8 +11,8 @@ import java.lang.annotation.Target;
  * <p>
  * <b>【架構定位與職責說明】</b><br>
  * 位於 Clean Architecture 應用層資料校驗註解套件 ({@code application/annotation/validation/})，遵循六角形架構規範。<br>
- * 可標註於表現層 Controller 或應用層 Service 的批次上傳方法上。啟用後由基礎設施層切面
- * {@code com.example.demo.infrastructure.aop.ExcelValidationAspect} 進行前置攔截，
+ * 可標註於表現層 Controller 的批次上傳方法上。啟用後由表現層切面
+ * {@code com.example.demo.presentation.aspect.ExcelValidationAspect} 進行前置攔截，
  * 自動調度多層次規則管線 (含 EasyRules 規則引擎) 進行非短路全量錯誤累積檢核。
  * </p>
  * <p>

@@ -23,7 +23,7 @@ import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
  * 專門攔截並解析標註有 {@link ValidatedExcelData} 之 Controller 方法入參，
  * 防止 Spring MVC 將 {@link List} 誤認為 {@code @ModelAttribute} 實體並觸發反射建構子例外。<br>
  * 本解析器優先自 {@link ExcelValidationContextHolder} 執行緒上下文讀取合格資料，
- * 若尚未綁定則提供安全預設值，後續由 {@code ExcelValidationAspect} 切面進行最終動態注入。
+ * 若尚未綁定則提供安全預設值，後續由 {@link com.example.demo.presentation.aspect.ExcelValidationAspect} 切面進行最終動態注入。
  * </p>
  *
  * @see ValidatedExcelData

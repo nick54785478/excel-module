@@ -93,7 +93,8 @@ public class ExcelQueryService implements ImportExcelUseCase, StreamImportExcelU
 		Objects.requireNonNull(inputStream, "inputStream must not be null");
 		Objects.requireNonNull(modelClass, "modelClass must not be null");
 		ExcelGottenResult result = importExcel(inputStream, query);
-		return ExcelBeanAssembler.toBeanList(result, modelClass);
+		String targetSheet = query != null ? query.getSheetName() : null;
+		return ExcelBeanAssembler.toBeanList(result, modelClass, targetSheet);
 	}
 
 	/**

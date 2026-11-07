@@ -16,34 +16,34 @@ import com.example.demo.application.annotation.mapping.ExcelSheet;
 @ExcelSheet(name = "單階BOM清單", headerRowIndex = 0, dataRowStartIndex = 1)
 public class BomItemExcelModel {
 
-	@ExcelColumn(name = "母件料號", index = 0)
+	@ExcelColumn(name = "母件料號", index = 0, aliases = {"母件代碼", "父料號", "主件料號"})
 	private String parentMaterialCode;
 
-	@ExcelColumn(name = "BOM版本號", index = 1, defaultValue = "1.0")
+	@ExcelColumn(name = "BOM版本號", index = 1, defaultValue = "1.0", aliases = {"BOM版本", "版本號", "版本"})
 	private String bomVersion;
 
-	@ExcelColumn(name = "項次", index = 2)
+	@ExcelColumn(name = "項次", index = 2, aliases = {"序號", "Item"})
 	private Integer itemSequence;
 
-	@ExcelColumn(name = "子件料號", index = 3)
+	@ExcelColumn(name = "子件料號", index = 3, aliases = {"子料號", "元件料號", "料號"})
 	private String childMaterialCode;
 
-	@ExcelColumn(name = "子件名稱", index = 4)
+	@ExcelColumn(name = "子件名稱", index = 4, aliases = {"子件品名", "品名", "物料名稱"})
 	private String childMaterialName;
 
-	@ExcelColumn(name = "組裝用量", index = 5, format = "#,##0.0000")
+	@ExcelColumn(name = "組裝用量", index = 5, format = "#,##0.0000", aliases = {"單機用量", "用量", "數量"})
 	private BigDecimal quantity;
 
-	@ExcelColumn(name = "單位", index = 6, defaultValue = "PCS")
+	@ExcelColumn(name = "單位", index = 6, defaultValue = "PCS", aliases = {"計量單位", "基本單位"})
 	private String unit;
 
-	@ExcelColumn(name = "損耗率 (%)", index = 7, format = "0.00")
+	@ExcelColumn(name = "損耗率 (%)", index = 7, format = "0.00", aliases = {"損耗率", "損耗比率", "損耗率(%)"})
 	private BigDecimal scrapRate;
 
-	@ExcelColumn(name = "安裝位置代碼", index = 8, defaultValue = "")
+	@ExcelColumn(name = "安裝位置代碼", index = 8, defaultValue = "", aliases = {"安裝位號", "位置", "安裝位置", "RefDes"})
 	private String positionCode;
 
-	@ExcelColumn(name = "備註說明", index = 9, defaultValue = "")
+	@ExcelColumn(name = "備註說明", index = 9, defaultValue = "", aliases = {"備註", "說明"})
 	private String remark;
 
 	public BomItemExcelModel() {

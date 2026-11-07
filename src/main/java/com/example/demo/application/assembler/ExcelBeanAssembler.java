@@ -14,6 +14,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -21,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.demo.application.annotation.mapping.ExcelColumn;
@@ -245,11 +247,146 @@ public final class ExcelBeanAssembler {
 	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
 	 */
 	public static <T> List<T> toBeanList(ExcelGottenResult result, Class<T> modelClass) {
+		return toBeanList(result, modelClass, null);
+	}
+
+	/**
+	 * 將活頁簿讀取結果依據自訂工作表名稱或註解設定智慧探測解析並組裝為強型別 Model 清單。
+	 *
+	 * @param <T>             目標模型型別
+	 * @param result          Excel 讀取結果 DTO 物件 (若為 {@code null} 或無工作表則回傳空清單)
+	 * @param modelClass      目標模型類別 Class (支援 POJO 與 Record)
+	 * @param customSheetName 自訂工作表名稱 (若為 null 則自動依據 {@link ExcelSheet} 註解設定進行智慧探測)
+	 * @return 解析後之不可變 Model 物件清單
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
+	 */
+	public static <T> List<T> toBeanList(ExcelGottenResult result, Class<T> modelClass, String customSheetName) {
 		Objects.requireNonNull(modelClass, "modelClass 不得為空");
-		if (result == null || result.getFirstSheet().isEmpty()) {
+		if (result == null || result.isEmpty()) {
 			return Collections.emptyList();
 		}
-		return toBeanList(result.getFirstSheet().get(), modelClass);
+		ExcelSheetGottenResult targetSheet = resolveTargetSheet(result, modelClass, customSheetName);
+		if (targetSheet == null || targetSheet.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return toBeanList(targetSheet, modelClass);
+	}
+
+	/**
+	 * 將活頁簿讀取結果容錯組裝為強型別 Model 清單，並主動收集儲存格型別不合之錯誤事實。
+	 *
+	 * @param <T>        目標模型型別
+	 * @param result     Excel 活頁簿讀取結果 DTO 物件
+	 * @param modelClass 目標模型類別 Class
+	 * @return 包含模型清單與型別轉換錯誤事實之組裝結果 {@link BeanAssemblyResult}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
+	 */
+	public static <T> BeanAssemblyResult<T> toBeanListWithErrors(ExcelGottenResult result, Class<T> modelClass) {
+		return toBeanListWithErrors(result, modelClass, null);
+	}
+
+	/**
+	 * 將活頁簿讀取結果依指定工作表名稱容錯組裝為強型別 Model 清單，並主動收集儲存格型別不合之錯誤事實。
+	 *
+	 * @param <T>             目標模型型別
+	 * @param result          Excel 活頁簿讀取結果 DTO 物件
+	 * @param modelClass      目標模型類別 Class
+	 * @param customSheetName 自訂工作表名稱 (可為 null)
+	 * @return 包含模型清單與型別轉換錯誤事實之組裝結果 {@link BeanAssemblyResult}
+	 * @throws NullPointerException 若 {@code modelClass} 為 {@code null}
+	 */
+	public static <T> BeanAssemblyResult<T> toBeanListWithErrors(ExcelGottenResult result, Class<T> modelClass, String customSheetName) {
+		Objects.requireNonNull(modelClass, "modelClass 不得為空");
+		if (result == null || result.isEmpty()) {
+			return new BeanAssemblyResult<>(Collections.emptyList(), Collections.emptyList(), 0);
+		}
+		ExcelSheetGottenResult targetSheet = resolveTargetSheet(result, modelClass, customSheetName);
+		if (targetSheet == null || targetSheet.isEmpty()) {
+			return new BeanAssemblyResult<>(Collections.emptyList(), Collections.emptyList(), 0);
+		}
+		return toBeanListWithErrors(targetSheet, modelClass);
+	}
+
+	/**
+	 * 依據自訂工作表名稱或 Model 之 {@link ExcelSheet} 註解設定，智慧探測並解析活頁簿中對應的工作表。
+	 * <p>
+	 * <b>工作表探測優先順序：</b>
+	 * <ol>
+	 *   <li>若呼叫端傳入有效之 {@code customSheetName}，優先尋找該名稱之工作表 (支援忽略大小寫與部分包含)。</li>
+	 *   <li>依據模型上之 {@link ExcelSheet} 註解設定之工作表名稱進行精準比對。</li>
+	 *   <li>進行語意簡化與去除後綴之模糊比對 (例如「單階BOM清單」能自動匹配「單階BOM匯入清單」)。</li>
+	 *   <li>若皆無匹配，則退回預設第 0 個工作表。</li>
+	 * </ol>
+	 * </p>
+	 *
+	 * @param result          Excel 活頁簿讀取結果 DTO
+	 * @param modelClass      目標映射模型 Class
+	 * @param customSheetName 自訂工作表名稱 (可為 {@code null})
+	 * @return 匹配之工作表讀取結果；若活頁簿為空則回傳 {@code null}
+	 */
+	public static ExcelSheetGottenResult resolveTargetSheet(ExcelGottenResult result, Class<?> modelClass, String customSheetName) {
+		if (result == null || result.isEmpty()) {
+			return null;
+		}
+
+		// 1. 若呼叫端明確指定特定工作表名稱
+		if (customSheetName != null && !customSheetName.isBlank()) {
+			String trimmed = customSheetName.trim();
+			Optional<ExcelSheetGottenResult> explicit = result.getSheet(trimmed);
+			if (explicit.isPresent()) {
+				return explicit.get();
+			}
+			for (ExcelSheetGottenResult sheet : result.getSheets()) {
+				if (sheet.sheetName().trim().equalsIgnoreCase(trimmed)
+						|| sheet.sheetName().contains(trimmed)
+						|| trimmed.contains(sheet.sheetName())) {
+					return sheet;
+				}
+			}
+		}
+
+		// 2. 依據 Model 上的 @ExcelSheet 註解工作表名稱進行探測
+		if (modelClass != null) {
+			ModelMetadata metadata = getMetadata(modelClass);
+			String targetSheetName = metadata.sheetName();
+			if (targetSheetName != null && !targetSheetName.isBlank() && !targetSheetName.equals(modelClass.getSimpleName())) {
+				String trimmed = targetSheetName.trim();
+				// 2-1. 精準比對
+				Optional<ExcelSheetGottenResult> matched = result.getSheet(trimmed);
+				if (matched.isPresent()) {
+					return matched.get();
+				}
+				// 2-2. 語意簡化模糊比對 (例如 "單階BOM清單" 與 "單階BOM匯入清單" 同屬單階BOM)
+				String simplifiedTarget = simplifySheetName(trimmed);
+				for (ExcelSheetGottenResult sheet : result.getSheets()) {
+					String simplifiedSheet = simplifySheetName(sheet.sheetName());
+					if (!simplifiedTarget.isEmpty() && !simplifiedSheet.isEmpty()) {
+						if (simplifiedSheet.equalsIgnoreCase(simplifiedTarget)
+								|| sheet.sheetName().contains(simplifiedTarget)
+								|| trimmed.contains(simplifiedSheet)
+								|| (simplifiedTarget.length() >= 3 && simplifiedSheet.contains(simplifiedTarget))) {
+							return sheet;
+						}
+					}
+				}
+			}
+		}
+
+		// 3. 預設退回第一個工作表
+		return result.getFirstSheet().orElse(null);
+	}
+
+	private static String simplifySheetName(String sheetName) {
+		if (sheetName == null) return "";
+		return sheetName.replaceAll("[\\s_\\-()]", "")
+				.replace("清單", "")
+				.replace("匯入", "")
+				.replace("對照表", "")
+				.replace("主檔", "")
+				.replace("明細表", "")
+				.replace("展開", "")
+				.replace("表", "")
+				.trim();
 	}
 
 	/**
@@ -601,33 +738,98 @@ public final class ExcelBeanAssembler {
 	private static int[] resolveColumnIndices(ModelMetadata metadata, List<String> sheetHeaders) {
 		int colCount = metadata.columns().size();
 		int[] indices = new int[colCount];
+		Arrays.fill(indices, -1);
+		boolean hasHeaders = sheetHeaders != null && !sheetHeaders.isEmpty();
+		boolean[] headerClaimed = hasHeaders ? new boolean[sheetHeaders.size()] : new boolean[0];
 
-		for (int i = 0; i < colCount; i++) {
-			ColumnMetadata col = metadata.columns().get(i);
-			int matchedIndex = -1;
-
-			// 優先依據標題文字比對 (忽略前後空格與大小寫)
-			if (sheetHeaders != null && !sheetHeaders.isEmpty()) {
+		if (hasHeaders) {
+			// Pass 1: 精準表頭名稱與屬性名稱比對 (Exact Column Name & Field Name Match)
+			for (int i = 0; i < colCount; i++) {
+				ColumnMetadata col = metadata.columns().get(i);
 				for (int h = 0; h < sheetHeaders.size(); h++) {
+					if (headerClaimed[h]) continue;
 					String header = sheetHeaders.get(h);
 					if (header != null && (header.trim().equalsIgnoreCase(col.columnName().trim())
 							|| (col.fieldName() != null && header.trim().equalsIgnoreCase(col.fieldName().trim())))) {
-						matchedIndex = h;
+						indices[i] = h;
+						headerClaimed[h] = true;
 						break;
 					}
 				}
 			}
 
-			// 若表頭無法比對，且註解有宣告 index >= 0，則退回以固定 index 提取
-			if (matchedIndex == -1 && col.explicitIndex() >= 0) {
-				matchedIndex = col.explicitIndex();
-			} else if (matchedIndex == -1 && (sheetHeaders == null || sheetHeaders.isEmpty())) {
-				matchedIndex = i;
+			// Pass 2: 註解別名比對 (Aliases Match)
+			for (int i = 0; i < colCount; i++) {
+				if (indices[i] != -1) continue;
+				ColumnMetadata col = metadata.columns().get(i);
+				if (col.aliases() != null && col.aliases().length > 0) {
+					for (String alias : col.aliases()) {
+						if (alias == null || alias.isBlank()) continue;
+						String normAlias = alias.trim();
+						for (int h = 0; h < sheetHeaders.size(); h++) {
+							if (headerClaimed[h]) continue;
+							String header = sheetHeaders.get(h);
+							if (header != null && header.trim().equalsIgnoreCase(normAlias)) {
+								indices[i] = h;
+								headerClaimed[h] = true;
+								break;
+							}
+						}
+						if (indices[i] != -1) break;
+					}
+				}
 			}
 
-			indices[i] = matchedIndex;
+			// Pass 3: 智慧模糊比對 (Fuzzy / Normalized Match - 去除符號、括號單位與常用後綴)
+			for (int i = 0; i < colCount; i++) {
+				if (indices[i] != -1) continue;
+				ColumnMetadata col = metadata.columns().get(i);
+				String normCol = normalizeHeader(col.columnName());
+				if (normCol.isEmpty()) continue;
+				for (int h = 0; h < sheetHeaders.size(); h++) {
+					if (headerClaimed[h]) continue;
+					String header = sheetHeaders.get(h);
+					if (header != null) {
+						String normHeader = normalizeHeader(header);
+						if (!normHeader.isEmpty() && (normCol.equalsIgnoreCase(normHeader)
+								|| normCol.contains(normHeader)
+								|| normHeader.contains(normCol))) {
+							indices[i] = h;
+							headerClaimed[h] = true;
+							break;
+						}
+					}
+				}
+			}
 		}
+
+		// Pass 4: Fallback 處理
+		for (int i = 0; i < colCount; i++) {
+			if (indices[i] == -1) {
+				ColumnMetadata col = metadata.columns().get(i);
+				if (!hasHeaders) {
+					// 完全無表頭情況：使用宣告 index 或自然順序
+					indices[i] = col.explicitIndex() >= 0 ? col.explicitIndex() : i;
+				} else if (col.explicitIndex() >= 0 && col.explicitIndex() < headerClaimed.length && !headerClaimed[col.explicitIndex()]) {
+					// 有表頭但該 index 未被任何欄位認領
+					indices[i] = col.explicitIndex();
+					headerClaimed[col.explicitIndex()] = true;
+				}
+			}
+		}
+
 		return indices;
+	}
+
+	private static String normalizeHeader(String header) {
+		if (header == null) return "";
+		return header.replaceAll("[\\s_\\-()%（）\\[\\]#*]", "")
+				.replace("代碼", "")
+				.replace("編號", "")
+				.replace("料號", "")
+				.replace("清單", "")
+				.replace("說明", "")
+				.trim();
 	}
 
 	// =========================================================================
@@ -1086,6 +1288,7 @@ public final class ExcelBeanAssembler {
 				int explicitIndex = -1;
 				String format = "";
 				String defaultValue = "";
+				String[] aliases = new String[0];
 
 				if (colAnno != null) {
 					if (!colAnno.value().isBlank()) colName = colAnno.value().trim();
@@ -1093,12 +1296,15 @@ public final class ExcelBeanAssembler {
 					explicitIndex = colAnno.index();
 					format = colAnno.format().trim();
 					defaultValue = colAnno.defaultValue().trim();
+					if (colAnno.aliases() != null && colAnno.aliases().length > 0) {
+						aliases = colAnno.aliases();
+					}
 				}
 
 				Method accessor = rc.getAccessor();
 				accessor.setAccessible(true);
 				columns.add(new ColumnMetadata(colName, rc.getName(), rc.getType(), explicitIndex, i, format, defaultValue,
-						accessor, null, null));
+						aliases, accessor, null, null));
 			}
 
 			try {
@@ -1132,6 +1338,7 @@ public final class ExcelBeanAssembler {
 				int explicitIndex = -1;
 				String format = "";
 				String defaultValue = "";
+				String[] aliases = new String[0];
 
 				if (colAnno != null) {
 					if (!colAnno.value().isBlank()) colName = colAnno.value().trim();
@@ -1139,11 +1346,14 @@ public final class ExcelBeanAssembler {
 					explicitIndex = colAnno.index();
 					format = colAnno.format().trim();
 					defaultValue = colAnno.defaultValue().trim();
+					if (colAnno.aliases() != null && colAnno.aliases().length > 0) {
+						aliases = colAnno.aliases();
+					}
 				}
 
 				field.setAccessible(true);
 				columns.add(new ColumnMetadata(colName, field.getName(), field.getType(), explicitIndex, naturalOrder++,
-						format, defaultValue, null, null, field));
+						format, defaultValue, aliases, null, null, field));
 			}
 		}
 
@@ -1201,6 +1411,7 @@ public final class ExcelBeanAssembler {
 	 * @param naturalOrder  類別中宣告的自然先後順序
 	 * @param format        數值或日期自訂格式化字串
 	 * @param defaultValue  為空時之預設值字串
+	 * @param aliases       容錯別名陣列
 	 * @param accessor      Record 專用屬性存取方法 (Getter)
 	 * @param setter        JavaBean 屬性設定方法 (可選)
 	 * @param field         JavaBean 直接欄位反射參考
@@ -1213,6 +1424,7 @@ public final class ExcelBeanAssembler {
 			int naturalOrder,
 			String format,
 			String defaultValue,
+			String[] aliases,
 			Method accessor,
 			Method setter,
 			Field field

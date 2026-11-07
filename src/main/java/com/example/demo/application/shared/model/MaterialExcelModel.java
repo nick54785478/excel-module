@@ -16,25 +16,25 @@ import com.example.demo.application.annotation.mapping.ExcelSheet;
 @ExcelSheet(name = "物料主檔清單", headerRowIndex = 0, dataRowStartIndex = 1)
 public class MaterialExcelModel {
 
-	@ExcelColumn(name = "物料編號", index = 0)
+	@ExcelColumn(name = "物料編號", index = 0, aliases = {"物料料號", "料號", "品號", "MaterialCode"})
 	private String materialCode;
 
-	@ExcelColumn(name = "物料名稱", index = 1)
+	@ExcelColumn(name = "物料名稱", index = 1, aliases = {"物料品名", "品名", "MaterialName"})
 	private String materialName;
 
-	@ExcelColumn(name = "規格型號", index = 2, defaultValue = "-")
+	@ExcelColumn(name = "規格型號", index = 2, defaultValue = "-", aliases = {"規格", "型號", "Specification"})
 	private String specification;
 
-	@ExcelColumn(name = "物料類別", index = 3)
+	@ExcelColumn(name = "物料類別", index = 3, aliases = {"物料分類", "分類", "類別", "Category"})
 	private String category;
 
-	@ExcelColumn(name = "計量單位", index = 4, defaultValue = "PCS")
+	@ExcelColumn(name = "計量單位", index = 4, defaultValue = "PCS", aliases = {"基本單位", "單位", "Unit"})
 	private String unit;
 
-	@ExcelColumn(name = "標準成本 (TWD)", index = 5, format = "#,##0.00")
+	@ExcelColumn(name = "標準成本 (TWD)", index = 5, format = "#,##0.00", aliases = {"標準單價 (TWD)", "標準成本", "標準單價", "單價", "成本"})
 	private BigDecimal standardCost;
 
-	@ExcelColumn(name = "物料狀態", index = 6, defaultValue = "ACTIVE")
+	@ExcelColumn(name = "物料狀態", index = 6, defaultValue = "ACTIVE", aliases = {"生命週期狀態", "狀態", "Status"})
 	private String status;
 
 	public MaterialExcelModel() {

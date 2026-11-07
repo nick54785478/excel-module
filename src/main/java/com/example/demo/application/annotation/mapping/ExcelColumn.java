@@ -38,6 +38,16 @@ public @interface ExcelColumn {
 	String name() default "";
 
 	/**
+	 * 欄位標題之容錯別名清單 (Aliases)。
+	 * <p>
+	 * 匯入時若主標題 ({@link #name()} 或 {@link #value()}) 比對失敗，
+	 * 將依序比對此別名清單，提升異質系統表頭或多範本之相容性。
+	 *
+	 * @return 欄位標題別名陣列 (預設空陣列)
+	 */
+	String[] aliases() default {};
+
+	/**
 	 * 欄位索引 (從 0 起算)。
 	 * <p>
 	 * <ul>

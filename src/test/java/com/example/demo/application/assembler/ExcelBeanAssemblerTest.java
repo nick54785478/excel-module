@@ -3,6 +3,7 @@ package com.example.demo.application.assembler;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +22,8 @@ import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.service.ExcelCommandService;
 import com.example.demo.application.service.ExcelQueryService;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
+import com.example.demo.application.shared.model.BomItemExcelModel;
+import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
 import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
 import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
@@ -405,5 +408,75 @@ class ExcelBeanAssemblerTest {
 		assertThat(result.conversionErrors()).hasSize(2); // 購買金額與下單日期轉型失敗
 		assertThat(result.items()).hasSize(1);            // 第 2 列完全合格實例化
 		assertThat(result.items().get(0).getOrderNo()).isEqualTo("ORD-OK-1");
+	}
+
+	/**
+	 * Feature: 多工作表 BOM 活頁簿智慧探測與容錯解析 (BOM 配方)
+	 * Scenario: 上傳包含「多階層BOM展開清單」、「單階BOM匯入清單」與「物料主檔對照表」之活頁簿，
+	 * 自動智慧路由至「單階BOM匯入清單」並透過別名相容解析為 BomItemExcelModel 清單
+	 * Given: 讀取 doc/template/BOM_IMPORT.xlsx
+	 * When: 調用 ExcelQueryService.importBeans(is, BomItemExcelModel.class)
+	 * Then: 智慧略過多階展開表，成功解析單階 BOM 配方清單 16 筆資料，各欄位數值與別名對應正確
+	 */
+	@Test
+	@DisplayName("場景：多工作表 BOM 活頁簿自動探測匹配單階 BOM 配方清單並以別名解析")
+	void shouldImportBomItemsFromMultiSheetWorkbookWithSmartDetection() throws Exception {
+		// Given
+		ExcelQueryService importService = new ExcelQueryService(new FastExcelReaderAdapter());
+
+		// When
+		List<BomItemExcelModel> models;
+		try (FileInputStream fis = new FileInputStream("doc/template/BOM_IMPORT.xlsx")) {
+			models = importService.importBeans(fis, BomItemExcelModel.class);
+		}
+
+		// Then
+		assertThat(models).isNotEmpty();
+		assertThat(models).hasSize(16); // 16 筆單階 BOM 配方
+
+		BomItemExcelModel firstItem = models.get(0);
+		assertThat(firstItem.getParentMaterialCode()).isEqualTo("MAT-FG-001");
+		assertThat(firstItem.getBomVersion()).isEqualTo("V1.0");
+		assertThat(firstItem.getItemSequence()).isEqualTo(10);
+		assertThat(firstItem.getChildMaterialCode()).isEqualTo("MAT-SFG-001");
+		assertThat(firstItem.getChildMaterialName()).isEqualTo("飛控主板電路模組總成");
+		assertThat(firstItem.getQuantity()).isEqualByComparingTo("1.0");
+		assertThat(firstItem.getUnit()).isEqualTo("PCS"); // 套用 defaultValue
+		assertThat(firstItem.getScrapRate()).isEqualByComparingTo("0.0");
+		assertThat(firstItem.getPositionCode()).isEqualTo("FC-ASM");
+		assertThat(firstItem.getRemark()).isEqualTo("核心飛控組裝件");
+	}
+
+	/**
+	 * Feature: 多工作表 BOM 活頁簿智慧探測與容錯解析 (物料主檔)
+	 * Scenario: 上傳多工作表活頁簿，自動探測並路由至「物料主檔對照表」解析為 MaterialExcelModel 清單
+	 * Given: 讀取 doc/template/BOM_IMPORT.xlsx
+	 * When: 調用 ExcelQueryService.importBeans(is, MaterialExcelModel.class)
+	 * Then: 自動匹配第三張工作表，成功解析 19 筆物料主檔資料
+	 */
+	@Test
+	@DisplayName("場景：多工作表 BOM 活頁簿自動探測匹配物料主檔對照表並解析")
+	void shouldImportMaterialsFromMultiSheetWorkbookWithSmartDetection() throws Exception {
+		// Given
+		ExcelQueryService importService = new ExcelQueryService(new FastExcelReaderAdapter());
+
+		// When
+		List<MaterialExcelModel> models;
+		try (FileInputStream fis = new FileInputStream("doc/template/BOM_IMPORT.xlsx")) {
+			models = importService.importBeans(fis, MaterialExcelModel.class);
+		}
+
+		// Then
+		assertThat(models).isNotEmpty();
+		assertThat(models).hasSize(19); // 19 筆物料
+
+		MaterialExcelModel firstMat = models.get(0);
+		assertThat(firstMat.getMaterialCode()).isEqualTo("MAT-FG-001");
+		assertThat(firstMat.getMaterialName()).isEqualTo("4K 專業商用巡檢無人機");
+		assertThat(firstMat.getSpecification()).isEqualTo("PRO-4K-GPS-V2");
+		assertThat(firstMat.getCategory()).isEqualTo("成品 (FINISHED_GOODS)");
+		assertThat(firstMat.getUnit()).isEqualTo("SET");
+		assertThat(firstMat.getStandardCost()).isEqualByComparingTo("28500.0");
+		assertThat(firstMat.getStatus()).isEqualTo("正常使用中 (ACTIVE)");
 	}
 }

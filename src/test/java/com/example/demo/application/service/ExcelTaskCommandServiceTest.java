@@ -22,15 +22,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.example.demo.application.port.in.DownloadExcelTaskFileUseCase;
 import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelTaskRepositoryPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
-import com.example.demo.application.shared.command.ExportBomCommand;
 import com.example.demo.application.shared.command.ExportExcelCommand;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.dto.BomExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelTaskGottenResult;
 import com.example.demo.application.shared.vo.ExcelTaskStatus;
 import com.example.demo.application.shared.vo.ExcelTaskType;
@@ -50,7 +49,6 @@ class ExcelTaskCommandServiceTest {
 	private ExcelTaskRepositoryPort excelTaskRepositoryPort;
 	private ExcelWriterPort excelWriterPort;
 	private ExcelReaderPort excelReaderPort;
-	private BomCommandService bomCommandService;
 	private ExcelTaskCommandService commandService;
 
 	@BeforeEach
@@ -58,14 +56,12 @@ class ExcelTaskCommandServiceTest {
 		this.excelTaskRepositoryPort = mock(ExcelTaskRepositoryPort.class);
 		this.excelWriterPort = mock(ExcelWriterPort.class);
 		this.excelReaderPort = mock(ExcelReaderPort.class);
-		this.bomCommandService = mock(BomCommandService.class);
 
 		// 使用 Runnable::run 作為同步 Executor，確保背景工作於測試當下立即可靠執行
 		this.commandService = new ExcelTaskCommandService(
 				excelTaskRepositoryPort,
 				excelWriterPort,
 				excelReaderPort,
-				bomCommandService,
 				Runnable::run);
 	}
 
@@ -123,54 +119,6 @@ class ExcelTaskCommandServiceTest {
 		// 驗證檔案已快取供下載
 		byte[] cachedFile = commandService.getExportedFile(initialResult.taskId());
 		assertThat(cachedFile).isEqualTo(mockBytes);
-	}
-
-	/**
-	 * Feature: 非同步 BOM 匯出調度業務
-	 * Scenario: 成功提交 BOM 匯出長任務並在背景委託 BomCommandService
-	 * Given: 合法的 ExportBomCommand
-	 * When: 調用 commandService.submitAsyncBomExport(command)
-	 * Then: 應立即回傳 PENDING 狀態結果，背景執行緒完成 BOM 產製並標記 COMPLETED
-	 */
-	@Test
-	@DisplayName("場景：成功提交 BOM 匯出長任務並在背景完成樹狀結構產製")
-	void shouldSubmitAsyncBomExportSuccessfully() {
-		// Given
-		ExportBomCommand command = new ExportBomCommand("MAT-BIKE-001", "V1.0", true, true, true);
-
-		when(excelTaskRepositoryPort.createTask(any(CreateExcelTaskCommand.class)))
-				.thenAnswer(invocation -> {
-					CreateExcelTaskCommand cmd = invocation.getArgument(0);
-					return new ExcelTaskGottenResult(
-							cmd.taskId(),
-							cmd.taskType(),
-							ExcelTaskStatus.PENDING,
-							0L,
-							0L,
-							0.0,
-							cmd.fileName(),
-							null,
-							null,
-							LocalDateTime.now(),
-							LocalDateTime.now());
-				});
-
-		byte[] mockBomBytes = new byte[] { 1, 2, 3, 4, 5 };
-		when(bomCommandService.exportBom(command))
-				.thenReturn(new BomExcelGottenResult(mockBomBytes, "MAT-BIKE-001_BOM.xlsx", 1, 25));
-
-		// When
-		ExcelTaskGottenResult initialResult = commandService.submitAsyncBomExport(command);
-
-		// Then
-		assertThat(initialResult).isNotNull();
-		assertThat(initialResult.taskStatus()).isEqualTo(ExcelTaskStatus.PENDING);
-
-		verify(excelTaskRepositoryPort).markProcessing(initialResult.taskId());
-		verify(bomCommandService).exportBom(command);
-		verify(excelTaskRepositoryPort).updateProgress(eq(initialResult.taskId()), eq(25L), eq(25L));
-		verify(excelTaskRepositoryPort).markCompleted(eq(initialResult.taskId()), anyString(), eq(25L));
-		assertThat(commandService.getExportedFile(initialResult.taskId())).isEqualTo(mockBomBytes);
 	}
 
 	/**
@@ -269,5 +217,25 @@ class ExcelTaskCommandServiceTest {
 		// Then
 		assertThat(initialResult).isNotNull();
 		verify(excelTaskRepositoryPort).markFailed(eq(initialResult.taskId()), eq("磁碟空間不足"));
+	}
+
+	/**
+	 * Feature: 下載長任務產出檔案使用案例介面合約驗證
+	 * Scenario: 驗證實作 DownloadExcelTaskFileUseCase 介面且查無檔案時安全回傳 null
+	 * Given: 注入 DownloadExcelTaskFileUseCase 介面合約
+	 * When: 調用 getExportedFile 傳入不存在之 taskId
+	 * Then: 應回傳 null 且不拋出非預期例外
+	 */
+	@Test
+	@DisplayName("場景：透過 DownloadExcelTaskFileUseCase 查詢不存在任務檔案時應回傳 null")
+	void shouldReturnNullWhenDownloadFileNotCached() {
+		// Given
+		DownloadExcelTaskFileUseCase downloadUseCase = commandService;
+
+		// When
+		byte[] result = downloadUseCase.getExportedFile("non-existent-task");
+
+		// Then
+		assertThat(result).isNull();
 	}
 }

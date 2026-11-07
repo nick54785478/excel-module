@@ -271,7 +271,7 @@ public List<ExcelRowError> createErrors(OrderModel order, ExcelValidationContext
 | :--- | :--- | :--- |
 | [`@ValidateExcel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidateExcel.java) | `application/annotation/validation/` | 宣告於方法上方，指定目標模型 `model()`、處置策略 `action()` 與回標檔名。 |
 | [`@ValidatedExcelData`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidatedExcelData.java) | `application/annotation/validation/` | 宣告於 Controller 方法參數，由 Spring MVC 與 AOP 自動注入 100% 合格之模型清單。 |
-| [`ExcelValidationAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelValidationAspect.java) | `infrastructure/aop/` | 核心 AOP 切面，前置攔截 `MultipartFile`，依策略執行自動回標短路或例外拋出。 |
+| [`ExcelValidationAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/aspect/ExcelValidationAspect.java) | `presentation/aspect/` | 表現層前置防衛切面（Inbound Guard），前置攔截 `MultipartFile`，依策略執行自動回標短路或例外拋出。 |
 | [`ExcelValidationContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelValidationContextHolder.java) | `application/shared/context/` | `ThreadLocal` 執行緒上下文保持器，安全透傳合格檢核結果，防範記憶體洩漏。 |
 | [`ValidatedExcelDataArgumentResolver`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/resolver/ValidatedExcelDataArgumentResolver.java) | `presentation/resolver/` | Spring MVC 自訂參數解析器，支援直接綁定 `List<T>` 免去反射建構例外。 |
 

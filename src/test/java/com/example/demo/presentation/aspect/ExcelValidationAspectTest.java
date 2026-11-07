@@ -1,4 +1,4 @@
-package com.example.demo.infrastructure.aop;
+package com.example.demo.presentation.aspect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.demo.application.annotation.validation.ValidateExcel;
 import com.example.demo.application.annotation.validation.ValidatedExcelData;
 import com.example.demo.application.port.in.ValidateExcelUseCase;
-import com.example.demo.application.shared.context.ExcelValidationContextHolder;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.exception.ExcelValidationFailedException;
 import com.example.demo.application.shared.model.ExcelRowError;
@@ -33,7 +32,8 @@ import com.example.demo.application.shared.model.OrderModel;
 /**
  * Excel 宣告式資料檢核切面單元測試 (ExcelValidationAspect Test)
  * <p>
- * 使用 {@link AspectJProxyFactory} 驗證 {@link ExcelValidationAspect} 切面攔截行為：
+ * 位於表現層切面測試套件 ({@code presentation/aspect/})，
+ * 使用 {@link AspectJProxyFactory} 驗證 {@link ExcelValidationAspect} 作為 Inbound Adapter 的攔截行為：
  * 包含空檔案阻斷 (400)、違規自動回標短路下載 (200 attachment)、合格自動注入 (@ValidatedExcelData)
  * 與 THROW_EXCEPTION 模式下拋出業務例外。
  * 遵循 BDD / Gherkin (Feature, Scenario, Given-When-Then) 測試註解規範。

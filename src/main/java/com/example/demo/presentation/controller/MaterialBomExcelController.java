@@ -23,6 +23,7 @@ import com.example.demo.application.port.in.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.ImportExcelUseCase;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.query.ReadExcelQuery;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource;
@@ -170,7 +171,9 @@ public class MaterialBomExcelController {
 	@PostMapping(value = "/materials/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MaterialImportedResource> importMaterials(
 			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
-			@RequestParam("file") MultipartFile file
+			@RequestParam("file") MultipartFile file,
+			@Parameter(description = "指定讀取之工作表名稱 (選填，若未指定則自動依 @ExcelSheet 智慧探測匹配)", required = false)
+			@RequestParam(value = "sheetName", required = false) String sheetName
 	) throws IOException {
 
 		// ---------------------------------------------------------------------
@@ -184,14 +187,17 @@ public class MaterialBomExcelController {
 		// ---------------------------------------------------------------------
 		// 步驟 2：調度應用層通用匯入案例 (Inbound Port)
 		// ---------------------------------------------------------------------
-		// 委託 ImportExcelUseCase 調用底層讀取引擎，並經由 ExcelBeanAssembler 將列資料轉化為 MaterialExcelModel
-		List<MaterialExcelModel> models = importExcelUseCase.importBeans(file.getInputStream(), MaterialExcelModel.class);
+		// 若指定 sheetName 則套用特定查詢，否則調用預設匯入並由 ExcelBeanAssembler 智慧探測對應工作表
+		List<MaterialExcelModel> models = (sheetName != null && !sheetName.isBlank())
+				? importExcelUseCase.importBeans(file.getInputStream(), ReadExcelQuery.ofSheet(sheetName.trim()), MaterialExcelModel.class)
+				: importExcelUseCase.importBeans(file.getInputStream(), MaterialExcelModel.class);
 
 		// ---------------------------------------------------------------------
 		// 步驟 3：防腐層 (ACL) 轉換
 		// ---------------------------------------------------------------------
 		// 透過 MaterialBomResourceAssembler 將應用層模型清單包裝為表現層純資料載體 MaterialImportedResource
-		MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(models, "物料主檔清單");
+		String targetSheet = (sheetName != null && !sheetName.isBlank()) ? sheetName.trim() : "物料主檔清單";
+		MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(models, targetSheet);
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應
@@ -267,7 +273,9 @@ public class MaterialBomExcelController {
 	@PostMapping(value = "/bom-items/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BomItemImportedResource> importBomItems(
 			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
-			@RequestParam("file") MultipartFile file
+			@RequestParam("file") MultipartFile file,
+			@Parameter(description = "指定讀取之工作表名稱 (選填，若未指定則自動依 @ExcelSheet 智慧探測匹配)", required = false)
+			@RequestParam(value = "sheetName", required = false) String sheetName
 	) throws IOException {
 
 		// ---------------------------------------------------------------------
@@ -280,14 +288,17 @@ public class MaterialBomExcelController {
 		// ---------------------------------------------------------------------
 		// 步驟 2：調度應用層通用匯入案例 (Inbound Port)
 		// ---------------------------------------------------------------------
-		// 委託 ImportExcelUseCase 調用底層讀取引擎，並經由 ExcelBeanAssembler 將列資料轉化為 BomItemExcelModel
-		List<BomItemExcelModel> models = importExcelUseCase.importBeans(file.getInputStream(), BomItemExcelModel.class);
+		// 若指定 sheetName 則套用特定查詢，否則調用預設匯入並由 ExcelBeanAssembler 智慧探測對應工作表
+		List<BomItemExcelModel> models = (sheetName != null && !sheetName.isBlank())
+				? importExcelUseCase.importBeans(file.getInputStream(), ReadExcelQuery.ofSheet(sheetName.trim()), BomItemExcelModel.class)
+				: importExcelUseCase.importBeans(file.getInputStream(), BomItemExcelModel.class);
 
 		// ---------------------------------------------------------------------
 		// 步驟 3：防腐層 (ACL) 轉換
 		// ---------------------------------------------------------------------
 		// 透過 MaterialBomResourceAssembler 將應用層模型清單包裝為表現層純資料載體 BomItemImportedResource
-		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(models, "單階BOM清單");
+		String targetSheet = (sheetName != null && !sheetName.isBlank()) ? sheetName.trim() : "單階BOM清單";
+		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(models, targetSheet);
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應

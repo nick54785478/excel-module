@@ -343,25 +343,78 @@ public class BomController {
 		response.flushBuffer();
 	}
 
+	// =========================================================================
+	// 私有輔助方法 (Private Helpers)
+	// =========================================================================
+
+	/**
+	 * 設定巨量資料串流輸出至 HTTP Response 的標準標頭 (Stream Response Headers Setter)
+	 * <p>
+	 * <b>【架構定位與安全性規範】</b><br>
+	 * 專門用於直接將二進位試算表串流寫入 {@link HttpServletResponse#getOutputStream()} 的場景。<br>
+	 * 依據 RFC 5987 規範執行檔名 UTF-8 安全編碼，將空白符號轉義為標準 {@code %20}，避免在不同客戶端瀏覽器產生檔名亂碼；
+	 * 同時設置標準 OpenXML 試算表 MIME 格式 ({@value #EXCEL_MIME_TYPE})。
+	 * </p>
+	 *
+	 * @param response    當前 HTTP 請求回應物件，用於輸出資料串流與寫入標頭
+	 * @param rawFileName 未編碼之原始下載檔案名稱 (若無附檔名將自動補齊 {@code .xlsx})
+	 */
 	private void setStreamResponseHeaders(HttpServletResponse response, String rawFileName) {
-		String encodedFileName = URLEncoder.encode(rawFileName, StandardCharsets.UTF_8).replace("+", "%20");
+		// ---------------------------------------------------------------------
+		// 步驟 1：檔名 RFC 5987 UTF-8 安全編碼 (避免中文與空格在各瀏覽器亂碼)
+		// ---------------------------------------------------------------------
+		String safeFileName = (rawFileName != null && !rawFileName.isBlank()) ? rawFileName.trim() : "bom_stream_export";
+		String encodedFileName = URLEncoder.encode(safeFileName, StandardCharsets.UTF_8).replace("+", "%20");
+
+		// ---------------------------------------------------------------------
+		// 步驟 2：副檔名防禦補齊
+		// ---------------------------------------------------------------------
 		if (!encodedFileName.endsWith(".xlsx")) {
 			encodedFileName += ".xlsx";
 		}
+
+		// ---------------------------------------------------------------------
+		// 步驟 3：配置標準 Content-Type 與 Content-Disposition 下載標頭
+		// ---------------------------------------------------------------------
 		response.setContentType(EXCEL_MIME_TYPE);
 		response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName);
 	}
 
+	/**
+	 * 建構全量 BOM 試算表二進位下載之 HTTP 回應實體 (Excel Binary Download Builder)
+	 * <p>
+	 * <b>【架構定位與職責說明】</b><br>
+	 * 接收應用層產製完成之 {@link BomExcelGottenResult} DTO，提取其內部二進位陣列與檔案名稱，
+	 * 包裝為符合 RFC 5987 規範的標準 {@link ResponseEntity} 下載回應。
+	 * </p>
+	 *
+	 * @param result 應用層 BOM 匯出業務產出之結果純資料載體 (包含二進位檔案 byte 陣列與推薦檔名)
+	 * @return HTTP 200 OK 且附帶二進位試算表內容之標準下載回應
+	 */
 	private ResponseEntity<byte[]> buildExcelDownloadResponse(BomExcelGottenResult result) {
-		String encodedFileName = URLEncoder.encode(result.fileName(), StandardCharsets.UTF_8).replace("+", "%20");
+		// ---------------------------------------------------------------------
+		// 步驟 1：邊界安全提取與預設檔名防禦
+		// ---------------------------------------------------------------------
+		String rawName = (result.fileName() != null && !result.fileName().isBlank())
+				? result.fileName().trim()
+				: "bom_export.xlsx";
+
+		// ---------------------------------------------------------------------
+		// 步驟 2：檔名 RFC 5987 UTF-8 編碼 (相容 Chrome, Edge, Firefox, Safari)
+		// ---------------------------------------------------------------------
+		String encodedFileName = URLEncoder.encode(rawName, StandardCharsets.UTF_8).replace("+", "%20");
 		if (!encodedFileName.endsWith(".xlsx")) {
 			encodedFileName += ".xlsx";
 		}
 
+		// ---------------------------------------------------------------------
+		// 步驟 3：建構二進位檔案回應實體並寫入 Content-Length
+		// ---------------------------------------------------------------------
+		byte[] fileBytes = result.fileBytes() != null ? result.fileBytes() : new byte[0];
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
 				.contentType(MediaType.parseMediaType(EXCEL_MIME_TYPE))
-				.contentLength(result.fileBytes().length)
-				.body(result.fileBytes());
+				.contentLength(fileBytes.length)
+				.body(fileBytes);
 	}
 }

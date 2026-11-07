@@ -96,6 +96,7 @@ public class ExcelBeanMappingController {
 				? resource.sheetName().trim()
 				: null;
 
+        // 是否有提供 SheetName，有的話使用該 SheetName，沒有使用我們預設的
 		byte[] excelBytes = (sheetName != null)
 				? exportExcelUseCase.exportBeans(models, OrderModel.class, sheetName)
 				: exportExcelUseCase.exportBeans(models, OrderModel.class);
@@ -255,15 +256,44 @@ public class ExcelBeanMappingController {
 	}
 
 	// =========================================================================
-	// 私有輔助方法
+	// 私有輔助方法 (Private Helpers)
 	// =========================================================================
 
+	/**
+	 * 建構標準 Excel 二進位檔案下載 HTTP 回應實體 (RFC 5987 UTF-8 檔名安全編碼)
+	 * <p>
+	 * <b>【架構定位與職責說明】</b><br>
+	 * 負責將記憶體中產製之 Excel 二進位位元組陣列封裝為標準 HTTP 200 下載回應。<br>
+	 * 設定標準 OpenXML 試算表 MIME 格式 ({@value #EXCEL_MIME_TYPE})，
+	 * 並依照 RFC 5987 規範對檔名執行 UTF-8 URL 安全編碼，將空白符號轉為 {@code %20}，
+	 * 確保跨不同瀏覽器（如 Chrome, Edge, Firefox, Safari）下載中文檔名時不產生亂碼。
+	 * </p>
+	 *
+	 * @param content         Excel 二進位檔案位元組內容
+	 * @param defaultFileName 下載預設檔案名稱 (如 "orders_export.xlsx")
+	 * @return 封裝完成之 HTTP 200 二進位下載回應實體
+	 */
 	private ResponseEntity<byte[]> createDownloadResponse(byte[] content, String defaultFileName) {
-		String encodedFileName = URLEncoder.encode(defaultFileName, StandardCharsets.UTF_8).replace("+", "%20");
+		// ---------------------------------------------------------------------
+		// 步驟 1：檔名 RFC 5987 UTF-8 安全編碼 (避免中文與空格在各瀏覽器亂碼)
+		// ---------------------------------------------------------------------
+		String safeFileName = (defaultFileName != null && !defaultFileName.isBlank()) ? defaultFileName.trim() : "export.xlsx";
+		String encodedFileName = URLEncoder.encode(safeFileName, StandardCharsets.UTF_8).replace("+", "%20");
+		if (!encodedFileName.endsWith(".xlsx")) {
+			encodedFileName += ".xlsx";
+		}
+
+		// ---------------------------------------------------------------------
+		// 步驟 2：建構標準 HTTP 下載標頭與 MIME Content-Type
+		// ---------------------------------------------------------------------
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.parseMediaType(EXCEL_MIME_TYPE));
-		headers.setContentDispositionFormData("attachment", encodedFileName);
-		headers.setContentLength(content.length);
-		return ResponseEntity.ok().headers(headers).body(content);
+		headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
+		headers.setContentLength(content != null ? content.length : 0);
+
+		// ---------------------------------------------------------------------
+		// 步驟 3：封裝為 HTTP 200 OK 二進位回應實體
+		// ---------------------------------------------------------------------
+		return ResponseEntity.ok().headers(headers).body(content != null ? content : new byte[0]);
 	}
 }

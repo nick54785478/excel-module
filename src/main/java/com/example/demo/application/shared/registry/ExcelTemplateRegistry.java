@@ -92,11 +92,17 @@ public class ExcelTemplateRegistry {
 		register("materials", MaterialExcelModel.class, "物料主檔", "物料檢核錯誤回標檔.xlsx");
 		addAlias("material", "materials");
 		addAlias("materialexcelmodel", "materials");
+		addAlias("物料主檔對照表", "materials");
+		addAlias("物料主檔清單", "materials");
+		addAlias("物料主檔", "materials");
 
 		// 4. 單階配方模型 (BOM)
 		register("boms", BomItemExcelModel.class, "單階配方", "BOM檢核錯誤回標檔.xlsx");
 		addAlias("bom", "boms");
 		addAlias("bomitemexcelmodel", "boms");
+		addAlias("單階bom匯入清單", "boms");
+		addAlias("單階bom清單", "boms");
+		addAlias("單階bom", "boms");
 	}
 
 	/**

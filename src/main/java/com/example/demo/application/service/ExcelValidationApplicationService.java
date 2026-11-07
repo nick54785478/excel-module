@@ -16,6 +16,7 @@ import com.example.demo.application.port.out.ExcelReaderPort;
 import com.example.demo.application.port.out.ExcelRowValidatorPort;
 import com.example.demo.application.port.out.ExcelSheetValidatorPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
+import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.model.ExcelRowError;
 import com.example.demo.application.shared.model.ExcelValidationContext;
@@ -66,12 +67,10 @@ public class ExcelValidationApplicationService implements ValidateExcelUseCase {
 
 		// 1. 透過 ExcelReaderPort 讀取試算表二進位資料
 		ExcelGottenResult gottenResult = excelReaderPort.read(excelStream);
-		var sheetOpt = gottenResult.getFirstSheet();
-		if (sheetOpt.isEmpty() || sheetOpt.get().isEmpty()) {
+		ExcelSheetGottenResult sheetResult = ExcelBeanAssembler.resolveTargetSheet(gottenResult, modelClass, null);
+		if (sheetResult == null || sheetResult.isEmpty()) {
 			return ExcelValidationGottenResult.success(Collections.emptyList());
 		}
-
-		var sheetResult = sheetOpt.get();
 		String sheetName = sheetResult.sheetName() != null ? sheetResult.sheetName() : "Sheet1";
 
 		// 2. 透過 ExcelBeanAssembler 進行容錯組裝，並收集儲存格型別轉換錯誤事實

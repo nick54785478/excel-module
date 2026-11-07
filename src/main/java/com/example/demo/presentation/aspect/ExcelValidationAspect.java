@@ -1,4 +1,4 @@
-package com.example.demo.infrastructure.aop;
+package com.example.demo.presentation.aspect;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -31,28 +31,26 @@ import com.example.demo.application.shared.exception.ExcelValidationFailedExcept
  * Excel 宣告式資料檢核與上傳攔截切面 (Excel Validation Aspect)
  * <p>
  * <b>【架構定位與職責說明】</b><br>
- * 位於 Clean Architecture 基礎設施層切面套件 ({@code infrastructure/aop/})，
- * 遵循六角形架構橫切技術關注點規範。<br>
- * 專門攔截標註有 {@link ValidateExcel} 之 Controller 或 Service 匯入方法，
- * 在請求進入業務本體前執行前置資料校驗，實現：
+ * 位於 Clean Architecture <b>表現層切面套件 ({@code presentation/aspect/})</b>，
+ * 遵循六角形架構（Hexagonal Architecture）<b>Inbound Adapter（輸入適配器）</b>規範。<br>
+ * 本切面作為 Web 請求前置防衛閘門（Inbound Guard），專門攔截標註有 {@link ValidateExcel} 之 Controller 匯入方法，
+ * 協同 {@link com.example.demo.presentation.resolver.ValidatedExcelDataArgumentResolver}
+ * 與 {@link com.example.demo.presentation.exception.GlobalExceptionHandler} 提供端到端的 Web 驗證支援：
  * <ol>
- * <li><b>檔案物理層防呆 (Level 1)</b>：自動偵測並驗證 {@link MultipartFile} 或
- * {@link InputStream} 入參。</li>
- * <li><b>自動回標短路 (Auto Feedback Short-Circuit)</b>：若資料違規且設定為
- * {@link ValidateExcel.OnErrorAction#AUTO_FEEDBACK}，
- * 直接生成淡紅底深紅字錯誤回標 Excel 二進位下載，阻斷方法執行。</li>
- * <li><b>例外轉譯 (Exception-Driven Mode)</b>：設定為
- * {@link ValidateExcel.OnErrorAction#THROW_EXCEPTION} 時，
- * 拋出 {@link ExcelValidationFailedException} 由全域例外處理器轉為 422 JSON。</li>
- * <li><b>乾淨資料自動注入 (Clean Data Injection)</b>：全數檢核通過後，自動將已反序列化之資料清單注入標註有
- * {@link ValidatedExcelData} 之方法參數，並綁定至
- * {@link ExcelValidationContextHolder}。</li>
+ *   <li><b>檔案物理層防呆 (Level 1)</b>：自動偵測並驗證 {@link MultipartFile} 或 {@link InputStream} 入參。</li>
+ *   <li><b>自動回標短路 (Auto Feedback Short-Circuit)</b>：若資料違規且設定為 {@link ValidateExcel.OnErrorAction#AUTO_FEEDBACK}，
+ *       直接生成淡紅底深紅字錯誤回標 Excel 二進位下載（{@link ResponseEntity}），阻斷 Controller 方法本體執行。</li>
+ *   <li><b>例外轉譯 (Exception-Driven Mode)</b>：設定為 {@link ValidateExcel.OnErrorAction#THROW_EXCEPTION} 時，
+ *       拋出 {@link ExcelValidationFailedException} 交由表現層全域例外處理器轉譯為 HTTP 422 JSON。</li>
+ *   <li><b>乾淨資料自動注入 (Clean Data Injection)</b>：全數檢核通過後，自動將已反序列化之合規資料清單注入標註有
+ *       {@link ValidatedExcelData} 之方法參數，並綁定至 {@link ExcelValidationContextHolder}。</li>
  * </ol>
  * </p>
  *
  * @author Antigravity
  * @see ValidateExcel
  * @see ValidatedExcelData
+ * @see ValidateExcelUseCase
  * @see ExcelValidationContextHolder
  */
 @Aspect
@@ -64,7 +62,7 @@ public class ExcelValidationAspect {
 	private final ValidateExcelUseCase validateExcelUseCase;
 
 	/**
-	 * 建構子注入應用層 UseCase
+	 * 建構子注入應用層 Inbound Port 業務案例
 	 *
 	 * @param validateExcelUseCase 檢核業務案例輸入埠
 	 */
@@ -74,7 +72,7 @@ public class ExcelValidationAspect {
 	}
 
 	/**
-	 * 環繞通知：攔截標註 {@link ValidateExcel} 之方法
+	 * 環繞通知：攔截標註 {@link ValidateExcel} 之 Controller 方法
 	 *
 	 * @param joinPoint     切入點
 	 * @param validateExcel 宣告式檢核註解
@@ -202,3 +200,4 @@ public class ExcelValidationAspect {
 				.body(fileBytes);
 	}
 }
+
