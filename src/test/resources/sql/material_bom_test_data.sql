@@ -58,6 +58,20 @@ CREATE TABLE t_bom_item (
 CREATE INDEX idx_bom_item_bom ON t_bom_item(bom_id);
 CREATE INDEX idx_bom_item_child ON t_bom_item(child_material_id);
 
+CREATE TABLE IF NOT EXISTS t_excel_task (
+    task_id VARCHAR(64) NOT NULL PRIMARY KEY,
+    task_type VARCHAR(20) NOT NULL,
+    task_status VARCHAR(20) NOT NULL,
+    total_rows BIGINT NOT NULL DEFAULT 0,
+    processed_rows BIGINT NOT NULL DEFAULT 0,
+    progress_percentage DOUBLE NOT NULL DEFAULT 0.0,
+    file_name VARCHAR(255),
+    file_url VARCHAR(500),
+    error_message VARCHAR(1000),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =============================================================================
 -- 3. 插入物料主檔資料 (剛好 2000 筆)
 --    1 ~ 15  : FINISHED_GOODS (成品 FG, 15 筆)

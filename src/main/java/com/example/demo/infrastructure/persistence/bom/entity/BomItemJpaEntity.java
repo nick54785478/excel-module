@@ -6,6 +6,7 @@ import java.util.Objects;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -33,7 +34,12 @@ public class BomItemJpaEntity {
 	private String id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "bom_id", nullable = false)
+	@JoinColumn(
+			name = "bom_id",
+			nullable = false,
+			columnDefinition = "VARCHAR(36)",
+			foreignKey = @ForeignKey(name = "fk_bom_item_bom")
+	)
 	private BomJpaEntity bom;
 
 	@Column(name = "child_material_id", length = 36, nullable = false)

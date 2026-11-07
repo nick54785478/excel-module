@@ -58,6 +58,20 @@ CREATE TABLE t_bom_item (
 CREATE INDEX idx_bom_item_bom ON t_bom_item(bom_id);
 CREATE INDEX idx_bom_item_child ON t_bom_item(child_material_id);
 
+CREATE TABLE IF NOT EXISTS t_excel_task (
+    task_id VARCHAR(64) NOT NULL PRIMARY KEY COMMENT '長任務識別碼 UUID',
+    task_type VARCHAR(20) NOT NULL COMMENT '任務類型 (EXPORT_EXCEL, IMPORT_EXCEL)',
+    task_status VARCHAR(20) NOT NULL COMMENT '任務狀態 (PENDING, PROCESSING, COMPLETED, FAILED)',
+    total_rows BIGINT NOT NULL DEFAULT 0 COMMENT '預估總列數',
+    processed_rows BIGINT NOT NULL DEFAULT 0 COMMENT '已處理列數',
+    progress_percentage DOUBLE NOT NULL DEFAULT 0.0 COMMENT '進度百分比 (0.0 ~ 100.0)',
+    file_name VARCHAR(255) COMMENT '目標檔案名稱',
+    file_url VARCHAR(500) COMMENT '產出檔案下載 URL',
+    error_message VARCHAR(1000) COMMENT '錯誤原因說明',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Excel 任務狀態追蹤表';
+
 -- =============================================================================
 -- 3. 插入物料主檔資料 (剛好 2000 筆)
 --    1 ~ 15  : FINISHED_GOODS (成品 FG, 15 筆)
