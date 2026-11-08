@@ -1,19 +1,25 @@
 package com.example.demo.config;
 
+import java.util.List;
+
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.example.demo.application.port.out.ExcelReaderPort;
+import com.example.demo.application.port.out.ExcelReportDecoratorFactoryPort;
 import com.example.demo.application.port.out.ExcelWriterPort;
+import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
 import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
 import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
 import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.report.SpringReportDecoratorFactoryAdapter;
 
 /**
  * Excel 處理引擎動態裝配配置類 (Configuration Layer - Composition Root)
@@ -117,5 +123,26 @@ public class ExcelEngineConfiguration {
 		log.info(
 				"[ExcelEngineConfiguration] Activating Apache POI Reader Adapter (Full format / Formula evaluation mode)");
 		return new PoiSaxReaderAdapter();
+	}
+
+	// =========================================================================
+	// 3. 企業級報表裝飾策略工廠裝配 (支援自定義覆寫)
+	// =========================================================================
+
+	/**
+	 * 註冊報表裝飾策略工廠輸出埠
+	 * <p>
+	 * 標註 {@link ConditionalOnMissingBean}，支援二次開發者或下游子系統透過提供自訂 {@link ExcelReportDecoratorFactoryPort} Bean
+	 * 進行無侵入覆寫。
+	 *
+	 * @param strategies 容器中所有自動收集之裝飾策略清單
+	 * @return 策略工廠輸出埠實例
+	 */
+	@Bean
+	@ConditionalOnMissingBean(ExcelReportDecoratorFactoryPort.class)
+	public ExcelReportDecoratorFactoryPort excelReportDecoratorFactoryPort(List<ExcelReportDecoratorStrategy> strategies) {
+		log.info("[ExcelEngineConfiguration] Activating Spring Report Decorator Factory Port with {} strategies",
+				strategies != null ? strategies.size() : 0);
+		return new SpringReportDecoratorFactoryAdapter(strategies);
 	}
 }

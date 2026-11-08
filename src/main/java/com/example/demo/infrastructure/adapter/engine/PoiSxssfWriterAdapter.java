@@ -16,6 +16,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
@@ -29,6 +30,10 @@ import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
+import com.example.demo.application.shared.model.CellCoordinate;
+import com.example.demo.application.shared.model.CellRange;
+import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.model.SheetProtectionConfig;
 import com.example.demo.application.shared.vo.ExcelTaskType;
 import com.example.demo.application.shared.exception.ExcelWriteException;
 
@@ -198,13 +203,43 @@ public class PoiSxssfWriterAdapter implements ExcelWriterPort {
 				if (rowData == null) {
 					continue;
 				}
-				Row row = sheet.createRow(startRow + r);
+				int rowIndex = startRow + r;
+				Row row = sheet.createRow(rowIndex);
 				for (int c = 0; c < rowData.size(); c++) {
 					Cell cell = row.createCell(c);
-					writeCellValue(cell, rowData.get(c));
+					String cellRef = CellCoordinate.format(c, rowIndex);
+					String formula = sheetCommand.cellFormulas().get(cellRef);
+					if (formula != null && !formula.isBlank()) {
+						String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+						cell.setCellFormula(cleanFormula);
+					} else {
+						writeCellValue(cell, rowData.get(c));
+					}
 				}
 			}
 		}
+
+		// 5. 套用未被 rows 包含的額外儲存格公式 (如彙總列)
+		if (sheetCommand.cellFormulas() != null && !sheetCommand.cellFormulas().isEmpty()) {
+			sheetCommand.cellFormulas().forEach((cellRef, formula) -> {
+				if (cellRef != null && formula != null && !formula.isBlank()) {
+					CellCoordinate coord = CellCoordinate.parse(cellRef);
+					Row row = sheet.getRow(coord.row());
+					if (row == null) {
+						row = sheet.createRow(coord.row());
+					}
+					Cell cell = row.getCell(coord.col());
+					if (cell == null) {
+						cell = row.createCell(coord.col());
+					}
+					String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+					cell.setCellFormula(cleanFormula);
+				}
+			});
+		}
+
+		// 6. 套用維度五企業級功能：合併儲存格、工作表防護與列印頁首頁尾
+		applySheetDecorations(sheet, sheetCommand.mergedRegions(), sheetCommand.protectionConfig(), sheetCommand.headerFooterConfig());
 	}
 
 	/**
@@ -239,7 +274,14 @@ public class PoiSxssfWriterAdapter implements ExcelWriterPort {
 					Row row = sheet.createRow(currentRowIndex);
 					for (int c = 0; c < rowData.size(); c++) {
 						Cell cell = row.createCell(c);
-						writeCellValue(cell, rowData.get(c));
+						String cellRef = CellCoordinate.format(c, currentRowIndex);
+						String formula = sheetCommand.cellFormulas().get(cellRef);
+						if (formula != null && !formula.isBlank()) {
+							String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+							cell.setCellFormula(cleanFormula);
+						} else {
+							writeCellValue(cell, rowData.get(c));
+						}
 					}
 					currentRowIndex++;
 					if ((currentRowIndex - startRow) % flushInterval == 0) {
@@ -255,6 +297,45 @@ public class PoiSxssfWriterAdapter implements ExcelWriterPort {
 		sheet.flushRows(0);
 		if (ExcelTaskContextHolder.isActive()) {
 			ExcelTaskContextHolder.updateProgress(currentRowIndex - startRow, ExcelTaskContextHolder.getTotalRows());
+		}
+
+		// 5. 套用維度五企業級功能：合併儲存格、工作表防護與列印頁首頁尾
+		applySheetDecorations(sheet, sheetCommand.mergedRegions(), sheetCommand.protectionConfig(), sheetCommand.headerFooterConfig());
+	}
+
+	/**
+	 * 套用工作表進階裝飾：儲存格合併區間、工作表防護密碼與列印頁首頁尾
+	 */
+	private void applySheetDecorations(
+			SXSSFSheet sheet,
+			List<CellRange> mergedRegions,
+			SheetProtectionConfig protectionConfig,
+			SheetHeaderFooterConfig headerFooterConfig
+	) {
+		// 1. 合併儲存格區間
+		if (mergedRegions != null && !mergedRegions.isEmpty()) {
+			for (CellRange range : mergedRegions) {
+				sheet.addMergedRegion(new CellRangeAddress(range.firstRow(), range.lastRow(), range.firstCol(), range.lastCol()));
+			}
+		}
+
+		// 2. 工作表安全防護
+		if (protectionConfig != null) {
+			sheet.protectSheet(protectionConfig.password() != null ? protectionConfig.password() : "");
+			sheet.enableLocking();
+		}
+
+		// 3. 列印頁首頁尾
+		if (headerFooterConfig != null) {
+			org.apache.poi.ss.usermodel.Header header = sheet.getHeader();
+			if (headerFooterConfig.leftHeader() != null) header.setLeft(headerFooterConfig.leftHeader());
+			if (headerFooterConfig.centerHeader() != null) header.setCenter(headerFooterConfig.centerHeader());
+			if (headerFooterConfig.rightHeader() != null) header.setRight(headerFooterConfig.rightHeader());
+
+			org.apache.poi.ss.usermodel.Footer footer = sheet.getFooter();
+			if (headerFooterConfig.leftFooter() != null) footer.setLeft(headerFooterConfig.leftFooter());
+			if (headerFooterConfig.centerFooter() != null) footer.setCenter(headerFooterConfig.centerFooter());
+			if (headerFooterConfig.rightFooter() != null) footer.setRight(headerFooterConfig.rightFooter());
 		}
 	}
 
@@ -340,7 +421,11 @@ public class PoiSxssfWriterAdapter implements ExcelWriterPort {
 		if (val instanceof Number num) {
 			cell.setCellValue(num.doubleValue());
 		} else if (val instanceof String str) {
-			cell.setCellValue(str);
+			if (str.startsWith("=") && str.length() > 1) {
+				cell.setCellFormula(str.substring(1).trim());
+			} else {
+				cell.setCellValue(str);
+			}
 		} else if (val instanceof Boolean bool) {
 			cell.setCellValue(bool);
 		} else if (val instanceof LocalDate localDate) {

@@ -8,9 +8,10 @@
 
 | 檔案名稱 | 格式 | 說明與用途 |
 | :--- | :---: | :--- |
+| [`template_styles_and_security_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/template_styles_and_security_testing_guide.md) | Markdown | **維度五「企業級報表樣式、動態公式、安全防護與自訂 BOM 成本卷算 (Template, Styles & Security)」完整測試手冊** |
 | [`declarative_bean_mapping_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/declarative_bean_mapping_guide.md) | Markdown | **維度一「宣告式物件映射 (Declarative Bean Mapping)」完整測試與使用指引** |
-| [`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md) | Markdown | **宣告式長任務監控模組 (@TrackExcelTask) 觸發、進度輪詢與下載完整測試指引** |
-| [`custom_validation_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/custom_validation_testing_guide.md) | Markdown | **維度三「客製檢核與視覺化錯誤回標檔 (Custom Validation & Error Feedback)」完整測試操作手冊** |
+| [`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md) | Markdown | **維度四「宣告式長任務監控模組 (@TrackExcelTask)」觸發、進度輪詢與下載完整測試指引** |
+| [`custom_validation_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/custom_validation_testing_guide.md) | Markdown | **維度二「客製檢核與視覺化錯誤回標檔 (Custom Validation & Error Feedback)」完整測試操作手冊** |
 | [`excel_bom_module_postman_collection.json`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/excel_bom_module_postman_collection.json) | JSON (v2.1) | 完整 Postman 測試集合，內建自動斷言腳本（Status Code、Header、檔名、錯誤結構等） |
 | [`openapi_specification.yaml`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/openapi_specification.yaml) | YAML (v3.0.3) | OpenAPI 3.0 標準規範檔，可直接匯入 Swagger Editor、Postman 或 APIDog |
 | [`README.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/README.md) | Markdown | 測試指引與測試矩陣操作文件 |
@@ -70,9 +71,18 @@
   2. `POST 上傳物料 Excel 宣告式純解析 (/materials/import)`：反射反序列化為 `MaterialExcelModel` JSON。
   3. `GET 匯出系統現有單階 BOM 配方 Excel (/bom-items/export)`：直接查詢 BOM 聚合根，一鍵下載 `bom_items_master.xlsx`。
   4. `POST 上傳 BOM 配方 Excel 宣告式純解析 (/bom-items/import)`：反射反序列化為 `BomItemExcelModel` JSON。
+* **`7. Excel 企業級報表樣式、動態公式、安全防護與 BOM 成本分析模組 (Template, Styles & Security)`**：
+  * 詳細指引參閱：[`template_styles_and_security_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/template_styles_and_security_testing_guide.md)
+  * 控制器：[`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java) (`/api/v1/excel/reports`)
+  1. `GET 一鍵實測產品結構配方與標準成本卷算分析表 (/bom-cost-analysis)`：自訂策略 `BOM_COST_ANALYSIS`，穿透 Bom 與 Material 聚合根，注入動態用量公式、成本公式、A~K 欄大跨度跨欄合併、SUM 加總公式、深海軍藍樣式與密碼保護。
+  2. `POST 結構化條件自訂 BOM 成本卷算分析表 (/bom-cost-analysis)`：支援傳入自訂母件料號、自訂子項清單、客製標題與解鎖密碼。
+  3. `GET 一鍵匯出物料採購損益月報 (/procurement-analysis)`：自訂策略 `PROCUREMENT_ANALYSIS`，含採購小計公式、毛利率公式、合計彙總跨欄合併與密碼保護。
+  4. `POST 傳入自訂物料清單產製採購損益月報 (/procurement-analysis)`：自訂採購明細清單並產製月報。
+  5. `GET 宣告式模型註解驅動範本 (/declarative-sample)`：示範零程式碼 `@ExcelSheet` 與 `@ExcelColumn(formula = "...")` 自動動態替換列號。
+  6. `POST 自訂樣式、任意合併區間與任意公式匯出 (/custom-styled)`：支援 JSON 傳送任意表頭、資料矩陣、任意座標公式與矩形合併區間。
 
 ### 4. 執行自動化測試 (Collection Runner)
-點選集合右側的 **`Run collection`**，可一鍵自動執行全部 20 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。
+點選集合右側的 **`Run collection`**，可一鍵自動執行全部 26 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。
 
 ---
 

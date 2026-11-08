@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import org.dhatim.fastexcel.SheetProtectionOption;
 import org.dhatim.fastexcel.Workbook;
 import org.dhatim.fastexcel.Worksheet;
 
@@ -21,6 +22,9 @@ import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
+import com.example.demo.application.shared.model.CellCoordinate;
+import com.example.demo.application.shared.model.CellRange;
+import com.example.demo.application.shared.model.SheetProtectionConfig;
 import com.example.demo.application.shared.vo.ExcelTaskType;
 import com.example.demo.application.shared.exception.ExcelWriteException;
 
@@ -190,7 +194,14 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 			for (List<Object> row : rowIterable) {
 				if (row != null) {
 					for (int c = 0; c < row.size(); c++) {
-						writeCellValue(worksheet, currentRowIndex, c, row.get(c));
+						String cellRef = CellCoordinate.format(c, currentRowIndex);
+						String formula = sheetCommand.cellFormulas().get(cellRef);
+						if (formula != null && !formula.isBlank()) {
+							String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+							worksheet.formula(currentRowIndex, c, cleanFormula);
+						} else {
+							writeCellValue(worksheet, currentRowIndex, c, row.get(c));
+						}
 					}
 					currentRowIndex++;
 					if ((currentRowIndex - startRow) % flushInterval == 0) {
@@ -202,6 +213,9 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 				}
 			}
 		}
+
+		// 5. 套用維度五企業級功能：合併儲存格與工作表防護
+		applySheetDecorations(worksheet, sheetCommand.mergedRegions(), sheetCommand.protectionConfig());
 
 		// 串流結束後結束本工作表寫入並關閉 ZIP Entry，確保後續工作表串流不衝突
 		worksheet.finish();
@@ -244,9 +258,62 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 				}
 				int rowIndex = startRow + r;
 				for (int c = 0; c < row.size(); c++) {
-					writeCellValue(worksheet, rowIndex, c, row.get(c));
+					String cellRef = CellCoordinate.format(c, rowIndex);
+					String formula = sheetCommand.cellFormulas().get(cellRef);
+					if (formula != null && !formula.isBlank()) {
+						String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+						worksheet.formula(rowIndex, c, cleanFormula);
+					} else {
+						writeCellValue(worksheet, rowIndex, c, row.get(c));
+					}
 				}
 			}
+		}
+
+		// 5. 套用未被 rows 包含的額外儲存格公式 (如彙總列)
+		if (sheetCommand.cellFormulas() != null && !sheetCommand.cellFormulas().isEmpty()) {
+			sheetCommand.cellFormulas().forEach((cellRef, formula) -> {
+				if (cellRef != null && formula != null && !formula.isBlank()) {
+					CellCoordinate coord = CellCoordinate.parse(cellRef);
+					String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
+					worksheet.formula(coord.row(), coord.col(), cleanFormula);
+				}
+			});
+		}
+
+		// 6. 套用維度五企業級功能：合併儲存格與工作表防護
+		applySheetDecorations(worksheet, sheetCommand.mergedRegions(), sheetCommand.protectionConfig());
+	}
+
+	/**
+	 * 套用工作表進階裝飾：儲存格合併區間與工作表防護密碼
+	 */
+	private void applySheetDecorations(Worksheet worksheet, List<CellRange> mergedRegions, SheetProtectionConfig protectionConfig) {
+		// 1. 合併儲存格區間
+		if (mergedRegions != null && !mergedRegions.isEmpty()) {
+			for (CellRange range : mergedRegions) {
+				worksheet.range(range.firstRow(), range.firstCol(), range.lastRow(), range.lastCol()).merge();
+			}
+		}
+
+		// 2. 工作表安全防護
+		if (protectionConfig != null) {
+			String pwd = protectionConfig.password() != null ? protectionConfig.password() : "";
+			java.util.Set<SheetProtectionOption> options = new java.util.HashSet<>(SheetProtectionOption.DEFAULT_OPTIONS);
+			options.add(SheetProtectionOption.SHEET);
+			if (protectionConfig.allowSorting()) {
+				options.add(SheetProtectionOption.SORT);
+			}
+			if (protectionConfig.allowFiltering()) {
+				options.add(SheetProtectionOption.AUTO_FILTER);
+			}
+			if (protectionConfig.allowSelectLockedCells()) {
+				options.add(SheetProtectionOption.SELECT_LOCKED_CELLS);
+			}
+			if (protectionConfig.allowSelectUnlockedCells()) {
+				options.add(SheetProtectionOption.SELECT_UNLOCKED_CELLS);
+			}
+			worksheet.protect(pwd, options);
 		}
 	}
 
@@ -306,7 +373,11 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 		if (val instanceof Number num) {
 			worksheet.value(row, col, num);
 		} else if (val instanceof String str) {
-			worksheet.value(row, col, str);
+			if (str.startsWith("=") && str.length() > 1) {
+				worksheet.formula(row, col, str.substring(1).trim());
+			} else {
+				worksheet.value(row, col, str);
+			}
 		} else if (val instanceof Boolean bool) {
 			worksheet.value(row, col, bool);
 		} else if (val instanceof LocalDate localDate) {

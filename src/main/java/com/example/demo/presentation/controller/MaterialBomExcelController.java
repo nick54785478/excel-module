@@ -117,7 +117,7 @@ public class MaterialBomExcelController {
 	 * @return HTTP 200 與 materials_master.xlsx 二進位檔案下載串流
 	 */
 	@Operation(
-			summary = "1. 匯出系統現有物料主檔 Excel (Material 業務模型)",
+			summary = "匯出系統現有物料主檔 Excel (Material 業務模型)",
 			description = "直接從物料儲存庫查詢現有物料聚合根，透過純領域方法提取屬性並宣告式產製 MaterialExcelModel 之 Excel 檔案。"
 	)
 	@GetMapping("/materials/export")
@@ -147,7 +147,7 @@ public class MaterialBomExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "2. 檔案上傳並宣告式解析為 MaterialExcelModel (Material 業務模型)",
+			summary = "檔案上傳並宣告式解析為 MaterialExcelModel (Material 業務模型)",
 			description = "上傳物料 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 MaterialExcelModel 清單，回傳 JSON。"
 	)
 	@ApiResponses({
@@ -219,7 +219,7 @@ public class MaterialBomExcelController {
 	 * @return HTTP 200 與 bom_items_master.xlsx 二進位檔案下載串流
 	 */
 	@Operation(
-			summary = "3. 匯出系統現有單階 BOM 配方 Excel (BOM 業務模型)",
+			summary = "匯出系統現有單階 BOM 配方 Excel (BOM 業務模型)",
 			description = "直接從 BOM 與物料儲存庫查詢現有 BOM 與關聯物料聚合根，透過純領域方法提取屬性並宣告式產製 BomItemExcelModel 之 Excel 檔案。"
 	)
 	@GetMapping("/bom-items/export")
@@ -249,7 +249,7 @@ public class MaterialBomExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "4. 檔案上傳並宣告式解析為 BomItemExcelModel (BOM 業務模型)",
+			summary = "檔案上傳並宣告式解析為 BomItemExcelModel (BOM 業務模型)",
 			description = "上傳 BOM Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 BomItemExcelModel 清單，回傳 JSON。"
 	)
 	@ApiResponses({

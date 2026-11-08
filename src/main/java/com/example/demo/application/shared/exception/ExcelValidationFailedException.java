@@ -20,7 +20,6 @@ import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
  * 回應。
  * </p>
  *
- * @author Antigravity
  */
 public class ExcelValidationFailedException extends RuntimeException {
 

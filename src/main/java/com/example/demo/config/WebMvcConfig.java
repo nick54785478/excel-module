@@ -18,7 +18,6 @@ import com.example.demo.presentation.resolver.ValidatedExcelDataArgumentResolver
  * 支援在 Controller 方法入參中直接宣告 {@code @ValidatedExcelData List<T> validOrders}。
  * </p>
  *
- * @author Antigravity
  * @see ValidatedExcelDataArgumentResolver
  */
 @Configuration

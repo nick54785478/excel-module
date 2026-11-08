@@ -46,8 +46,6 @@ import com.example.demo.application.shared.exception.ExcelValidationFailedExcept
  *       {@link ValidatedExcelData} 之方法參數，並綁定至 {@link ExcelValidationContextHolder}。</li>
  * </ol>
  * </p>
- *
- * @author Antigravity
  * @see ValidateExcel
  * @see ValidatedExcelData
  * @see ValidateExcelUseCase

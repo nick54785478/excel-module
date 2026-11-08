@@ -8,6 +8,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.dhatim.fastexcel.reader.ReadableWorkbook;
 import org.dhatim.fastexcel.reader.Row;
 import org.dhatim.fastexcel.reader.Sheet;
@@ -18,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import com.example.demo.application.port.out.ExcelWriterPort;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
+import com.example.demo.application.shared.model.CellRange;
+import com.example.demo.application.shared.model.SheetProtectionConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -195,5 +201,64 @@ class FastExcelWriterAdapterTest {
 		// Then
 		assertThat(bytes).isNotNull();
 		assertThat(bytes.length).isGreaterThan(0);
+	}
+
+	/**
+	 * Feature: FastExcel 維度五企業級功能：合併儲存格、動態公式與工作表防護
+	 * Scenario: 使用 FastExcel 匯出包含跨欄合併合計、原生計算公式與密碼保護之試算表
+	 * Given: 建立具備 CellRange、cellFormulas 與 SheetProtectionConfig 之 WriteSheetCommand
+	 * When: 呼叫 excelWriterPort.write 產製 Excel 二進位
+	 * Then: 驗證產出活頁簿包含合併區間、儲存格為 FORMULA 且公式正確、工作表處於保護狀態
+	 */
+	@Test
+	@DisplayName("情境：FastExcel 成功產製包含合併儲存格、動態公式與工作表密碼保護之試算表")
+	void shouldWriteSheetWithFastExcelAdvancedDecorationsSuccessfully() throws Exception {
+		// Given
+		WriteSheetCommand sheet = WriteSheetCommand.builder()
+				.sheetName("FastExcel進階表")
+				.headers(List.of("代碼", "單價", "數量", "小計"))
+				.rows(List.of(
+						List.of("A-01", 200, 3, "=B2*C2"),
+						List.of("A-02", 50, 2, "=B3*C3"),
+						java.util.Arrays.asList("合計彙總", null, null, null)
+				))
+				.addMergedRegion(CellRange.ofRow(3, 0, 2)) // 合併第 4 列 col 0 到 2
+				.addFormula("D4", "SUM(D2:D3)")            // 彙總列公式
+				.protectionConfig(SheetProtectionConfig.ofPassword("FastPass2026"))
+				.build();
+
+		WriteExcelCommand command = WriteExcelCommand.of(sheet);
+
+		// When
+		byte[] bytes = excelWriterPort.write(command);
+
+		// Then
+		assertThat(bytes).isNotEmpty();
+		try (Workbook wb = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
+			org.apache.poi.ss.usermodel.Sheet resultSheet = wb.getSheet("FastExcel進階表");
+			assertThat(resultSheet).isNotNull();
+
+			// 驗證合併區間
+			assertThat(resultSheet.getNumMergedRegions()).isGreaterThanOrEqualTo(1);
+			org.apache.poi.ss.util.CellRangeAddress merged = resultSheet.getMergedRegion(0);
+			assertThat(merged.getFirstRow()).isEqualTo(3);
+			assertThat(merged.getLastRow()).isEqualTo(3);
+			assertThat(merged.getFirstColumn()).isEqualTo(0);
+			assertThat(merged.getLastColumn()).isEqualTo(2);
+
+			// 驗證公式儲存格
+			org.apache.poi.ss.usermodel.Row row1 = resultSheet.getRow(1);
+			Cell formulaCell1 = row1.getCell(3);
+			assertThat(formulaCell1.getCellType()).isEqualTo(CellType.FORMULA);
+			assertThat(formulaCell1.getCellFormula()).isEqualTo("B2*C2");
+
+			org.apache.poi.ss.usermodel.Row summaryRow = resultSheet.getRow(3);
+			Cell summaryFormulaCell = summaryRow.getCell(3);
+			assertThat(summaryFormulaCell.getCellType()).isEqualTo(CellType.FORMULA);
+			assertThat(summaryFormulaCell.getCellFormula()).isEqualTo("SUM(D2:D3)");
+
+			// 驗證工作表防護
+			assertThat(resultSheet.getProtect()).isTrue();
+		}
 	}
 }

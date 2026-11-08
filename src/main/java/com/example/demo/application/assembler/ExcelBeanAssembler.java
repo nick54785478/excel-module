@@ -31,7 +31,10 @@ import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
+import com.example.demo.application.shared.model.CellCoordinate;
 import com.example.demo.application.shared.model.ExcelRowError;
+import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.model.SheetProtectionConfig;
 
 /**
  * Excel 宣告式物件與純資料載體組裝器 (Excel Declarative Bean & Record Assembler)
@@ -170,25 +173,48 @@ public final class ExcelBeanAssembler {
 
 		// 3. 防禦空清單：若無資料則直接產出僅含表頭的工作表
 		if (dataList == null || dataList.isEmpty()) {
-			return WriteSheetCommand.of(sheetName, headers, Collections.emptyList());
+			return WriteSheetCommand.builder()
+					.sheetName(sheetName)
+					.headers(headers)
+					.rows(Collections.emptyList())
+					.protectionConfig(metadata.protectionConfig())
+					.headerFooterConfig(metadata.headerFooterConfig())
+					.build();
 		}
 
-		// 4. 逐筆遍歷資料列並透過反射存取器抽取數值
+		// 4. 逐筆遍歷資料列並透過反射存取器抽取數值，同時解析並注入宣告式動態公式
 		List<List<Object>> rows = new ArrayList<>(dataList.size());
-		for (T item : dataList) {
+		Map<String, String> cellFormulas = new LinkedHashMap<>();
+		for (int r = 0; r < dataList.size(); r++) {
+			T item = dataList.get(r);
 			if (item == null) {
 				continue;
 			}
+			int excelRowNumber = r + 2; // 表頭為第 1 列 (Excel 1-based)，資料自第 2 列起算
 			List<Object> row = new ArrayList<>(metadata.columns().size());
-			for (ColumnMetadata col : metadata.columns()) {
+			for (int c = 0; c < metadata.columns().size(); c++) {
+				ColumnMetadata col = metadata.columns().get(c);
 				Object rawValue = col.getValue(item);
 				Object formattedValue = formatValueForWrite(rawValue, col);
 				row.add(formattedValue);
+
+				if (col.formula() != null && !col.formula().isBlank()) {
+					String cellRef = CellCoordinate.format(c, r + 1);
+					String formulaExpr = col.formula().replace("{row}", String.valueOf(excelRowNumber));
+					cellFormulas.put(cellRef, formulaExpr);
+				}
 			}
 			rows.add(row);
 		}
 
-		return WriteSheetCommand.of(sheetName, headers, rows);
+		return WriteSheetCommand.builder()
+				.sheetName(sheetName)
+				.headers(headers)
+				.rows(rows)
+				.cellFormulas(cellFormulas)
+				.protectionConfig(metadata.protectionConfig())
+				.headerFooterConfig(metadata.headerFooterConfig())
+				.build();
 	}
 
 	/**
@@ -1252,11 +1278,31 @@ public final class ExcelBeanAssembler {
 	private static ModelMetadata buildMetadata(Class<?> clazz) {
 		ExcelSheet sheetAnno = clazz.getAnnotation(ExcelSheet.class);
 		String sheetName = clazz.getSimpleName();
+		SheetProtectionConfig protectionConfig = null;
+		SheetHeaderFooterConfig headerFooterConfig = null;
+
 		if (sheetAnno != null) {
 			if (!sheetAnno.value().isBlank()) {
 				sheetName = sheetAnno.value().trim();
 			} else if (!sheetAnno.name().isBlank()) {
 				sheetName = sheetAnno.name().trim();
+			}
+
+			if (sheetAnno.protect() || !sheetAnno.protectPassword().isBlank()) {
+				protectionConfig = SheetProtectionConfig.ofPassword(sheetAnno.protectPassword());
+			}
+
+			boolean hasHeader = !sheetAnno.leftHeader().isBlank() || !sheetAnno.centerHeader().isBlank() || !sheetAnno.rightHeader().isBlank();
+			boolean hasFooter = !sheetAnno.leftFooter().isBlank() || !sheetAnno.centerFooter().isBlank() || !sheetAnno.rightFooter().isBlank();
+			if (hasHeader || hasFooter) {
+				headerFooterConfig = new SheetHeaderFooterConfig(
+						sheetAnno.leftHeader().isBlank() ? null : sheetAnno.leftHeader(),
+						sheetAnno.centerHeader().isBlank() ? null : sheetAnno.centerHeader(),
+						sheetAnno.rightHeader().isBlank() ? null : sheetAnno.rightHeader(),
+						sheetAnno.leftFooter().isBlank() ? null : sheetAnno.leftFooter(),
+						sheetAnno.centerFooter().isBlank() ? null : sheetAnno.centerFooter(),
+						sheetAnno.rightFooter().isBlank() ? null : sheetAnno.rightFooter()
+				);
 			}
 		}
 
@@ -1288,6 +1334,7 @@ public final class ExcelBeanAssembler {
 				int explicitIndex = -1;
 				String format = "";
 				String defaultValue = "";
+				String formula = "";
 				String[] aliases = new String[0];
 
 				if (colAnno != null) {
@@ -1296,6 +1343,7 @@ public final class ExcelBeanAssembler {
 					explicitIndex = colAnno.index();
 					format = colAnno.format().trim();
 					defaultValue = colAnno.defaultValue().trim();
+					formula = colAnno.formula().trim();
 					if (colAnno.aliases() != null && colAnno.aliases().length > 0) {
 						aliases = colAnno.aliases();
 					}
@@ -1304,7 +1352,7 @@ public final class ExcelBeanAssembler {
 				Method accessor = rc.getAccessor();
 				accessor.setAccessible(true);
 				columns.add(new ColumnMetadata(colName, rc.getName(), rc.getType(), explicitIndex, i, format, defaultValue,
-						aliases, accessor, null, null));
+						formula, aliases, accessor, null, null));
 			}
 
 			try {
@@ -1338,6 +1386,7 @@ public final class ExcelBeanAssembler {
 				int explicitIndex = -1;
 				String format = "";
 				String defaultValue = "";
+				String formula = "";
 				String[] aliases = new String[0];
 
 				if (colAnno != null) {
@@ -1346,6 +1395,7 @@ public final class ExcelBeanAssembler {
 					explicitIndex = colAnno.index();
 					format = colAnno.format().trim();
 					defaultValue = colAnno.defaultValue().trim();
+					formula = colAnno.formula().trim();
 					if (colAnno.aliases() != null && colAnno.aliases().length > 0) {
 						aliases = colAnno.aliases();
 					}
@@ -1353,14 +1403,14 @@ public final class ExcelBeanAssembler {
 
 				field.setAccessible(true);
 				columns.add(new ColumnMetadata(colName, field.getName(), field.getType(), explicitIndex, naturalOrder++,
-						format, defaultValue, aliases, null, null, field));
+						format, defaultValue, formula, aliases, null, null, field));
 			}
 		}
 
 		// 排序欄位：若有 explicitIndex >= 0 依其排序，否則依宣告順序排序
 		columns.sort(Comparator.comparingInt((ColumnMetadata c) -> c.explicitIndex() >= 0 ? c.explicitIndex() : (10000 + c.naturalOrder())));
 
-		return new ModelMetadata(sheetName, isRecord, columns, canonicalConstructor, noArgConstructor);
+		return new ModelMetadata(sheetName, isRecord, columns, canonicalConstructor, noArgConstructor, protectionConfig, headerFooterConfig);
 	}
 
 	/**
@@ -1392,13 +1442,17 @@ public final class ExcelBeanAssembler {
 	 * @param columns              欄位元數據排序清單
 	 * @param canonicalConstructor 若為 Record 時的標準建構子
 	 * @param noArgConstructor     若為 POJO 時的無參建構子
+	 * @param protectionConfig     工作表安全防護設定 (可為 null)
+	 * @param headerFooterConfig   列印頁首頁尾設定 (可為 null)
 	 */
 	private record ModelMetadata(
 			String sheetName,
 			boolean isRecord,
 			List<ColumnMetadata> columns,
 			Constructor<?> canonicalConstructor,
-			Constructor<?> noArgConstructor
+			Constructor<?> noArgConstructor,
+			SheetProtectionConfig protectionConfig,
+			SheetHeaderFooterConfig headerFooterConfig
 	) {}
 
 	/**
@@ -1411,6 +1465,7 @@ public final class ExcelBeanAssembler {
 	 * @param naturalOrder  類別中宣告的自然先後順序
 	 * @param format        數值或日期自訂格式化字串
 	 * @param defaultValue  為空時之預設值字串
+	 * @param formula       宣告式動態計算公式模板 (如 "C{row}*D{row}")
 	 * @param aliases       容錯別名陣列
 	 * @param accessor      Record 專用屬性存取方法 (Getter)
 	 * @param setter        JavaBean 屬性設定方法 (可選)
@@ -1424,6 +1479,7 @@ public final class ExcelBeanAssembler {
 			int naturalOrder,
 			String format,
 			String defaultValue,
+			String formula,
 			String[] aliases,
 			Method accessor,
 			Method setter,

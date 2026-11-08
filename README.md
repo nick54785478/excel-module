@@ -1,12 +1,33 @@
 # Excel 企業級核心與物料清單 (BOM) 多階結構處理模組 (Excel & BOM Module)
 
-[![Java](https://img.shields.io/badge/Java-21%2B-orange.svg)](https://adoptium.net/)
+[![Java](https://img.shields.io/badge/Java-22%20%7C%2021%2B-orange.svg)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Architecture](https://img.shields.io/badge/Architecture-DDD%20%7C%20Clean%20%7C%20Hexagonal-blue.svg)](#1-架構設計與雙引擎模型-architecture--dual-engine)
-[![Engine](https://img.shields.io/badge/Engine-FastExcel%20%2B%20Apache%20POI-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
-[![Tests](https://img.shields.io/badge/Tests-177%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
+[![Engine](https://img.shields.io/badge/Engine-FastExcel%200.20.2%20%2B%20Apache%20POI%205.5.1-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
+[![Rule Engine](https://img.shields.io/badge/Rule%20Engine-EasyRules%204.1.0-red.svg)](https://github.com/j-easy/easy-rules)
+[![Tests](https://img.shields.io/badge/Tests-203%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
 
 > 📌 本模組為企業級高性能試算表處理解決方案，原生結合製造業 **物料清單 (Bill of Materials, BOM)** 多階遞迴展開與匯出引擎。嚴格遵循 **領域驅動設計 (DDD)**、**Clean Architecture** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，實踐表現層、應用層、領域層與底層實作的完全解耦。
+
+---
+
+## 核心技術棧 (Core Technology Stack)
+
+本專案採用現代化 Java 企業級主流技術棧，全面發揮語言與框架特性：
+
+| 技術範疇 | 技術元件與版本 | 核心用途與架構實踐 |
+| :--- | :--- | :--- |
+| **執行環境與語言** | **Java 22 / 21+ LTS** | 廣泛採用不可變 **Java 21 Record** 作為純資料載體（Command, Query, DTO, Value Object）；利用規範建構子（Canonical Constructor）進行不可變校驗；模式匹配與嚴密型別防護。 |
+| **後端核心框架** | **Spring Boot 4.1.2** | 應用上下文管理、條件化 Bean 裝配（`@ConditionalOnProperty` / `@ConditionalOnMissingBean`）、MVC 參數解析器擴充。 |
+| **極速串流引擎** | **FastExcel 0.20.2** | StAX 事件導向拉取式讀取與直接沖刷寫出，常數級 $O(1)$ 記憶體佔用，專門承載百萬級巨量大數據匯出與高吞吐量 API。 |
+| **全功能報表引擎** | **Apache POI 5.5.1** | `SXSSFWorkbook` 低記憶體滑動窗口硬碟暫存寫入＋`SAX eventusermodel` 輕量事件讀取；多階儲存格跨欄跨列合併、動態 SUM 公式求值、工作表密碼保護、列印頁首頁尾巨集。 |
+| **規則引擎** | **EasyRules 4.1.0** | 宣告式業務檢核管線；POJO 規則組件庫封裝 `@Rule`, `@Condition`, `@Action`；非短路全量錯誤累積與優先級排程。 |
+| **資料校驗標準** | **Hibernate Validator 9.1.5** | Jakarta Bean Validation (JSR-380) 標準標籤相容檢核（`@NotBlank`, `@Min`, `@Pattern` 等）。 |
+| **橫切關注點 (AOP)** | **Spring AOP (AspectJ)** | `@TrackExcelTask` 長任務生命週期自動接管；`@ValidateExcel` 表現層前置短路守衛。 |
+| **表達式語言** | **Spring Expression Language (SpEL)** | 支援動態解析方法參數，於執行期即時計算匯出檔名與預估總列數。 |
+| **執行緒上下文** | **ThreadLocal Context** | [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java) 提供長任務跨方法進度累計與巢狀防覆蓋保護（Task Context Joining）；`ExcelValidationContextHolder` 共享合規資料集。 |
+| **資料持久化** | **Spring Data JPA & Hibernate** | 關聯式資料庫持久化，支援 MySQL 8 與 H2；長任務進度儲存採用獨立交易傳播（`Propagation.REQUIRES_NEW`）。 |
+| **API 規範與測試** | **SpringDoc OpenAPI 3.0 & Postman** | 自動化 Swagger UI 互動介面、OpenAPI YAML 規格與 Postman 自動化斷言測試集合。 |
 
 ---
 
@@ -14,7 +35,7 @@
 
 * 🚀 **雙引擎動態熱切換 (Dual-Engine Pluggable)**：
   * **FastExcel 0.20.2**：StAX 事件導向極速串流，適合百萬級大數據與極限吞吐量。
-  * **Apache POI 5.5.1 (SXSSF / SAX)**：低記憶體滑動窗口串流寫入＋SAX 讀取，支援凍結窗格（Freeze Panes）、標題樣式與磁碟暫存安全清理（`dispose()`）。
+  * **Apache POI 5.5.1 (SXSSF / SAX)**：低記憶體滑動窗口串流寫入＋SAX 讀取，支援凍結窗格（Freeze Panes）、標題樣式、工作表防護與磁碟暫存安全清理（`dispose()`）。
   * 透過 `application.properties` 設定旗標 `excel.engine`，業務程式碼 **100% 零修改**。
 * ⚡ **大數據常數級串流 ($O(1)$ Memory Streaming)**：
   * 支援邊產製邊傳輸（HTTP 區塊傳輸編碼 `Transfer-Encoding: chunked`），透過 `flushInterval` 定期釋放記憶體。
@@ -22,7 +43,7 @@
 * ⏱️ **宣告式非同步長任務追蹤與進度回報 (@TrackExcelTask)**：
   * 基於 Spring AOP 無感攔截底層讀寫適配器方法，結合動態 SpEL 表達式解析目標檔名與預估總列數。
   * 串流分批沖刷（`flush`）時透過 `ExcelTaskContextHolder` (`ThreadLocal`) 自動累計進度並即時更新至資料庫。
-  * 任務持久化全面宣告獨立交易傳播（`@Transactional(propagation = Propagation.REQUIRES_NEW)`），解決在 MySQL 唯讀交易中寫入任務實體的阻斷問題。
+  * 任務持久化全面宣告獨立交易傳播（`@Transactional(propagation = Propagation.REQUIRES_NEW)`），解決在唯讀交易中寫入任務實體的阻斷問題。
   * 專職控制器 [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelTaskController.java) 支援前端即時輪詢進度 (`/progress`) 與產出檔案下載 (`/download`)。
 * 📝 **宣告式物件映射 (@ExcelSheet & @ExcelColumn / ExcelBeanAssembler)**：
   * 原生支援 Java 21 Record 與標準 JavaBean 雙軌映射，內建高並發元數據快取（`ConcurrentHashMap`）。
@@ -31,17 +52,24 @@
   * 原生支援多層次檢核管線，封裝輕量級規則引擎 **EasyRules**（支援條件與動作解耦、Priority 優先級排程與非短路全量錯誤事實累積）。
   * 支援 Java 21 Record 與標準 POJO 雙軌驗證，搭配整表防重複比對 SPI（`ExcelSheetValidatorPort`）。
   * 檢核失敗時自動生成視覺化「錯誤回標檔」：出錯儲存格套用國際標準淡紅色背景（`#FFC7CE` / `ROSE`）＋深紅色文字（`#9C0006`），最右側動態追加「檢核結果與錯誤原因」欄位，供使用者直觀修正後直接重新上傳。
-* 📦 **應用層模型 Java 21 Record 全面重構**：
-  * `application/shared/` 內的所有 **Command**、**Query** 與 **DTO** 全數重構為不可變 `record`，純資料載體零業務邏輯侵入，同時保留 Builder 與相容存取別名，確保 100% 向後相容。
+* 🎨 **企業級報表樣式、動態公式與安全防護 (Template, Styles & Security)**：
+  * **純 Java 不可變模型**：應用層以純 Java 21 Record 定義 [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/CellRange.java)（跨欄跨列合併）、[`SheetProtectionConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetProtectionConfig.java)（密碼保護）與 [`SheetHeaderFooterConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetHeaderFooterConfig.java)（列印頁首頁尾機密標籤），100% 杜絕技術框架侵入。
+  * **動態 SUM 公式注入**：支援在合計列注入 `=SUM(E2:E50)` 原生公式，微調數值時自動連動重算。
+* 🏭 **通用報表裝飾策略工廠模式 (Customizable Report Decorator Factory Pattern)**：
+  * **微觀算術徹底抽離**：將合計列追加、SUM 公式計算與跨欄合併自 Application Service 抽離。
+  * **工廠輸出埠與策略 SPI**：在應用層定義 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReportDecoratorFactoryPort.java) 與策略合約 [`ExcelReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java) 及標準識別鍵常數 [`ExcelReportStrategyKeys`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportStrategyKeys.java)。
+  * **Spring 容器自動收集**：基礎設施適配器 [`SpringReportDecoratorFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java) 於啟動時自動掃描收錄所有策略 Bean，支援 $O(1)$ 依 `reportKey` 動態路由與多租戶客製化風格切換。
+  * **具體策略抽離 Adapter 套件**：將具體裝飾策略（[`ProcurementReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategy.java)、[`BomCostAnalysisReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/BomCostAnalysisReportDecoratorStrategy.java) 與 [`DefaultNoOpDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/DefaultNoOpDecoratorStrategy.java)）全數抽離至獨立的 `infrastructure.report` 套件，嚴格恪守 Rule 2 僅 Outbound Port 介面適配器留存於 `adapter/`。
+  * **生產級實踐**：提供物料採購損益月報端點與 BOM 成本分析端點 [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java)。
 * 🏭 **製造業多階 BOM 匯出引擎 (Multi-Level BOM Engine)**：
   * 支援多階層產品結構遞迴展開、單階用量匯總、物料主檔對照表三合一 Excel 產製。
   * 預載工業級無人機等 2,000 筆物料主檔與 25 筆 BOM 配方實機資料。
 * 🛡️ **高純度架構規範 (Strict Clean Architecture)**：
   * 領域層（Domain Layer）維持純粹 Java（Pure Java），**嚴禁使用 Lombok**，聚合根以業務語意封裝不變條件。
   * 應用層（Application Layer）嚴守 CQRS、Command/Query/Result 物件隔離與防腐層機制（ACL）。
-* 📋 **完整測試資產 (Comprehensive Testing Assets - 177/177 Passed)**：
+* 📋 **完整測試資產 (Comprehensive Testing Assets - 203/203 Passed)**：
   * 內建 OpenAPI 3.0 (Swagger UI) 與 Postman 整合測試集合（含 `pm.test` 自動斷言腳本）。
-  * 單元與整合測試全量綠燈通過。
+  * 203 項單元與整合測試全量綠燈通過（`BUILD SUCCESS`）。
 
 ---
 
@@ -56,16 +84,18 @@ flowchart TD
         MatBomCtrl["MaterialBomExcelController<br/>/api/v1/excel/material-bom"]
         TaskCtrl["ExcelTaskController<br/>/api/v1/excel/tasks"]
         ValCtrl["ExcelValidationController<br/>/api/v1/excel/validation"]
+        ReportCtrl["ExcelReportController<br/>/api/v1/excel/reports"]
         ValAspect["ExcelValidationAspect<br/>(@ValidateExcel 前置防衛閘門)"]
         ResAssembler["ResourceAssembler<br/>(防腐層 ACL 轉換)"]
     end
 
     subgraph Application ["Application Layer (應用層 - CQRS & 業務契約)"]
-        InPorts["Inbound Ports (UseCase)<br/>• ExportBomUseCase / StreamExportBomUseCase<br/>• ExportExcelUseCase / StreamExportExcelUseCase<br/>• ImportExcelUseCase / StreamImportExcelUseCase<br/>• GetExcelTaskUseCase / DownloadExcelTaskFileUseCase<br/>• SubmitAsyncExcelExportUseCase / SubmitAsyncExcelImportUseCase<br/>• ValidateExcelUseCase"]
-        AppServices["Application Services<br/>• BomCommandService / BomQueryService<br/>• ExcelCommandService / ExcelQueryService<br/>• ExcelTaskCommandService / ExcelTaskQueryService<br/>• ExcelValidationApplicationService"]
+        InPorts["Inbound Ports (UseCase)<br/>• ExportBomUseCase / StreamExportBomUseCase<br/>• ExportExcelUseCase / StreamExportExcelUseCase<br/>• ImportExcelUseCase / StreamImportExcelUseCase<br/>• GetExcelTaskUseCase / DownloadExcelTaskFileUseCase<br/>• SubmitAsyncExcelExportUseCase / SubmitAsyncExcelImportUseCase<br/>• ValidateExcelUseCase<br/>• ExportFinancialReportUseCase"]
+        AppServices["Application Services<br/>• BomCommandService / BomQueryService<br/>• ExcelCommandService / ExcelQueryService<br/>• ExcelTaskCommandService / ExcelTaskQueryService<br/>• ExcelValidationApplicationService<br/>• ExcelReportApplicationService"]
         AppAssembler["ExcelBeanAssembler<br/>(雙向 Record/POJO 映射)"]
-        SharedModels["Shared Models (Java 21 Records)<br/>• Commands (WriteExcelCommand, ExportBomCommand...)<br/>• Queries (ReadExcelQuery, GetExcelTaskQuery...)<br/>• DTOs (ExcelGottenResult, ExcelValidationGottenResult...)"]
-        OutPorts["Outbound Ports (port.out)<br/>• ExcelWriterPort / ExcelReaderPort<br/>• BomRepositoryPort / MaterialRepositoryPort<br/>• ExcelTaskRepositoryPort<br/>• ExcelRowValidatorPort / ExcelErrorMarkerPort"]
+        SharedModels["Shared Models (Java 21 Records)<br/>• Commands (WriteExcelCommand, ExportBomCommand...)<br/>• Context (ReportDecorationContext)<br/>• Models (CellRange, SheetProtectionConfig...)"]
+        StrategySPI["ExcelReportDecoratorStrategy<br/>(共用策略契約 SPI)"]
+        OutPorts["Outbound Ports (port.out)<br/>• ExcelWriterPort / ExcelReaderPort<br/>• BomRepositoryPort / MaterialRepositoryPort<br/>• ExcelTaskRepositoryPort<br/>• ExcelRowValidatorPort / ExcelErrorMarkerPort<br/>• ExcelReportDecoratorFactoryPort"]
     end
 
     subgraph Domain ["Domain Layer (核心領域層 - Pure Java / 零外層依賴)"]
@@ -75,10 +105,18 @@ flowchart TD
 
     subgraph Infrastructure ["Infrastructure Layer (基礎設施層 - Outbound Adapters)"]
         subgraph EngineAdapters ["adapter.engine (讀寫核心引擎)"]
-            FEWriter["FastExcelWriterAdapter<br/>(@TrackExcelTask)"]
+            FEWriter["FastExcelWriterAdapter (@TrackExcelTask)"]
             FEReader["FastExcelReaderAdapter"]
-            PoiWriter["PoiSxssfWriterAdapter<br/>(@TrackExcelTask)"]
+            PoiWriter["PoiSxssfWriterAdapter (@TrackExcelTask)"]
             PoiReader["PoiSaxReaderAdapter"]
+        end
+        subgraph ReportAdapters ["adapter.report (裝飾策略工廠適配器)"]
+            ReportFactory["SpringReportDecoratorFactoryAdapter"]
+        end
+        subgraph ReportStrategies ["report (具體報表裝飾策略)"]
+            ProcStrategy["ProcurementReportDecoratorStrategy"]
+            BomStrategy["BomCostAnalysisReportDecoratorStrategy"]
+            NoOpStrategy["DefaultNoOpDecoratorStrategy"]
         end
         subgraph PersistenceAdapters ["adapter.persistence (持久化倉儲)"]
             MatRepo["MaterialRepositoryAdapter $\to$ MaterialJpaRepository"]
@@ -99,9 +137,10 @@ flowchart TD
 
     subgraph ConfigLayer ["Configuration Layer (配置層)"]
         EngineConfig["ExcelEngineConfiguration<br/>(@ConditionalOnProperty: excel.engine)"]
-        WebMvcCfg["WebMvcConfig<br/>(註冊 ValidatedExcelDataArgumentResolver)"]
+        WebMvcCfg["WebMvcConfig"]
     end
 
+    ReportCtrl --> ResAssembler
     BomCtrl --> ResAssembler
     ExcelCtrl --> ResAssembler
     BeanCtrl --> ResAssembler
@@ -118,6 +157,11 @@ flowchart TD
     FEReader -.->|實作| OutPorts
     PoiWriter -.->|實作| OutPorts
     PoiReader -.->|實作| OutPorts
+    ReportFactory -.->|實作| OutPorts
+    ReportFactory --> StrategySPI
+    StrategySPI -.-> ProcStrategy
+    StrategySPI -.-> BomStrategy
+    StrategySPI -.-> NoOpStrategy
     MatRepo -.->|實作| OutPorts
     BomRepo -.->|實作| OutPorts
     TaskRepo -.->|實作| OutPorts
@@ -128,7 +172,6 @@ flowchart TD
     TaskAspect --> TaskContext
     TaskAspect --> TaskRepo
     ValAspect -. 攔截 .-> ValCtrl
-    ValAspect --> ValContext
     ValAspect --> InPorts
 ```
 
@@ -151,51 +194,35 @@ excel.engine=FAST_EXCEL
 | 引擎旗標值 | 核心實現技術 | 輸出適配器 | 輸入適配器 | 核心優勢 | 適用情境 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`FAST_EXCEL`**<br>*(預設)* | FastExcel 0.20.2<br>(StAX 串流) | [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) | [`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapter.java) | 毫秒級吞吐量、低 CPU、純記憶體緩衝、極小依賴體積 | 百萬級大數據匯出、即時高併發 API、大檔案排程批次匯出 |
-| **`APACHE_POI`** | Apache POI 5.5.1<br>(SXSSF + SAX) | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) | [`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapter.java) | 工業級豐富樣式、凍結窗格、磁碟快取緩衝、公式與多格式相容 | 企業級標準報表、樣式複雜之商業試算表、格式強檢驗需求 |
+| **`APACHE_POI`** | Apache POI 5.5.1<br>(SXSSF + SAX) | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) | [`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapter.java) | 工業級豐富樣式、跨欄跨列合併、動態 SUM 公式、工作表密碼保護、凍結窗格與列印頁首頁尾標籤 | 企業級標準報表、樣式複雜之商業試算表、格式強檢驗需求 |
 
 ### 2.3 核心模組與 Package 定位速查表 (Module & Package Navigation Matrix)
-
-為方便開發者迅速定位各業務功能與技術實作所在的 Java Package，以下彙整垂直切片模組之套件路徑與核心類別對照表：
 
 #### ① 宣告式註解模組 (`com.example.demo.application.annotation`)
 | 模組分類 | 套件路徑 (Package) | 核心註解類別 | 職責與用途說明 |
 | :--- | :--- | :--- | :--- |
-| **`mapping`**<br>(物件映射) | [`application.annotation.mapping`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping) | [`@ExcelSheet`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelSheet.java)<br>[`@ExcelColumn`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelColumn.java) | 標註於 Model 類別或 Record 元件，宣告工作表名稱、表頭名稱、欄位索引、日期/數值格式化與預設值 |
+| **`mapping`**<br>(物件映射) | [`application.annotation.mapping`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping) | [`@ExcelSheet`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelSheet.java)<br>[`@ExcelColumn`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelColumn.java) | 標註於 Model 類別或 Record 元件，宣告工作表名稱、表頭名稱、欄位索引、日期/數值格式化、公式與預設值 |
 | **`task`**<br>(任務追蹤) | [`application.annotation.task`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task) | [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java) | 標註於讀寫方法，由 AOP 自動接管非同步長任務建檔、SpEL 檔名解析、進度累計與生命週期狀態更新 |
 | **`validation`**<br>(資料檢核) | [`application.annotation.validation`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation) | [`@ValidateExcel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidateExcel.java)<br>[`@ValidatedExcelData`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidatedExcelData.java) | `@ValidateExcel` 宣告於 Controller 端點自動執行 EasyRules 檢核與錯誤回標短路；`@ValidatedExcelData` 用於注入檢核通過之合規資料清單 |
 
 #### ② 基礎設施輸出適配器模組 (`com.example.demo.infrastructure.adapter`)
 | 模組分類 | 套件路徑 (Package) | 核心適配器實作 (Adapter) | 對應 Outbound Port 合約與技術說明 |
 | :--- | :--- | :--- | :--- |
-| **`engine`**<br>(讀寫核心引擎) | [`infrastructure.adapter.engine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine) | * [`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapter.java)<br>* [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java)<br>* [`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapter.java)<br>* [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) | 實作 [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReaderPort.java) 與 [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java)，提供 FastExcel 與 Apache POI 雙引擎之批次、多工作表與 $O(1)$ 串流讀寫 |
-| **`persistence`**<br>(持久化倉儲) | [`infrastructure.adapter.persistence`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence) | * [`BomRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/BomRepositoryAdapter.java)<br>* [`MaterialRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/MaterialRepositoryAdapter.java)<br>* [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapter.java) | 實作 [`BomRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/BomRepositoryPort.java)、[`MaterialRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/MaterialRepositoryPort.java) 與 [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelTaskRepositoryPort.java)，銜接 Spring Data JPA Repository 與資料庫，進行實體與 DTO 防腐轉換 |
+| **`engine`**<br>(讀寫核心引擎) | [`infrastructure.adapter.engine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine) | * [`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapter.java)<br>* [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java)<br>* [`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapter.java)<br>* [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) | 實作 [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReaderPort.java) 與 [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java)，提供雙引擎之批次、多工作表、跨欄合併、公式與 $O(1)$ 串流讀寫 |
+| **`report`**<br>(裝飾策略工廠) | [`infrastructure.adapter.report`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report) | * [`SpringReportDecoratorFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java) | 實作 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReportDecoratorFactoryPort.java)，自動收集並管理 [`ExcelReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java) 實作 Bean，提供執行期 O(1) 動態路由與合計列/SUM 公式/合併裝飾 |
+| **`strategy`**<br>(具體裝飾策略) | [`infrastructure.report`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report) | * [`ProcurementReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategy.java)<br>* [`BomCostAnalysisReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/BomCostAnalysisReportDecoratorStrategy.java)<br>* [`DefaultNoOpDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/DefaultNoOpDecoratorStrategy.java) | 抽離出 `adapter/` 套件的具體報表裝飾策略實作，綁定 [`ExcelReportStrategyKeys`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportStrategyKeys.java) 標準鍵值，落實 Clean Architecture 職責純粹性 |
+| **`persistence`**<br>(持久化倉儲) | [`infrastructure.adapter.persistence`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence) | * [`BomRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/BomRepositoryAdapter.java)<br>* [`MaterialRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/MaterialRepositoryAdapter.java)<br>* [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapter.java) | 實作持久化 Ports，銜接 Spring Data JPA Repository 與資料庫，進行實體與 DTO 防腐轉換 |
 | **`validator`**<br>(規則引擎校驗) | [`infrastructure.adapter.validator`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator) | * [`EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator/EasyRulesExcelValidatorAdapter.java) | 實作 [`ExcelRowValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelRowValidatorPort.java)，封裝 EasyRules 規則引擎，提供非短路全量錯誤累積推論 |
 | **`feedback`**<br>(視覺化回標) | [`infrastructure.adapter.feedback`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/feedback) | * [`PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/feedback/PoiExcelErrorMarkerAdapter.java) | 實作 [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelErrorMarkerPort.java)，使用 POI 將出錯儲存格套用淡紅底 (ROSE) 與深紅字 (DARK_RED) 標註，並動態追加錯誤原因說明欄 |
 
-#### ③ AOP 橫切攔截與執行緒上下文模組
-| 模組職責 | 套件路徑 (Package) | 核心類別 | 職責與用途說明 |
-| :--- | :--- | :--- | :--- |
-| **長任務追蹤切面** | [`infrastructure.aop`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop) | [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspect.java) | 攔截 `@TrackExcelTask`，負責長任務獨立事務建檔 (`REQUIRES_NEW`)、SpEL 表達式解析、進度累加與 Context 綁定 |
-| **長任務上下文** | [`application.shared.context`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context) | [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java) | `ThreadLocal` 任務上下文持有者，提供串流處理期間跨方法、跨層級之安全進度回報 |
-| **檔案檢核切面** | [`presentation.aspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/aspect) | [`ExcelValidationAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/aspect/ExcelValidationAspect.java) | 表現層前置防衛切面（Inbound Guard），攔截 `@ValidateExcel`，自動解析上傳檔案執行校驗，若出錯直接回標短路；若通過則將合規資料注入參數 |
-| **檢核上下文** | [`application.shared.context`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context) | [`ExcelValidationContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelValidationContextHolder.java) | `ThreadLocal` 檢核結果上下文持有者，供切面與參數解析器無縫共享合規資料集 |
-| **範本動態註冊表** | [`application.shared.registry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/registry) | [`ExcelTemplateRegistry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/registry/ExcelTemplateRegistry.java) | 集中管理 Excel 模型元數據（開放封閉原則 OCP），支援多重別名解析、Zero-Config 工作表名稱自動反查與統一動態路由 |
-
-#### ④ 業務規則引擎與具體檢核規則 (`com.example.demo.infrastructure.validator.rules`)
-| 角色 | 套件路徑 (Package) | 核心類別 | 說明 |
-| :--- | :--- | :--- | :--- |
-| **規則抽象基類** | [`infrastructure.validator.rules`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules) | [`AbstractExcelRowValidationRule`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules/AbstractExcelRowValidationRule.java) | 封裝 EasyRules 的 `@Condition` 與 `@Action`，簡化型別比對與錯誤生成樣板代碼 |
-| **訂單金額規則** | [`infrastructure.validator.rules`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules) | [`OrderAmountValidationRule`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules/OrderAmountValidationRule.java) | 驗證 `OrderModel` 購買金額必須大於 0.00 |
-| **訂單數量規則** | [`infrastructure.validator.rules`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules) | [`OrderQuantityValidationRule`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules/OrderQuantityValidationRule.java) | 驗證 `OrderModel` 購買數量必須介於 1 至 9,999 |
-| **商品售價規則** | [`infrastructure.validator.rules`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules) | [`ProductPriceValidationRule`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/validator/rules/ProductPriceValidationRule.java) | 驗證 Java 21 Record `ProductRecordModel` 商品售價必須大於 0 |
-
-#### ⑤ 表現層控制器與參數解析器 (`com.example.demo.presentation.*`)
+#### ③ 表現層控制器 (`com.example.demo.presentation.*`)
 | 模組職責 | 套件路徑 (Package) | 核心類別 | 說明 |
 | :--- | :--- | :--- | :--- |
-| **客製檢核控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelValidationController.java) | 基於 OCP 統一接口精簡為 5 隻核心 API（`/{templateKey}/feedback`, `/{templateKey}`, `/feedback`, `/templates`, `/declarative/orders`），支援任意業務範本動態檢核與錯誤回標 |
-| **物料/BOM 映射控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`MaterialBomExcelController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/MaterialBomExcelController.java) | 精簡為 4 隻高內聚核心 API，提供物料主檔與單階 BOM 配方清單之實機一鍵下載 (`/materials/export`, `/bom-items/export`) 與宣告式快速解析 (`/materials/import`, `/bom-items/import`) |
-| **參數解析器** | [`presentation.resolver`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/resolver) | [`ValidatedExcelDataArgumentResolver`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/resolver/ValidatedExcelDataArgumentResolver.java) | Spring MVC `HandlerMethodArgumentResolver`，自動將檢核通過之資料清單注入 Controller 方法參數 |
-| **全域例外處理** | [`presentation.exception`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/exception) | [`GlobalExceptionHandler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/exception/GlobalExceptionHandler.java) | 攔截 `ExcelValidationFailedException` 等業務例外，轉譯為 HTTP 422 Unprocessable Entity |
+| **企業報表控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java) | 提供 `POST /api/v1/excel/reports/procurement-analysis` 採購損益月報分析匯出端點，支援動態報表標題、密碼保護與機密標記 |
+| **客製檢核控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelValidationController.java) | 基於 OCP 統一接口提供 5 隻核心 API（`/{templateKey}/feedback`, `/{templateKey}`, `/feedback`, `/templates`, `/declarative/orders`） |
+| **長任務監控控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelTaskController.java) | 提供 `GET /tasks/{taskId}/progress` 與 `GET /tasks/{taskId}/download` 輪詢與產物下載 API |
+| **物料/BOM 映射控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`MaterialBomExcelController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/MaterialBomExcelController.java) | 提供物料主檔與單階 BOM 配方清單之實機一鍵下載與宣告式快速解析 API |
+| **物件映射控制器** | [`presentation.controller`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller) | [`ExcelBeanMappingController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelBeanMappingController.java) | 提供 JavaBean 與 Java 21 Record 匯入匯出 REST API |
 
 ---
 
@@ -230,38 +257,73 @@ BOM 模組整合了製造業標準產品結構樹（Bill of Materials），由 [
 
 ### 4.2 常用 cURL 操作指令
 
-#### ① 下載指定成品多階層 BOM Excel (標準批次)
+#### ① 匯出產品結構配方與標準成本卷算分析表 (自訂 Strategy: BOM_COST_ANALYSIS 串聯 Bom/Material 聚合根)
+```bash
+# 【一鍵實測】瀏覽器或 cURL 直接 GET 下載 (母件預設 MAT-FG-001，自動穿透資料庫聚合根與配方)
+curl -i -X GET "http://localhost:8080/api/v1/excel/reports/bom-cost-analysis?materialCode=MAT-FG-001" -O -J
+
+# 【自訂傳入】POST 請求傳入自訂母件料號、密碼與自訂子項明細清單
+curl -i -X POST "http://localhost:8080/api/v1/excel/reports/bom-cost-analysis" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parentMaterialCode": "MAT-FG-001",
+    "reportTitle": "2026年Q4產品結構與成本分析表",
+    "password": "BomAuditSecure888",
+    "classification": "極機密・核心配方與成本審計"
+  }' \
+  -O -J
+```
+
+#### ② 匯出企業採購損益月報分析 (含合計列、SUM 公式、跨欄合併與密碼保護)
+```bash
+curl -i -X POST "http://localhost:8080/api/v1/excel/reports/procurement-analysis" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reportTitle": "2026年第四季物料採購損益分析月報",
+    "password": "AuditSecure2026",
+    "classification": "內部機密・嚴禁外流",
+    "dataList": [
+      {
+        "materialCode": "MAT-RM-301",
+        "materialName": "ARM 主控晶片",
+        "category": "原物料",
+        "quantity": 1000,
+        "unitPrice": 3500.00,
+        "taxRate": 0.05,
+        "procurementDate": "2026-11-01"
+      },
+      {
+        "materialCode": "MAT-RM-302",
+        "materialName": "高精度陀螺儀傳感器",
+        "category": "原物料",
+        "quantity": 2000,
+        "unitPrice": 800.00,
+        "taxRate": 0.05,
+        "procurementDate": "2026-11-03"
+      }
+    ]
+  }' \
+  -O -J
+```
+
+#### ② 下載指定成品多階層 BOM Excel (標準批次)
 ```bash
 curl -i -X GET "http://localhost:8080/api/v1/bom/excel?parentMaterialCode=MAT-FG-001" -O -J
 ```
 
-#### ② 大數據邊讀邊沖刷串流下載 (觸發 @TrackExcelTask 長任務追蹤)
+#### ③ 大數據邊讀邊沖刷串流下載 (觸發 @TrackExcelTask 長任務追蹤)
 ```bash
 curl -i -X GET "http://localhost:8080/api/v1/bom/excel/stream?parentMaterialCode=MAT-FG-001&flushInterval=500" -O -J
 ```
 
-#### ③ 查詢非同步長任務進度與狀態 (輪詢進度)
+#### ④ 查詢非同步長任務進度與狀態 (輪詢進度)
 ```bash
 curl -i -X GET "http://localhost:8080/api/v1/excel/tasks/{taskId}/progress"
 ```
 
-#### ④ 下載已完成長任務之產出檔案
+#### ⑤ 下載已完成長任務之產出檔案
 ```bash
 curl -i -X GET "http://localhost:8080/api/v1/excel/tasks/{taskId}/download" -O -J
-```
-
-#### ⑤ Excel 通用大數據串流匯出 (帶入自訂沖刷筆數)
-```bash
-curl -X POST http://localhost:8080/api/v1/excel/export/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fileName": "stress_export.xlsx",
-    "sheetName": "StressSheet",
-    "headers": ["序號", "批次碼", "隨機數值", "建立時間"],
-    "rowCount": 5000,
-    "batchFlushSize": 500
-  }' \
-  --output stress_export.xlsx
 ```
 
 ---
@@ -271,82 +333,81 @@ curl -X POST http://localhost:8080/api/v1/excel/export/stream \
 ```text
 excel-module/
 ├── doc/
-│   ├── design/
-│   │   ├── architecture-design.md              # 架構設計與演進藍圖指南
-│   │   ├── annotation-driven-task-tracking.md  # 宣告式長任務監控詳細架構設計
-│   │   ├── custom-validation-and-error-feedback.md # 客製驗證引擎與錯誤回標檔設計指南
-│   │   ├── declarative-bean-mapping.md         # 宣告式物件映射架構指南
-│   │   ├── material_bom_aggregate_design.md    # BOM 聚合根與資料庫詳細設計
-│   │   └── streaming-processing.md             # 串流處理專題技術手冊
-│   ├── maintenance/
+│   ├── design/                                         # 【架構設計總覽與專題文件庫】
+│   │   ├── architecture-design.md                      # 模組全局架構與演進藍圖總綱
+│   │   ├── declarative-bean-mapping.md                 # 維度一總覽主文件 (Declarative Bean Mapping Hub)
+│   │   ├── declarative-bean-mapping/                   # 維度一專屬子目錄 (01-反射快取 / 02-Ports & UseCases)
+│   │   ├── custom-validation-and-error-feedback.md     # 維度二總覽主文件 (Validation & Error Feedback Hub)
+│   │   ├── custom-validation-and-error-feedback/       # 維度二專屬子目錄 (01-EasyRules管線 / 02-錯誤回標與切面)
+│   │   ├── streaming-processing.md                     # 維度三總覽主文件 (Streaming Processing Hub)
+│   │   ├── streaming-processing/                       # 維度三專屬子目錄 (01-串流寫出Flush / 02-串流讀取消費)
+│   │   ├── annotation-driven-task-tracking.md          # 維度四總覽主文件 (Task Tracking Hub)
+│   │   ├── annotation-driven-task-tracking/            # 維度四專屬子目錄 (01-AOP上下文保護 / 02-JPA與前端閉環)
+│   │   ├── template-styles-and-security.md             # 維度五總覽主文件 (Template & Security Hub)
+│   │   ├── template-styles-and-security/               # 維度五專屬子目錄 (01-底層引擎規範 / 02-裝飾策略工廠)
+│   │   ├── material_bom_aggregate_design.md            # 領域 DDD 總覽主文件 (Material & BOM Design Hub)
+│   │   └── material-bom-aggregate/                     # 領域 DDD 專屬子目錄 (01-聚合根規則 / 02-資料庫與適配器)
+│   ├── maintenance/                                    # 【維護手冊】
 │   │   ├── custom-validation-and-error-feedback-manual.md # 客製驗證與錯誤回標檔使用與維護手冊
-│   │   └── declarative-bean-mapping-manual.md  # 宣告式物件映射開發與維護手冊
-│   ├── template/
-│   │   ├── README.md                           # 測試範本使用說明與自動生成指南
-│   │   ├── BOM_IMPORT.xlsx                     # BOM 匯入範本
-│   │   ├── ORDER_IMPORT_SUCCESS.xlsx           # 合規訂單測試範本 (JavaBean)
-│   │   ├── ORDER_IMPORT_WITH_ERRORS.xlsx       # 含違規資料訂單測試範本 (錯誤回標)
-│   │   ├── PRODUCT_IMPORT_SUCCESS.xlsx         # 合規商品主檔測試範本 (Java 21 Record)
-│   │   ├── PRODUCT_IMPORT_WITH_ERRORS.xlsx     # 含違規售價商品測試範本 (錯誤回標)
-│   │   └── PO_IMPORT.xlsx                      # 採購明細匯入範本
-│   └── test/
-│       ├── README.md                           # API 測試手冊與 cURL 操作大全
-│       ├── annotation_driven_task_testing_guide.md # 長任務端到端測試操作指引
-│       ├── custom_validation_testing_guide.md  # 客製檢核與錯誤回標完整操作指引
-│       ├── declarative_bean_mapping_guide.md   # 物件映射測試操作指引
-│       ├── openapi_specification.yaml          # OpenAPI 3.0 規範定義檔
-│       └── excel_bom_module_postman_collection.json # Postman 測試集合
+│   │   └── declarative-bean-mapping-manual.md          # 宣告式物件映射開發與維護手冊
+│   ├── template/                                       # 【測試範本】
+│   │   ├── README.md                                   # 測試範本使用說明與自動生成指南
+│   │   ├── BOM_IMPORT.xlsx                             # BOM 匯入範本
+│   │   ├── ORDER_IMPORT_SUCCESS.xlsx                   # 合規訂單測試範本 (JavaBean)
+│   │   ├── ORDER_IMPORT_WITH_ERRORS.xlsx               # 含違規資料訂單測試範本 (錯誤回標)
+│   │   ├── PRODUCT_IMPORT_SUCCESS.xlsx                 # 合規商品主檔測試範本 (Java 21 Record)
+│   │   ├── PRODUCT_IMPORT_WITH_ERRORS.xlsx             # 含違規售價商品測試範本 (錯誤回標)
+│   │   └── PO_IMPORT.xlsx                              # 採購明細匯入範本
+│   └── test/                                           # 【測試指引與 API 規範】
+│       ├── README.md                                   # API 測試手冊與 cURL 操作大全
+│       ├── annotation_driven_task_testing_guide.md     # 長任務端到端測試操作指引
+│       ├── custom_validation_testing_guide.md          # 客製檢核與錯誤回標完整操作指引
+│       ├── declarative_bean_mapping_guide.md           # 物件映射測試操作指引
+│       ├── openapi_specification.yaml                  # OpenAPI 3.0 規範定義檔
+│       └── excel_bom_module_postman_collection.json    # Postman 測試集合
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/demo/
-│   │   │   ├── domain/                         # 【領域層】純 Java，零框架，禁止 Lombok
-│   │   │   │   ├── material/aggregate/         # 物料主檔聚合 (Material Aggregate)
-│   │   │   │   └── bom/aggregate/              # 物料清單聚合 (Bom & BomItem)
-│   │   │   ├── application/                    # 【應用層】CQRS 調度、Port 介面
-│   │   │   │   ├── annotation/                 # 宣告式註解 (垂直模組切片)
-│   │   │   │   │   ├── mapping/                # 物件映射 (@ExcelSheet, @ExcelColumn)
-│   │   │   │   │   ├── task/                   # 任務追蹤 (@TrackExcelTask)
-│   │   │   │   │   └── validation/             # 檢核過濾 (@ValidateExcel, @ValidatedExcelData)
-│   │   │   │   ├── port/in/                    # Inbound Ports (Export, Import, Task, Validate UseCases)
-│   │   │   │   ├── port/out/                   # Outbound Ports (Writer, Reader, Task, Repo, Validator, Marker)
-│   │   │   │   ├── service/                    # Application Services (Bom, Excel, Task, Validation)
-│   │   │   │   ├── shared/                     # 共享不可變模型 (Java 21 Records)
-│   │   │   │   │   ├── command/                # 業務命令 (WriteExcelCommand, ExportBomCommand...)
-│   │   │   │   │   ├── query/                  # 查詢條件 (ReadExcelQuery, GetExcelTaskQuery)
-│   │   │   │   │   ├── dto/                    # 結果載體 (ExcelGottenResult, ExcelValidationGottenResult...)
-│   │   │   │   │   ├── model/                  # 檢核事實與業務模型 (ExcelRowError, OrderModel, ProductRecordModel)
-│   │   │   │   │   ├── registry/               # OCP 動態範本註冊表 (ExcelTemplateRegistry)
-│   │   │   │   │   ├── context/                # ThreadLocal 上下文 (ExcelTaskContextHolder, ExcelValidationContextHolder)
-│   │   │   │   │   ├── exception/              # 應用層例外 (ExcelValidationFailedException...)
-│   │   │   │   │   └── vo/                     # 實質物件 (ExcelTaskStatus, ExcelTaskType)
-│   │   │   │   └── assembler/                  # DTO/Model 組裝器 (ExcelBeanAssembler, BomDtoAssembler)
-│   │   │   ├── infrastructure/                 # 【基礎設施層】Outbound Adapters
-│   │   │   │   ├── aop/                        # AOP 橫切切面 (ExcelTaskTrackingAspect)
-│   │   │   │   ├── adapter/                    # 垂直模組輸出適配器實作
-│   │   │   │   │   ├── engine/                 # FastExcel / Apache POI 核心讀寫適配器
-│   │   │   │   │   ├── persistence/            # Bom, Material, ExcelTask JPA 持久化適配器
-│   │   │   │   │   ├── validator/              # EasyRules 規則引擎校驗適配器
-│   │   │   │   │   └── feedback/               # Apache POI 視覺化錯誤回標適配器
-│   │   │   │   ├── validator/rules/            # EasyRules 行級規則實作 (Order, Product Rules)
-│   │   │   │   └── persistence/                # JPA ORM 實體與 Spring Data Repository
-│   │   │   ├── presentation/                   # 【表現層】Inbound Adapters
-│   │   │   │   ├── controller/                 # REST Controllers (Bom, Excel, Task, Bean, Validation)
-│   │   │   │   ├── aspect/                     # 表現層前置防衛切面 (ExcelValidationAspect)
-│   │   │   │   ├── resolver/                   # 自訂參數解析器 (ValidatedExcelDataArgumentResolver)
-│   │   │   │   ├── resource/                   # In/Out Resources (純資料載體)
-│   │   │   │   ├── assembler/                  # 表現層 Resource 組裝器
-│   │   │   │   └── exception/                  # 全域例外轉譯器 (GlobalExceptionHandler)
-│   │   │   └── config/                         # 【配置層】全域配置與 Bean 註冊
-│   │   │       ├── ExcelEngineConfiguration.java # 雙引擎動態注入配置
-│   │   │       ├── AopConfiguration.java       # AspectJ 動態代理啟用配置
-│   │   │       ├── AsyncConfiguration.java     # 長任務非同步執行緒池配置
-│   │   │       ├── WebMvcConfig.java           # Spring MVC 參數解析器註冊
-│   │   │       └── OpenApiConfig.java          # Swagger UI / OpenAPI 設定
+│   │   │   ├── domain/                                 # 【領域層】純 Java，零框架，禁止 Lombok
+│   │   │   │   ├── material/aggregate/                 # 物料主檔聚合 (Material Aggregate)
+│   │   │   │   └── bom/aggregate/                      # 物料清單聚合 (Bom & BomItem)
+│   │   │   ├── application/                            # 【應用層】CQRS 調度、Port 介面、策略 SPI
+│   │   │   │   ├── annotation/                         # 宣告式註解 (mapping, task, validation)
+│   │   │   │   ├── port/in/                            # Inbound Ports (Export, Import, Task, Validate, Financial UseCases)
+│   │   │   │   ├── port/out/                           # Outbound Ports (全數以 *Port 結尾)
+│   │   │   │   ├── service/                            # Application Services (Bom, Excel, Task, Validation, Report)
+│   │   │   │   ├── shared/                             # 共享不可變模型 (Java 21 Records)
+│   │   │   │   │   ├── command/                        # 業務命令 (WriteExcelCommand, ExportProcurementAnalysisCommand...)
+│   │   │   │   │   ├── query/                          # 查詢條件 (ReadExcelQuery, GetExcelTaskQuery)
+│   │   │   │   │   ├── dto/                            # 結果載體 (ExcelGottenResult, ExcelValidationGottenResult...)
+│   │   │   │   │   ├── model/                          # 純資料模型 (CellRange, SheetProtectionConfig, Context...)
+│   │   │   │   │   ├── strategy/                       # 策略模式 SPI 與標準鍵 (ExcelReportDecoratorStrategy, Keys)
+│   │   │   │   │   ├── context/                        # ThreadLocal 上下文 (ExcelTaskContextHolder...)
+│   │   │   │   │   └── vo/                             # 實質物件 (ExcelTaskStatus, ExcelTaskType)
+│   │   │   │   └── assembler/                          # 組裝器 (ExcelBeanAssembler, BomDtoAssembler)
+│   │   │   ├── infrastructure/                         # 【基礎設施層】Outbound Adapters
+│   │   │   │   ├── aop/                                # AOP 橫切切面 (ExcelTaskTrackingAspect)
+│   │   │   │   ├── adapter/                            # 輸出適配器 (全數以 *Adapter 結尾)
+│   │   │   │   │   ├── engine/                         # FastExcel / Apache POI 核心讀寫適配器
+│   │   │   │   │   ├── report/                         # 裝飾策略工廠適配器 (SpringReportDecoratorFactoryAdapter)
+│   │   │   │   │   ├── persistence/                    # Bom, Material, ExcelTask JPA 持久化適配器
+│   │   │   │   │   ├── validator/                      # EasyRules 規則引擎校驗適配器
+│   │   │   │   │   └── feedback/                       # Apache POI 視覺化錯誤回標適配器
+│   │   │   │   ├── report/                             # 具體報表裝飾策略 (ProcurementReport, BomCost, NoOp...)
+│   │   │   │   ├── template/                           # 範本元數據註冊容器與 SPI (ExcelTemplateRegistry, Customizer)
+│   │   │   │   └── persistence/                        # JPA ORM 實體與 Spring Data Repository
+│   │   │   ├── presentation/                           # 【表現層】Inbound Adapters
+│   │   │   │   ├── controller/                         # REST Controllers (Bom, Excel, Task, Bean, Validation, Report)
+│   │   │   │   ├── aspect/                             # 表現層前置防衛切面 (ExcelValidationAspect)
+│   │   │   │   ├── resource/                           # In/Out Resources (純資料載體)
+│   │   │   │   ├── assembler/                          # 表現層 Resource 組裝器 (ACL 防腐層)
+│   │   │   │   └── exception/                          # 全域例外轉譯器 (GlobalExceptionHandler)
+│   │   │   └── config/                                 # 【配置層】全域配置與 Bean 註冊 (ExcelTemplateConfiguration...)
 │   │   └── resources/
-│   │       ├── application.properties          # 系統與 excel.engine 配置檔
-│   │       ├── templates/                      # 內建業務與錯誤回標測試範本 (.xlsx)
-│   │       └── sql/material_bom_test_data.sql  # 2000 筆物料與 25 筆 BOM 測試 SQL
-│   └── test/java/com/example/demo/             # 【測試套件】涵蓋 177 個單元與整合測試 (全數通過 BUILD SUCCESS)
+│   │       ├── application.properties                  # 系統與 excel.engine 配置檔
+│   │       ├── templates/                              # 內建業務與錯誤回標測試範本 (.xlsx)
+│   │       └── sql/material_bom_test_data.sql          # 2000 筆物料與 25 筆 BOM 測試 SQL
+│   └── test/java/com/example/demo/                     # 【測試套件】涵蓋 203 個單元與整合測試 (100% BUILD SUCCESS)
 ```
 
 ---
@@ -365,19 +426,27 @@ gantt
     2000 筆測試資料與大數據邊讀邊沖刷串流       :done, 2026-10-31, 1d
     OpenAPI 3.0 & Postman 自動斷言測試手冊     :done, 2026-10-31, 1d
     
-    section 階段一：宣告式與 Record 重構 (已完成)
+    section 維度一：宣告式物件映射 (已完成)
     宣告式 @ExcelColumn 註解與 Bean 映射       :done, 2026-11-01, 2d
     應用層 Command / DTO 全面 Record 重構       :done, 2026-11-04, 1d
     
-    section 階段二：非同步長任務與進度追蹤 (已完成)
+    section 維度二：資料校驗與錯誤回標 (已完成)
+    EasyRules 宣告式規則管線與全量錯誤收集       :done, 2026-11-05, 2d
+    視覺化錯誤回標檔與 @ValidateExcel 前置守衛  :done, 2026-11-07, 1d
+
+    section 維度三：大數據分塊串流 (已完成)
+    常數記憶體 O(1) 沖刷與 Flush 機制          :done, 2026-10-31, 1d
+    StAX/SAX 惰性拉取、分塊消費與中斷控制       :done, 2026-10-31, 1d
+
+    section 維度四：非同步長任務追蹤 (已完成)
     宣告式 @TrackExcelTask 註解與 AOP 切面      :done, 2026-11-03, 2d
     REQUIRES_NEW 獨立事務長任務持久化與 Context  :done, 2026-11-04, 1d
     ExcelTaskController 輪詢與產物下載 API      :done, 2026-11-04, 1d
     
-    section 階段三：高階商業功能與模組協同
-    匯入檢核與「錯誤回標檔」生成機制             :active, 2026-11-05, 3d
-    工作表密碼保護與公式合併樣式強化             :2026-11-14, 2d
-    與 file-transmission 遠端傳輸模組串接      :2026-11-16, 2d
+    section 維度五：樣式、公式與安全防護 (已完成)
+    工作表密碼保護、跨欄合併與動態 SUM 公式     :done, 2026-11-08, 1d
+    通用報表裝飾策略工廠模式與採購月報落地      :done, 2026-11-08, 1d
+    自訂 BOM 成本卷算裝飾策略與實戰 API 開放    :done, 2026-11-08, 1d
 ```
 
 ### Workspace 模組協同矩陣 (Module Synergy Matrix)
@@ -397,23 +466,24 @@ gantt
 ./mvnw clean test
 ```
 
-### 測試執行報告 (177/177 Passed)
+### 測試執行報告 (203/203 Passed)
 ```text
 [INFO] -------------------------------------------------------
 [INFO]  T E S T S
 [INFO] -------------------------------------------------------
 [INFO] Running BomDtoAssembler 資料與 BOM 資料組裝器測試 (4 tests)
-[INFO] Running ExcelBeanAssembler 宣告式映射與 Application Service 流程測試 (9 tests)
+[INFO] Running ExcelBeanAssembler 宣告式映射與 Application Service 流程測試 (10 tests)
 [INFO] Running BomCommandService 物料清單匯出命令服務測試 (3 tests)
 [INFO] Running BomQueryService 物料與 BOM 查詢服務測試 (6 tests)
 [INFO] Running ExcelCommandService 匯出命令業務服務測試 (3 tests)
 [INFO] Running ExcelQueryService 匯入查詢業務服務測試 (4 tests)
+[INFO] Running ExcelReportApplicationService 企業進階報表服務測試 (6 tests)
 [INFO] Running ExcelTaskCommandService 非同步長任務命令服務測試 (4 tests)
 [INFO] Running ExcelTaskQueryService 長任務查詢業務服務測試 (2 tests)
 [INFO] Running ExcelValidationApplicationService 資料檢核應用服務測試 (4 tests)
 [INFO] Running ExcelTaskContextHolder 任務上下文測試 (3 tests)
 [INFO] Running ExcelValidationContextHolder 檢核上下文測試 (2 tests)
-[INFO] Running ExcelTemplateRegistry 宣告式範本註冊表測試 (5 tests)
+[INFO] Running ExcelTemplateRegistry 宣告式範本註冊表測試 (6 tests)
 [INFO] Running ExcelEngineConfiguration 模組開關配置測試 (3 tests)
 [INFO] Running Bom 物料清單聚合根測試 (9 tests)
 [INFO] Running Material 物料主檔聚合根測試 (7 tests)
@@ -424,6 +494,9 @@ gantt
 [INFO] Running FastExcelWriterAdapter 寫入適配器測試 (4 tests)
 [INFO] Running PoiSaxReaderAdapter 讀取適配器測試 (3 tests)
 [INFO] Running PoiSxssfWriterAdapter 寫入適配器測試 (3 tests)
+[INFO] Running ProcurementReportDecoratorStrategy 採購月報裝飾策略測試 (2 tests)
+[INFO] Running BomCostAnalysisReportDecoratorStrategy BOM 成本分析裝飾策略測試 (2 tests)
+[INFO] Running SpringReportDecoratorFactoryAdapter 報表裝飾策略工廠適配器測試 (2 tests)
 [INFO] Running TestTemplateGeneratorTest 業務範本自動生成測試 (1 test)
 [INFO] Running PoiExcelErrorMarkerAdapter 錯誤標註適配器測試 (1 test)
 [INFO] Running BomRepositoryAdapter BOM 儲存庫適配器持久化整合測試 (3 tests)
@@ -439,13 +512,14 @@ gantt
 [INFO] Running BomPoiIntegrationTest (Apache POI 模式下之 BOM 匯出整合測試) (3 tests)
 [INFO] Running ExcelBeanMappingController 宣告式 Bean 映射控制器測試 (8 tests)
 [INFO] Running ExcelController 表現層 REST 控制器與參數校驗測試 (9 tests)
+[INFO] Running ExcelReportController 企業報表控制器測試 (6 tests)
 [INFO] Running ExcelTaskController 非同步長任務 REST 控制器測試 (4 tests)
 [INFO] Running ExcelValidationController 客製檢核與回標控制器測試 (9 tests)
 [INFO] Running ExcelValidationIntegrationTest 宣告式檢核與錯誤回標整合測試 (端到端真實檔案上傳) (6 tests)
 [INFO] Running MaterialBomExcelController 物料與 BOM 宣告式 Excel 控制器測試 (5 tests)
 [INFO] 
 [INFO] Results:
-[INFO] Tests run: 177, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 203, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------

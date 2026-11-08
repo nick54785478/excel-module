@@ -74,6 +74,17 @@ public @interface ExcelColumn {
 	String defaultValue() default "";
 
 	/**
+	 * 宣告式動態計算公式 (Formula)。
+	 * <p>
+	 * 支援在公式字串中使用 <code>{row}</code> 佔位符號，代表當前資料列在 Excel 中的實際列號 (1-based)。
+	 * 例如：<code>"C{row}*D{row}"</code> 或 <code>"SUM(D2:D{row})"</code>。
+	 * 匯出時將由組裝器自動替換真實列號並注入為儲存格原生計算公式。
+	 *
+	 * @return 公式模板字串 (預設為空字串，代表純數值寫入)
+	 */
+	String formula() default "";
+
+	/**
 	 * 是否忽略此欄位。
 	 * <p>
 	 * 若為 {@code true}，則在 Excel 匯入與匯出時皆不參與資料繫結。

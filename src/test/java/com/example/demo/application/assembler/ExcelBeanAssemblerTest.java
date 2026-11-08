@@ -41,6 +41,24 @@ class ExcelBeanAssemblerTest {
 	}
 
 	/**
+	 * 維度五宣告式公式與工作表防護測試模型
+	 */
+	@ExcelSheet(
+			name = "毛利分析",
+			protect = true,
+			protectPassword = "SecretMargin2026",
+			leftHeader = "【內部審計】",
+			centerHeader = "毛利分析報表",
+			centerFooter = "第 &P 頁 / 共 &N 頁"
+	)
+	public record MarginAnalysisRecord(
+			@ExcelColumn(name = "料號", index = 0) String itemCode,
+			@ExcelColumn(name = "單價", index = 1) BigDecimal price,
+			@ExcelColumn(name = "數量", index = 2) Integer quantity,
+			@ExcelColumn(name = "小計", index = 3, formula = "B{row}*C{row}") BigDecimal subtotal
+	) {}
+
+	/**
 	 * 標準 JavaBean 測試模型
 	 */
 	@ExcelSheet(name = "訂單匯入清單")
@@ -478,5 +496,46 @@ class ExcelBeanAssemblerTest {
 		assertThat(firstMat.getUnit()).isEqualTo("SET");
 		assertThat(firstMat.getStandardCost()).isEqualByComparingTo("28500.0");
 		assertThat(firstMat.getStatus()).isEqualTo("正常使用中 (ACTIVE)");
+	}
+
+	/**
+	 * Feature: 宣告式公式替換與工作表防護設定解析
+	 * Scenario: 透過 @ExcelColumn(formula = "...") 與 @ExcelSheet(protectPassword = "...") 自動產製 WriteSheetCommand
+	 * Given: 建立包含 MarginAnalysisRecord 清單
+	 * When: 呼叫 ExcelBeanAssembler.toSheetCommand(list, MarginAnalysisRecord.class, null)
+	 * Then: 驗證產出的 WriteSheetCommand 包含自動動態替換後的 cellFormulas ("D2" -> "B2*C2", "D3" -> "B3*C3")
+	 *       並驗證 protectionConfig 密碼與 headerFooterConfig
+	 */
+	@Test
+	@DisplayName("場景：宣告式 @ExcelColumn 動態公式與 @ExcelSheet 防護密碼自動組裝")
+	void shouldAssembleDeclarativeFormulasAndProtectionConfig() {
+		// Given
+		List<MarginAnalysisRecord> list = List.of(
+				new MarginAnalysisRecord("ITM-01", new BigDecimal("120.00"), 5, null),
+				new MarginAnalysisRecord("ITM-02", new BigDecimal("80.00"), 10, null)
+		);
+
+		// When
+		com.example.demo.application.shared.command.WriteSheetCommand command =
+				ExcelBeanAssembler.toSheetCommand(list, MarginAnalysisRecord.class, null);
+
+		// Then
+		assertThat(command.sheetName()).isEqualTo("毛利分析");
+		assertThat(command.headers()).containsExactly("料號", "單價", "數量", "小計");
+		assertThat(command.rows()).hasSize(2);
+
+		// 驗證公式動態替換：第 1 筆在第 2 列 (D2 = B2*C2)，第 2 筆在第 3 列 (D3 = B3*C3)
+		assertThat(command.cellFormulas()).containsEntry("D2", "B2*C2");
+		assertThat(command.cellFormulas()).containsEntry("D3", "B3*C3");
+
+		// 驗證工作表防護配置
+		assertThat(command.protectionConfig()).isNotNull();
+		assertThat(command.protectionConfig().password()).isEqualTo("SecretMargin2026");
+
+		// 驗證頁首頁尾配置
+		assertThat(command.headerFooterConfig()).isNotNull();
+		assertThat(command.headerFooterConfig().leftHeader()).isEqualTo("【內部審計】");
+		assertThat(command.headerFooterConfig().centerHeader()).isEqualTo("毛利分析報表");
+		assertThat(command.headerFooterConfig().centerFooter()).isEqualTo("第 &P 頁 / 共 &N 頁");
 	}
 }

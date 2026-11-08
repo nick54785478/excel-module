@@ -8,8 +8,9 @@ import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.registry.ExcelTemplateRegistry;
-import com.example.demo.application.shared.registry.ExcelTemplateRegistry.TemplateDescriptor;
+import com.example.demo.config.ExcelTemplateConfiguration;
+import com.example.demo.infrastructure.template.ExcelTemplateRegistry;
+import com.example.demo.infrastructure.template.ExcelTemplateRegistry.TemplateDescriptor;
 import com.example.demo.presentation.assembler.ExcelValidationResourceAssembler;
 import com.example.demo.presentation.resource.out.ExcelValidatedResource;
 import io.swagger.v3.oas.annotations.Operation;
@@ -82,7 +83,7 @@ public class ExcelValidationController {
      *
      * @param validateExcelUseCase 檢核業務案例 (Application Inbound Port)
      * @param resourceAssembler    表現層資源組裝器 (Presentation Assembler)
-     * @param templateRegistry     範本模型註冊表 (Application Shared Registry)
+     * @param templateRegistry     範本模型註冊表 (Infrastructure Template Registry)
      * @param excelReaderPort      試算表讀取輸出埠 (用於工作表名稱自動探測，可為空)
      */
     @Autowired
@@ -93,7 +94,7 @@ public class ExcelValidationController {
         @Autowired(required = false) ExcelReaderPort excelReaderPort) {
         this.validateExcelUseCase = Objects.requireNonNull(validateExcelUseCase, "validateExcelUseCase must not be null");
         this.resourceAssembler = Objects.requireNonNull(resourceAssembler, "resourceAssembler must not be null");
-        this.templateRegistry = templateRegistry != null ? templateRegistry : new ExcelTemplateRegistry();
+        this.templateRegistry = templateRegistry != null ? templateRegistry : ExcelTemplateConfiguration.createDefaultRegistry();
         this.excelReaderPort = excelReaderPort;
     }
 
@@ -104,7 +105,7 @@ public class ExcelValidationController {
      * @param resourceAssembler    表現層資源組裝器
      */
     public ExcelValidationController(ValidateExcelUseCase validateExcelUseCase, ExcelValidationResourceAssembler resourceAssembler) {
-        this(validateExcelUseCase, resourceAssembler, new ExcelTemplateRegistry(), null);
+        this(validateExcelUseCase, resourceAssembler, ExcelTemplateConfiguration.createDefaultRegistry(), null);
     }
 
     // =========================================================================
