@@ -20,6 +20,9 @@ import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
 import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
 import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
 import com.example.demo.infrastructure.adapter.report.SpringReportDecoratorFactoryAdapter;
+import com.example.demo.infrastructure.engine.ExcelStreamWriterEngine;
+import com.example.demo.infrastructure.engine.fastexcel.FastExcelStreamWriterEngine;
+import com.example.demo.infrastructure.engine.poi.PoiSxssfStreamWriterEngine;
 
 /**
  * Excel 處理引擎動態裝配配置類 (Configuration Layer - Composition Root)
@@ -72,15 +75,27 @@ public class ExcelEngineConfiguration {
 	// =========================================================================
 
 	/**
+	 * 註冊 FastExcel 串流寫入共用引擎 (基礎設施層內部共用)
+	 *
+	 * @return FastExcel 串流寫入引擎實例
+	 */
+	@Bean
+	@ConditionalOnProperty(name = "excel.engine", havingValue = "FAST_EXCEL", matchIfMissing = true)
+	public ExcelStreamWriterEngine fastExcelStreamWriterEngine() {
+		return new FastExcelStreamWriterEngine();
+	}
+
+	/**
 	 * 註冊 FastExcel 寫入適配器
 	 *
+	 * @param engine 基礎設施層串流寫入共用引擎
 	 * @return FastExcel 寫入適配器實例
 	 */
 	@Bean
 	@ConditionalOnProperty(name = "excel.engine", havingValue = "FAST_EXCEL", matchIfMissing = true)
-	public ExcelWriterPort fastExcelWriterPort() {
+	public ExcelWriterPort fastExcelWriterPort(ExcelStreamWriterEngine engine) {
 		log.info("[ExcelEngineConfiguration] Activating FastExcel Writer Adapter (High-performance stream mode)");
-		return new FastExcelWriterAdapter();
+		return new FastExcelWriterAdapter(engine);
 	}
 
 	/**
@@ -100,16 +115,28 @@ public class ExcelEngineConfiguration {
 	// =========================================================================
 
 	/**
+	 * 註冊 Apache POI SXSSF 串流寫入共用引擎 (基礎設施層內部共用)
+	 *
+	 * @return Apache POI SXSSF 串流寫入引擎實例
+	 */
+	@Bean
+	@ConditionalOnProperty(name = "excel.engine", havingValue = "APACHE_POI")
+	public ExcelStreamWriterEngine poiExcelStreamWriterEngine() {
+		return new PoiSxssfStreamWriterEngine();
+	}
+
+	/**
 	 * 註冊 Apache POI SXSSF 寫入適配器
 	 *
+	 * @param engine 基礎設施層串流寫入共用引擎
 	 * @return Apache POI SXSSF 寫入適配器實例
 	 */
 	@Bean
 	@ConditionalOnProperty(name = "excel.engine", havingValue = "APACHE_POI")
-	public ExcelWriterPort poiExcelWriterPort() {
+	public ExcelWriterPort poiExcelWriterPort(ExcelStreamWriterEngine engine) {
 		log.info(
 				"[ExcelEngineConfiguration] Activating Apache POI SXSSF Writer Adapter (Feature-rich / Disk-buffered mode)");
-		return new PoiSxssfWriterAdapter();
+		return new PoiSxssfWriterAdapter(engine);
 	}
 
 	/**

@@ -22,20 +22,33 @@ import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
+import com.example.demo.application.shared.exception.ExcelWriteException;
 import com.example.demo.application.shared.model.CellCoordinate;
 import com.example.demo.application.shared.model.CellRange;
 import com.example.demo.application.shared.model.SheetProtectionConfig;
 import com.example.demo.application.shared.vo.ExcelTaskType;
-import com.example.demo.application.shared.exception.ExcelWriteException;
+import com.example.demo.infrastructure.engine.ExcelStreamWriterEngine;
+import com.example.demo.infrastructure.engine.fastexcel.FastExcelStreamWriterEngine;
 
 /**
  * FastExcel 寫入適配器 (FastExcel Writer Outbound Adapter)
  * <p>
  * 遵循 Clean Architecture 六角形架構規範，實作應用層 {@link ExcelWriterPort} 介面。
  * 封裝第三方高效能串流套件 {@code org.dhatim:fastexcel}，提供低記憶體佔用、極速的 Excel (.xlsx) 檔案生成服務。
+ * 底層大數據串流輸出協調共用之 {@link ExcelStreamWriterEngine}。
  * 命名規範：以 {@code Adapter} 結尾 (3-9 規範)。
  */
 public class FastExcelWriterAdapter implements ExcelWriterPort {
+
+	private final ExcelStreamWriterEngine streamWriterEngine;
+
+	public FastExcelWriterAdapter() {
+		this(new FastExcelStreamWriterEngine());
+	}
+
+	public FastExcelWriterAdapter(ExcelStreamWriterEngine streamWriterEngine) {
+		this.streamWriterEngine = Objects.requireNonNull(streamWriterEngine, "ExcelStreamWriterEngine must not be null");
+	}
 
 	@TrackExcelTask(
 			type = ExcelTaskType.EXPORT,
@@ -102,22 +115,7 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 	public void writeStream(OutputStream outputStream, WriteStreamExcelCommand command) {
 		Objects.requireNonNull(outputStream, "OutputStream must not be null");
 		Objects.requireNonNull(command, "WriteStreamExcelCommand must not be null");
-
-		try (Workbook workbook = new Workbook(outputStream, command.getApplicationName(), command.getApplicationVersion())) {
-			List<WriteStreamSheetCommand> sheets = command.getSheets();
-			if (sheets.isEmpty()) {
-				workbook.newWorksheet("Sheet1");
-			} else {
-				for (WriteStreamSheetCommand sheetCommand : sheets) {
-					writeStreamWorksheet(workbook, sheetCommand);
-				}
-			}
-			workbook.finish();
-		} catch (IOException e) {
-			throw new ExcelWriteException("Failed to stream write Excel document via FastExcel: " + e.getMessage(), e);
-		} catch (Exception e) {
-			throw new ExcelWriteException("Unexpected error during FastExcel stream generation: " + e.getMessage(), e);
-		}
+		streamWriterEngine.writeStream(outputStream, command);
 	}
 
 	/**
@@ -133,12 +131,8 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 	)
 	@Override
 	public byte[] writeStream(WriteStreamExcelCommand command) {
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-			writeStream(baos, command);
-			return baos.toByteArray();
-		} catch (IOException e) {
-			throw new ExcelWriteException("Failed to stream write Excel to byte array: " + e.getMessage(), e);
-		}
+		Objects.requireNonNull(command, "WriteStreamExcelCommand must not be null");
+		return streamWriterEngine.writeStream(command);
 	}
 
 	/**

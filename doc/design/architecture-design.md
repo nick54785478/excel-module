@@ -265,7 +265,23 @@ flowchart TD
 
 ---
 
-### 維度五：企業級報表樣式、公式與安全防護 (Template, Styles & Security) [已完成實作 ✅]
+### 專題主題：高並發與執行緒安全設計架構 (Thread Safety & Concurrency Architecture) [已完成設計 ✅]
+
+> 📖 **專題技術文件**：
+> • 執行緒安全總覽入口：👉 [高並發與執行緒安全設計架構總覽 (thread-safety-and-concurrency.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/thread-safety-and-concurrency.md)
+> • Part 1 執行緒安全與棧隔離：👉 [執行緒安全深入剖析與棧隔離設計 (01-thread-safety-analysis-and-stack-confinement.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/thread-safety-and-concurrency/01-thread-safety-analysis-and-stack-confinement.md)
+> • Part 2 生產者-消費者與 ZIP 分片：👉 [生產者-消費者管線與多活頁簿 ZIP 分片 (02-producer-consumer-and-multithread-zip-partition.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/thread-safety-and-concurrency/02-producer-consumer-and-multithread-zip-partition.md)
+> • 輸出埠選型對比指引：👉 [ExcelWriterPort 與 ExcelPartitionWriterPort 設計對比 (excel-writer-vs-partition-writer-comparison.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/excel-writer-vs-partition-writer-comparison.md)
+
+* **現狀痛點與底層限制**：
+  * Apache POI (`SXSSFWorkbook`) 與 FastExcel 底層物件皆為**非執行緒安全 (Not Thread-Safe)**，禁止跨執行緒直接寫入同一個活頁簿。
+* **模組架構保證與加速方案**：
+  1. **Web 請求並發安全 (維度 A)**：Spring 適配器無狀態化，工作簿物件限定於方法內部 Call Stack（棧隔離），請求間 100% 獨立隔離。
+  2. **生產者-消費者管線 (模式 A)**：多執行緒平行查詢資料庫並推入有界阻斷佇列（背壓防護），專屬單一寫入緒循序寫入 SXSSF 並定期沖刷磁碟，徹底消除 70% 的 DB I/O 阻塞。
+  3. **多活頁簿 ZIP 分片 (模式 B)**：突破 Excel 單表 1,048,576 列天花板，多個工作緒各自平行產製獨立 `.xlsx` 檔，並以 `ZipOutputStream` 串流封裝壓縮。
+  4. **終極組合拳 (模式 A + 模式 B)**：宏觀分片與微觀管線完全不衝突，構建千萬級歷史數據極速導出的高可用架構。
+
+---
 
 > 📖 **專題技術文件**：
 > • 維度五總覽入口：👉 [企業級報表樣式、動態公式與安全防護架構總覽 (template-styles-and-security.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/template-styles-and-security.md)
