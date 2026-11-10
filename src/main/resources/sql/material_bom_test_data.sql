@@ -11,6 +11,8 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 1. 清理舊資料表
+DROP TABLE IF EXISTS t_excel_template;
+DROP TABLE IF EXISTS t_excel_task;
 DROP TABLE IF EXISTS t_bom_item;
 DROP TABLE IF EXISTS t_bom;
 DROP TABLE IF EXISTS t_material;
@@ -71,6 +73,32 @@ CREATE TABLE IF NOT EXISTS t_excel_task (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Excel 任務狀態追蹤表';
+
+CREATE TABLE IF NOT EXISTS t_excel_template (
+    id VARCHAR(64) NOT NULL PRIMARY KEY COMMENT '範本唯一識別碼 UUID 或前綴識別碼',
+    template_key VARCHAR(64) NOT NULL UNIQUE COMMENT '範本識別鍵 (唯一索引，如 MATERIAL_MASTER)',
+    template_name VARCHAR(128) NOT NULL COMMENT '範本顯示名稱',
+    category VARCHAR(64) NOT NULL COMMENT '業務分類 (如 MATERIAL, BOM, PROCUREMENT)',
+    description VARCHAR(500) COMMENT '範本業務說明',
+    required_variables VARCHAR(1000) COMMENT '必備上下文變數 (以逗號分隔)',
+    storage_type VARCHAR(32) NOT NULL DEFAULT 'CLASSPATH' COMMENT '儲存媒介 (CLASSPATH, FILE_SYSTEM, S3, MINIO)',
+    file_path VARCHAR(512) NOT NULL COMMENT '範本實體資源路徑或物件鍵值',
+    default_mapping_json TEXT COMMENT '預設動態欄位映射規格 JSON',
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'DEFAULT' COMMENT '租戶識別碼',
+    version INT NOT NULL DEFAULT 1 COMMENT '範本結構版本號',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否啟用 (1: 啟用, 0: 停用)',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Excel 範本中繼資訊與映射規格定義表';
+
+CREATE INDEX idx_excel_template_category ON t_excel_template(category);
+CREATE INDEX idx_excel_template_tenant ON t_excel_template(tenant_id);
+
+-- --- 插入 3 筆內建核心 Excel 範本資料 ---
+INSERT INTO t_excel_template (id, template_key, template_name, category, description, required_variables, storage_type, file_path, tenant_id, version, is_active, created_at, updated_at) VALUES
+('tmpl-00000000-0000-0000-0000-000000000001', 'MATERIAL_MASTER', '物料主檔清單', 'MATERIAL', '物料主檔資訊清單，基於 Material 聚合根，包含料號、品名、規格、分類、計量單位與標準成本', 'materials,companyName,exportDate', 'CLASSPATH', 'templates/excel/material_master.xlsx', 'DEFAULT', 1, TRUE, NOW(), NOW()),
+('tmpl-00000000-0000-0000-0000-000000000002', 'BOM_COST_ANALYSIS', '產品結構配方與成本分析展開表', 'BOM', '產品結構配方與標準成本卷算分析表，基於 Bom 聚合根與 BomItem 實體，支援有效用量與成本加總動態公式', 'parentMaterialCode,parentMaterialName,version,status,baseQuantity,currency,items', 'CLASSPATH', 'templates/excel/bom_cost_analysis.xlsx', 'DEFAULT', 1, TRUE, NOW(), NOW()),
+('tmpl-00000000-0000-0000-0000-000000000003', 'PROCUREMENT_COMPARISON', '採購詢價比價單', 'PROCUREMENT', '包含多供應商比價明細、最佳報價推薦與自適應加總公式', 'inquiryNo,inquiryDate,quotationItems,vendorNames', 'CLASSPATH', 'templates/excel/procurement_comparison.xlsx', 'DEFAULT', 1, TRUE, NOW(), NOW());
 
 -- =============================================================================
 -- 3. 插入物料主檔資料 (剛好 2000 筆)

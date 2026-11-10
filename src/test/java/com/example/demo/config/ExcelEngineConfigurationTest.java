@@ -6,12 +6,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import com.example.demo.application.port.out.ExcelReaderPort;
-import com.example.demo.application.port.out.ExcelWriterPort;
-import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
-import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
-import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
-import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
+import com.example.demo.application.port.out.core.ExcelReaderPort;
+import com.example.demo.application.port.out.core.ExcelWriterPort;
+import com.example.demo.infrastructure.adapter.core.FastExcelReaderAdapter;
+import com.example.demo.infrastructure.adapter.core.FastExcelWriterAdapter;
+import com.example.demo.infrastructure.adapter.core.PoiSaxReaderAdapter;
+import com.example.demo.infrastructure.adapter.core.PoiSxssfWriterAdapter;
 
 /**
  * ExcelEngineConfiguration 配置切換測試 (Configuration Layer Tests)

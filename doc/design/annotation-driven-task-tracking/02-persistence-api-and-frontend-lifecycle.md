@@ -60,7 +60,7 @@ public class ExcelTaskJpaEntity {
 ```
 
 ### 1.2 Outbound Adapter 與獨立事務隔離：`ExcelTaskRepositoryAdapter`
-座落於 [`com.example.demo.infrastructure.adapter.persistence.ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapter.java)：
+座落於 [`com.example.demo.infrastructure.adapter.task.ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapter.java)：
 * **關鍵技術設計**：所有進度更新與狀態寫入方法均標註 `@Transactional(propagation = Propagation.REQUIRES_NEW)`。
 * **效益**：確保即使外層業務事務回滾，長任務的進度更新與錯誤狀態（`FAILED`）依然能即時寫入資料庫，防止狀態卡死。
 
@@ -69,18 +69,18 @@ public class ExcelTaskJpaEntity {
 ## 2. 應用層合約與 CQRS (Application Layer)
 
 * **Inbound Ports (Use Cases)**：
-  * [`GetExcelTaskUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/GetExcelTaskUseCase.java)：依 `taskId` 查詢進度 DTO。
-  * [`DownloadExcelTaskFileUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/DownloadExcelTaskFileUseCase.java)：取得完成產物二進位串流。
-  * [`SubmitAsyncExcelExportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/SubmitAsyncExcelExportUseCase.java)
-  * [`SubmitAsyncExcelImportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/SubmitAsyncExcelImportUseCase.java)
+  * [`GetExcelTaskUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/GetExcelTaskUseCase.java)：依 `taskId` 查詢進度 DTO。
+  * [`DownloadExcelTaskFileUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/DownloadExcelTaskFileUseCase.java)：取得完成產物二進位串流。
+  * [`SubmitAsyncExcelExportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/SubmitAsyncExcelExportUseCase.java)
+  * [`SubmitAsyncExcelImportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/SubmitAsyncExcelImportUseCase.java)
 * **Outbound Port**：
-  * [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelTaskRepositoryPort.java)：純資料契約，定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById`。
+  * [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/task/ExcelTaskRepositoryPort.java)：純資料契約，定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById`。
 
 ---
 
 ## 3. 表現層端點與前端閉環 (Frontend Integration)
 
-座落於 [`com.example.demo.presentation.controller.ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelTaskController.java)：
+座落於 [`com.example.demo.presentation.controller.ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/task/ExcelTaskController.java)：
 
 ```
 [前端 Client]                         [後端 Excel 模組]
@@ -129,5 +129,5 @@ public class ExcelTaskJpaEntity {
 ## 4. 單元與整合測試驗證 (Testing & Verification)
 
 * [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspectTest.java)：驗證同步任務自動建檔、狀態變更、進度記錄、例外標記 `FAILED`、`async = true` 立即返回以及 FastExcel / POI 串流沖刷進度自動回報。
-* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelTaskControllerTest.java)：驗證進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
+* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java)：驗證進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
 

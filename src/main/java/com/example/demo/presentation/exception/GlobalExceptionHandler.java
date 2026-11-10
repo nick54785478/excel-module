@@ -14,6 +14,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 import com.example.demo.application.shared.exception.ExcelReadException;
 import com.example.demo.application.shared.exception.ExcelTaskNotFoundException;
+import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
 import com.example.demo.application.shared.exception.ExcelValidationFailedException;
 import com.example.demo.application.shared.exception.ExcelWriteException;
 import com.example.demo.domain.material.exception.MaterialNotFoundException;
@@ -250,6 +251,29 @@ public class GlobalExceptionHandler {
 	) {
 		List<FieldErrorResource> fieldErrors = List.of(
 				new FieldErrorResource("taskId", null, ex.getMessage()));
+
+		ValidationFailedResource response = new ValidationFailedResource(
+				LocalDateTime.now(),
+				HttpStatus.NOT_FOUND.value(),
+				HttpStatus.NOT_FOUND.getReasonPhrase(),
+				ex.getMessage(),
+				fieldErrors);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+	}
+
+	/**
+	 * 攔截查無 Excel 範本之業務例外
+	 *
+	 * @param ex 範本不存在例外
+	 * @return 404 Not Found 結構化錯誤回應
+	 */
+	@ExceptionHandler(ExcelTemplateNotFoundException.class)
+	public ResponseEntity<ValidationFailedResource> handleExcelTemplateNotFound(
+			ExcelTemplateNotFoundException ex
+	) {
+		List<FieldErrorResource> fieldErrors = List.of(
+				new FieldErrorResource("templateKey", null, ex.getMessage()));
 
 		ValidationFailedResource response = new ValidationFailedResource(
 				LocalDateTime.now(),

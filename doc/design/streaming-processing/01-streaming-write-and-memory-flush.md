@@ -72,6 +72,6 @@ public record WriteStreamSheetCommand(
 
 ## 4. 基礎設施寫出適配器實作
 
-* [`FastExcelWriterAdapter.writeStream`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java)：利用 FastExcel 高速 StAX 直沖。
-* [`PoiSxssfWriterAdapter.writeStream`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java)：利用 Apache POI SXSSF 硬碟暫存檔機制防爆記憶體。
+* [`FastExcelWriterAdapter.writeStream`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java)：利用 FastExcel 高速 StAX 直沖。
+* [`PoiSxssfWriterAdapter.writeStream`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java)：利用 Apache POI SXSSF 硬碟暫存檔機制防爆記憶體。
 

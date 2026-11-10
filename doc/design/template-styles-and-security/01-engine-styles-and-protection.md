@@ -301,7 +301,7 @@ public record WriteSheetCommand(
 
 ## 4. 基礎設施層雙引擎適配實作 (Infrastructure Adapters)
 
-### 4.1 Apache POI 適配器 ([`PoiSxssfWriterAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java))
+### 4.1 Apache POI 適配器 ([`PoiSxssfWriterAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java))
 Apache POI 具備 Office OpenXML 最完備的規範支援，負責承載企業全特性：
 
 ```java
@@ -359,7 +359,7 @@ private void applyAdvancedFeatures(SXSSFWorkbook workbook, SXSSFSheet sheet, Wri
 }
 ```
 
-### 4.2 FastExcel 適配器 ([`FastExcelWriterAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java))
+### 4.2 FastExcel 適配器 ([`FastExcelWriterAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java))
 FastExcel 0.20.2 原生支援高性能合併、公式與工作表防護，適合海量資料串流輸出：
 
 ```java
@@ -544,8 +544,8 @@ Feature: 企業級報表樣式、動態公式與安全防護驗證 (Enterprise R
    * 於 `application/shared/model/` 建立 `CellRange`、`CellCoordinate`、`SheetProtectionConfig`、`SheetHeaderFooterConfig`。
    * 擴充 `WriteSheetCommand`。
 2. **Phase 2 (雙引擎適配實作)**：
-   * 升級 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java) 支援全功能。
-   * 升級 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) 支援合併、公式與防護。
+   * 升級 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) 支援全功能。
+   * 升級 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java) 支援合併、公式與防護。
 3. **Phase 3 (宣告式註解動態替換)**：
    * 升級 `@ExcelColumn` 與 `@ExcelSheet`，並在 [`ExcelBeanAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/assembler/ExcelBeanAssembler.java) 中實作 `{row}` 自動替換。
 4. **Phase 4 (端對端測試驗證)**：

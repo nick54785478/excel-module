@@ -44,7 +44,7 @@ flowchart LR
    * **架構定位評估與目錄歸屬 (Option A)**：依據 Clean Architecture 與 AGENTS.md Rule 3-8 規範，`application/port/out/` 嚴格僅放置以 `Port` 結尾之 Outbound Port 介面；而 `ExcelReportDecoratorStrategy` 係由工廠輸出埠所生產與調度之策略契約（Strategy SPI / Policy），因此獨立座落於 `application/shared/strategy/`，確保 `port/out/` 維持純正單純的 Gateway Port 邊界。
    * 每個策略具備唯一的識別鍵 `getDecoratorKey()`（如 `"PROCUREMENT_ANALYSIS"`、`"INVENTORY_REPORT"`、`"PROCUREMENT:ENTERPRISE_GREEN"`）。
 2. **工廠輸出埠動態查找 (Factory Port & Key-based Routing)**：
-   * 在 Application Layer 定義 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReportDecoratorFactoryPort.java)。
+   * 在 Application Layer 定義 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java)。
    * Application Service 只需依賴此工廠輸出埠，傳入 Key 即時取得對應策略，完全不知道底層有哪些具體排版類別。
 3. **不可變通用裝飾上下文 (Pure Immutable Context)**：
    * 透過 Java 21 Record 定義 [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java)，安全傳遞標題、密碼、機密等級、原始資料清單與擴充參數。
@@ -654,12 +654,12 @@ public class ExcelReportApplicationService implements ExportFinancialReportUseCa
 ## 7. 重構實施步驟清單 (Action Checklist)
 
 * [x] **Step 1**：在 `application/shared/strategy/` 建立策略契約介面 [`ExcelReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java)（嚴守 Rule 3-8，避免非 Port 介面污染 `port/out/`）。
-* [x] **Step 2**：在 `application/port/out/` 建立工廠輸出埠 [`ExcelReportDecoratorFactoryPort.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReportDecoratorFactoryPort.java)。
+* [x] **Step 2**：在 `application/port/out/` 建立工廠輸出埠 [`ExcelReportDecoratorFactoryPort.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java)。
 * [x] **Step 3**：在 `application/shared/model/` 建立通用上下文 [`ReportDecorationContext.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java)。
 * [x] **Step 4**：在 `infrastructure/adapter/report/` 實作工廠適配器 [`SpringReportDecoratorFactoryAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java)，並將具體裝飾策略與保底策略抽離至 `infrastructure/report/`（[`DefaultNoOpDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/DefaultNoOpDecoratorStrategy.java)）。
 * [x] **Step 5**：將既有採購裝飾器重構為具體策略並抽離出 adapter package：[`ProcurementReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategy.java)。
 * [x] **Step 6**：依據現有 `Bom` 與 `Material` 領域聚合根，建立自訂策略並置於 `infrastructure/report/`：[`BomCostAnalysisReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/BomCostAnalysisReportDecoratorStrategy.java)（Key: `ExcelReportStrategyKeys.BOM_COST_ANALYSIS`）。
-* [x] **Step 7**：在表現層與應用層擴充 [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java) 與 [`ExcelReportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/ExcelReportApplicationService.java)，開放 `GET` 與 `POST` 匯出端點。
+* [x] **Step 7**：在表現層與應用層擴充 [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/report/ExcelReportController.java) 與 [`ExcelReportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/report/ExcelReportApplicationService.java)，開放 `GET` 與 `POST` 匯出端點。
 * [x] **Step 8**：執行全套 Maven 測試，確保 203 測試 100% 通過 (`BUILD SUCCESS`)。
 
 ---

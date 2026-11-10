@@ -26,6 +26,8 @@ tags:
     description: 提供基於 @ExcelSheet 與 @ExcelColumn 註解之 JavaBean 與 Record 宣告式匯入與匯出 REST API
   - name: Excel 長任務監控介面
     description: 提供非同步大數據長任務生命週期進度查詢與二進位產出檔案下載 REST API
+  - name: Excel 宣告式範本匯出 API
+    description: 提供基於 JXLS 3.x 範本定義之 Excel 報表匯出、串流直通下載、動態欄位映射適配與範本清單探索端點
 
 paths:
   /api/v1/bom/excel:
@@ -851,8 +853,363 @@ paths:
         '400':
           description: 無效請求或檔案為空
 
+  /api/v1/excel/templates:
+    get:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 查詢所有已註冊之 Excel 範本清單
+      description: 取得系統已註冊之範本識別鍵、名稱、業務分類與必備變數清單。
+      operationId: listTemplates
+      responses:
+        '200':
+          description: 成功取得範本清單
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExcelTemplateRetrievedResource'
+
+  /api/v1/excel/templates/{templateKey}:
+    get:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 查詢單一範本詳細中繼規格
+      description: 依據範本鍵值獲取該範本之詳細欄位規格與描述。
+      operationId: getTemplateInfo
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本識別鍵 (例如 material_master, bom_cost_analysis, procurement_comparison)
+          schema:
+            type: string
+            example: material_master
+      responses:
+        '200':
+          description: 成功取得範本規格
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelTemplateRetrievedResource'
+        '404':
+          description: 找不到指定範本
+
+  /api/v1/excel/templates/{templateKey}/export:
+    post:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 依據標準資料模型匯出 Excel 檔案 (Buffered 模式)
+      description: 接收資料上下文模型字典，以 JXLS 範本渲染並一次性回傳二進位位元組檔案下載。
+      operationId: exportFromTemplate
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本識別鍵
+          schema:
+            type: string
+            example: procurement_comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTemplateExcelResource'
+      responses:
+        '200':
+          description: 成功產製並回傳 Excel 檔案二進位資料
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="quotation_comparison.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求參數格式不合法
+        '404':
+          description: 指定範本不存在
+
+  /api/v1/excel/templates/{templateKey}/stream:
+    post:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 依據標準資料模型串流匯出 Excel 檔案 (Streaming 模式)
+      description: 直通輸出串流，產物直接寫入 HTTP Servlet Response，適用於較大資料量以節省記憶體堆疊。
+      operationId: streamExportFromTemplate
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本識別鍵
+          schema:
+            type: string
+            example: procurement_comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTemplateExcelResource'
+      responses:
+        '200':
+          description: 成功串流輸出檔案
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="quotation_comparison.xlsx"
+            Transfer-Encoding:
+              schema:
+                type: string
+                example: chunked
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/excel/templates/{templateKey}/export-mapped:
+    post:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 依據自訂欄位動態映射匯出 Excel 檔案 (Buffered 模式)
+      description: |
+        接收自訂欄位映射規格 (Field Mapping Definition)，自動開箱 Value Object (如 MaterialCode, Money, Quantity)
+        並執行各類格式轉換策略 (CURRENCY, DATE, ENUM_DICT, MASKING) 與 SpEL 跨欄運算後，以 JXLS 範本渲染下載。
+      operationId: exportFromTemplateWithMapping
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本識別鍵 (例如 material_master)
+          schema:
+            type: string
+            example: material_master
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTemplateWithMappingResource'
+      responses:
+        '200':
+          description: 成功產製並回傳 Excel 檔案二進位下載
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="custom_material_master.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求參數格式不合法或缺少必填欄位
+        '404':
+          description: 指定範本不存在
+
+  /api/v1/excel/templates/{templateKey}/stream-mapped:
+    post:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 依據自訂欄位動態映射串流匯出 Excel 檔案 (Streaming 模式)
+      description: |
+        接收自訂欄位映射規格，邊解構資料、邊執行轉換、邊透過 Servlet OutputStream 直寫客戶端，
+        達到常數級極低記憶體堆疊消耗 (Zero-Copy HTTP Stream)。
+      operationId: streamExportFromTemplateWithMapping
+      parameters:
+        - name: templateKey
+          in: path
+          required: true
+          description: 範本識別鍵
+          schema:
+            type: string
+            example: material_master
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTemplateWithMappingResource'
+      responses:
+        '200':
+          description: 成功串流輸出檔案
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="stream_material_master.xlsx"
+            Transfer-Encoding:
+              schema:
+                type: string
+                example: chunked
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 請求參數格式不合法
+        '404':
+          description: 指定範本不存在
+
+  /api/v1/excel/templates/mapping/preview:
+    post:
+      tags:
+        - Excel 宣告式範本匯出 API
+      summary: 預覽欄位動態映射後之 JXLS 資料模型 Context (Dry-Run / Preview)
+      description: |
+        接收映射規格與來源資料，執行屬性導航、Value Object 開箱、格式轉換器與 SpEL 虛擬表達式求值，
+        直接回傳組裝後之 JXLS Context JSON 結構，不觸發實體 Excel 渲染，專供除錯與快速校驗使用。
+      operationId: previewMapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTemplateWithMappingResource'
+      responses:
+        '200':
+          description: 成功求值並回傳 JXLS Context Map
+          content:
+            application/json:
+              schema:
+                type: object
+                description: JXLS 渲染資料模型上下文
+                example:
+                  companyName: 神盾航太科技股份有限公司
+                  materials:
+                    - materialCode: MAT-FG-001
+                      materialName: 4K 專業商用巡檢無人機旗艦裝配 (PRO-4K)
+                      category: 成品
+                      standardCost: 128,000.00
+        '400':
+          description: 請求參數格式不合法
+
 components:
   schemas:
+    ExportTemplateExcelResource:
+      type: object
+      description: 標準範本 Excel 匯出請求資源載體
+      required:
+        - dataModel
+      properties:
+        dataModel:
+          type: object
+          description: 注入範本之業務資料上下文 (支援任意鍵值對字典或模型集合)
+        outputFileName:
+          type: string
+          description: 自訂輸出檔案名稱
+          example: procurement_comparison_report.xlsx
+
+    ExportTemplateWithMappingResource:
+      type: object
+      description: 具備自訂欄位動態映射之範本 Excel 匯出請求資源載體
+      required:
+        - mappingDefinition
+      properties:
+        outputFileName:
+          type: string
+          description: 自訂輸出檔案名稱
+          example: custom_material_master.xlsx
+        sourceData:
+          description: 自訂來源業務資料清單或物件 (選填，若未填寫則系統依 templateKey 自動自領域儲存庫載入)
+        mappingDefinition:
+          $ref: '#/components/schemas/TemplateMappingDefinition'
+
+    TemplateMappingDefinition:
+      type: object
+      description: JXLS 範本欄位動態映射整體規格定義
+      required:
+        - templateKey
+        - rootCollectionVar
+      properties:
+        templateKey:
+          type: string
+          description: 範本唯一識別鍵
+          example: material_master
+        rootCollectionVar:
+          type: string
+          description: JXLS jx:each 迭代之集合變數名稱
+          example: materials
+        itemAlias:
+          type: string
+          description: 迭代集合內單一元素之別名
+          example: m
+        globalMeta:
+          type: object
+          description: 全域靜態元數據 (例如 companyName, exportDate 等)
+          example:
+            companyName: 神盾航太科技股份有限公司
+            exportDate: "2026-11-10"
+        rules:
+          type: array
+          description: 欄位動態映射規則清單
+          items:
+            $ref: '#/components/schemas/FieldMappingRule'
+
+    FieldMappingRule:
+      type: object
+      description: 單一欄位映射規則定義
+      required:
+        - targetKey
+      properties:
+        sourcePath:
+          type: string
+          description: 來源屬性路徑 (支援巢狀導航與 Value Object 自動開箱)
+          example: code.value
+        targetKey:
+          type: string
+          description: 範本接收變數鍵值
+          example: materialCode
+        converterKey:
+          type: string
+          description: 格式轉換器識別鍵 (CURRENCY, DATE, ENUM_DICT, MASKING)
+          example: CURRENCY
+        formatPattern:
+          type: string
+          description: 格式化樣式或字典群組代碼
+          example: "#,##0.00"
+        defaultValue:
+          description: 來源值為 null 時之預設替換保底值
+          example: "N/A"
+        virtualExpression:
+          type: string
+          description: 跨欄位 SpEL 虛擬表達式
+          example: "#{m.name} + ' (' + #{m.code.value} + ')'"
+
+    ExcelTemplateRetrievedResource:
+      type: object
+      description: 範本中繼資訊回應資源
+      properties:
+        templateKey:
+          type: string
+          example: material_master
+        templateName:
+          type: string
+          example: 物料主檔匯出範本
+        category:
+          type: string
+          example: MATERIAL
+        description:
+          type: string
+          example: 包含完整物料代碼、名稱、規格、分類與標準單價加總之標準試算表
+        requiredVariables:
+          type: array
+          items:
+            type: string
+          example:
+            - materials
+            - companyName
+        lastModifiedAt:
+          type: string
+          format: date-time
     ExportBomResource:
       type: object
       description: 物料清單 (BOM) Excel 檔案匯出請求結構載體

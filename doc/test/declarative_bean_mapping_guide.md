@@ -1,4 +1,4 @@
-# Excel 宣告式物件映射測試指引與操作手冊 (Declarative Bean Mapping Test Guide)
+﻿# Excel 宣告式物件映射測試指引與操作手冊 (Declarative Bean Mapping Test Guide)
 
 > 📌 **文件位置**：`doc/test/declarative_bean_mapping_guide.md`  
 > 🎯 **適用對象**：測試工程師 (QA)、前端開發人員、第三方系統整合人員  
@@ -20,7 +20,7 @@
 
 ## 1. REST API 測試端點總覽
 
-本模組提供專職測試控制器 [`ExcelBeanMappingController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelBeanMappingController.java)，支援透過 HTTP 呼叫驗證雙軌宣告式映射機制。
+本模組提供專職測試控制器 [`ExcelBeanMappingController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/core/ExcelBeanMappingController.java)，支援透過 HTTP 呼叫驗證雙軌宣告式映射機制。
 
 * **基礎路徑 (Base URL)**：`http://localhost:8080/api/v1/excel/bean-mapping`
 
@@ -228,6 +228,6 @@ http://localhost:8080/swagger-ui.html
    * 驗證 Java 21 Record 模式下規範建構子 Canonical Constructor 自動依序組裝。
    * 驗證千分位數值（如 `"12,500.50"`）與特殊貨幣符號容錯解析。
    * 驗證日期自訂格式（`yyyy-MM-dd`）、布林多格式容錯與預設值自動補齊。
-2. **[`ExcelBeanMappingControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelBeanMappingControllerTest.java) (8 項整合測試)**：
+2. **[`ExcelBeanMappingControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/core/ExcelBeanMappingControllerTest.java) (8 項整合測試)**：
    * 驗證匯入與匯出 API 之 HTTP 200 狀態碼、MIME Type 與 Content-Disposition。
    * 驗證 Spring Validation 參數校驗（檔案為空或訂單清單為空時回傳 400 Bad Request）。

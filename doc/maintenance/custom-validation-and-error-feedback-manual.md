@@ -143,7 +143,7 @@ public record ExcelRowError(
 
 ## 5. 對外 REST API 調用手冊
 
-控制器具體落地於 [`ExcelValidationController.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelValidationController.java)，遵循 OCP 開放封閉原則，收斂為 5 隻核心端點：
+控制器具體落地於 [`ExcelValidationController.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/validation/ExcelValidationController.java)，遵循 OCP 開放封閉原則，收斂為 5 隻核心端點：
 
 ### 5.1 OCP 統一動態範本校驗 API (支援 orders, products, materials, boms 等所有業務)
 
@@ -257,7 +257,7 @@ public List<ExcelRowError> createErrors(OrderModel order, ExcelValidationContext
 ```
 
 ### Q3：整表唯一性（防重複）要在哪裡寫？
-對於跨列防重複或加總對帳等整表約束，請實作應用層 Outbound Port [`ExcelSheetValidatorPort<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelSheetValidatorPort.java)，並透過 `context.allRows()` 走訪整表快照進行重複性過濾。
+對於跨列防重複或加總對帳等整表約束，請實作應用層 Outbound Port [`ExcelSheetValidatorPort<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelSheetValidatorPort.java)，並透過 `context.allRows()` 走訪整表快照進行重複性過濾。
 
 ---
 

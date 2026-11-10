@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 
 import com.example.demo.application.annotation.task.TrackExcelTask;
-import com.example.demo.application.port.out.ExcelTaskRepositoryPort;
-import com.example.demo.application.port.out.ExcelWriterPort;
+import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.core.ExcelWriterPort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
@@ -31,8 +31,8 @@ import com.example.demo.application.shared.context.ExcelTaskContextHolder;
 import com.example.demo.application.shared.dto.ExcelTaskGottenResult;
 import com.example.demo.application.shared.vo.ExcelTaskStatus;
 import com.example.demo.application.shared.vo.ExcelTaskType;
-import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
-import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.core.FastExcelWriterAdapter;
+import com.example.demo.infrastructure.adapter.core.PoiSxssfWriterAdapter;
 
 /**
  * Excel 長任務宣告式追蹤切面單元測試 (ExcelTaskTrackingAspect Test)

@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.application.annotation.validation.ValidateExcel;
 import com.example.demo.application.annotation.validation.ValidatedExcelData;
-import com.example.demo.application.port.in.ValidateExcelUseCase;
+import com.example.demo.application.port.in.validation.ValidateExcelUseCase;
 import com.example.demo.application.shared.context.ExcelValidationContextHolder;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.exception.ExcelValidationFailedException;

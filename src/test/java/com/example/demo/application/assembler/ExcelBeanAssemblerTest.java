@@ -17,17 +17,17 @@ import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.annotation.mapping.ExcelColumn;
 import com.example.demo.application.annotation.mapping.ExcelSheet;
-import com.example.demo.application.port.out.ExcelReaderPort;
-import com.example.demo.application.port.out.ExcelWriterPort;
-import com.example.demo.application.service.ExcelCommandService;
-import com.example.demo.application.service.ExcelQueryService;
+import com.example.demo.application.port.out.core.ExcelReaderPort;
+import com.example.demo.application.port.out.core.ExcelWriterPort;
+import com.example.demo.application.service.core.ExcelCommandService;
+import com.example.demo.application.service.core.ExcelQueryService;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.infrastructure.adapter.engine.FastExcelReaderAdapter;
-import com.example.demo.infrastructure.adapter.engine.FastExcelWriterAdapter;
-import com.example.demo.infrastructure.adapter.engine.PoiSaxReaderAdapter;
-import com.example.demo.infrastructure.adapter.engine.PoiSxssfWriterAdapter;
+import com.example.demo.infrastructure.adapter.core.FastExcelReaderAdapter;
+import com.example.demo.infrastructure.adapter.core.FastExcelWriterAdapter;
+import com.example.demo.infrastructure.adapter.core.PoiSaxReaderAdapter;
+import com.example.demo.infrastructure.adapter.core.PoiSxssfWriterAdapter;
 
 @DisplayName("ExcelBeanAssembler 宣告式物件映射與 Application Service 流程測試")
 class ExcelBeanAssemblerTest {

@@ -65,13 +65,13 @@ flowchart TD
 
 | 分層 (Layer) | 元件名稱 / 介面 | 角色與職責 | AGENTS.md 命名規範 |
 | :--- | :--- | :--- | :--- |
-| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java) | 串流寫出技術抽象通訊埠，定義 `writeStream` 契約 | `*Port` (Rule 3-8) |
-| **Application (Port Out)**| [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReaderPort.java) | 串流讀取技術抽象通訊埠，定義 `readStream`, `readChunked` | `*Port` (Rule 3-8) |
+| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java) | 串流寫出技術抽象通訊埠，定義 `writeStream` 契約 | `*Port` (Rule 3-8) |
+| **Application (Port Out)**| [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelReaderPort.java) | 串流讀取技術抽象通訊埠，定義 `readStream`, `readChunked` | `*Port` (Rule 3-8) |
 | **Application (Command)** | [`WriteStreamExcelCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/WriteStreamExcelCommand.java)<br>[`WriteStreamSheetCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/WriteStreamSheetCommand.java) | 串流寫出工作簿與工作表純不可變指令載體 | Java 21 Record |
 | **Application (SPI)**     | [`ExcelRowConsumer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/stream/ExcelRowConsumer.java)<br>[`ExcelChunkConsumer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/stream/ExcelChunkConsumer.java)<br>[`ExcelStreamListener`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/stream/ExcelStreamListener.java) | 逐列、分塊與全生命週期監聽純 Java 函式介面 | Functional SPI |
 | **Application (Context)** | [`ExcelRowContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/stream/ExcelRowContext.java) | 傳遞工作表名、物理列號並提供 `stop()` 終止控制器 | Context |
-| **Infrastructure (Adapter)** | [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java)<br>[`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapter.java) | FastExcel 0.20.2 串流寫入 (flush) 與 StAX 讀取適配器 | `*Adapter` (Rule 3-9) |
-| **Infrastructure (Adapter)** | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java)<br>[`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapter.java) | POI 5.5.1 SXSSF 硬碟暫存沖刷與 SAX 事件讀取適配器 | `*Adapter` (Rule 3-9) |
+| **Infrastructure (Adapter)** | [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java)<br>[`FastExcelReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelReaderAdapter.java) | FastExcel 0.20.2 串流寫入 (flush) 與 StAX 讀取適配器 | `*Adapter` (Rule 3-9) |
+| **Infrastructure (Adapter)** | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java)<br>[`PoiSaxReaderAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSaxReaderAdapter.java) | POI 5.5.1 SXSSF 硬碟暫存沖刷與 SAX 事件讀取適配器 | `*Adapter` (Rule 3-9) |
 
 ---
 
@@ -101,7 +101,76 @@ sequenceDiagram
 
 ## 5. 測試驗證全景 (Testing & Verification Status)
 
-* [`FastExcelWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapterTest.java)：驗證常數記憶體串流寫入、分批沖刷與多工作表串流。
-* [`FastExcelReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapterTest.java)：驗證逐列串流讀取、分塊消費批次組裝與 `stop()` 提前中斷。
-* [`PoiSxssfWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapterTest.java)：驗證 POI SXSSF 硬碟暫存沖刷。
-* [`PoiSaxReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapterTest.java)：驗證 POI SAX 輕量事件讀取。
+* [`FastExcelWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapterTest.java)：驗證常數記憶體串流寫入、分批沖刷與多工作表串流。
+* [`FastExcelReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/FastExcelReaderAdapterTest.java)：驗證逐列串流讀取、分塊消費批次組裝與 `stop()` 提前中斷。
+* [`PoiSxssfWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapterTest.java)：驗證 POI SXSSF 硬碟暫存沖刷。
+* [`PoiSaxReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/PoiSaxReaderAdapterTest.java)：驗證 POI SAX 輕量事件讀取。
+
+---
+
+## 6. 子模組 Package 套件結構與分層對照 (Package Structure & Layer Mapping)
+
+核心串流讀寫引擎子模組遵循 Clean Architecture 六角形架構，其 Package 套件結構如下：
+
+### 6.1 主程式 Package 結構 (`src/main/java`)
+
+```
+com.example.demo
+├── presentation/                                    # 表現層 (Inbound Adapters)
+│   ├── controller/core/                             # 核心 Excel 讀寫 REST API 控制器
+│   │   ├── ExcelController.java                     # 標準二進位檔案匯入/匯出/串流匯出端點
+│   │   └── ExcelBeanMappingController.java          # 宣告式 Bean 映射匯入/匯出端點
+│   ├── assembler/                                   # 防腐層 Resource 組裝器
+│   │   └── ExcelResourceAssembler.java              # 表現層 Resource 轉 Command/Query
+│   └── resource/                                    # 表現層資料載體 (Rule 3-1 & 3-2)
+│       ├── in/ (ExportExcelResource.java, ExportOrderResource.java...)
+│       └── out/ (ExcelExportedResource.java, ExcelImportedResource.java...)
+│
+├── application/                                     # 應用層 (Application Core)
+│   ├── port/in/core/                                # Inbound Ports (UseCases - Rule 3-8)
+│   │   ├── ExportExcelUseCase.java                  # 同步匯出 UseCase
+│   │   ├── StreamExportExcelUseCase.java            # 串流匯出 UseCase
+│   │   ├── ImportExcelUseCase.java                  # 同步匯入解析 UseCase
+│   │   └── StreamImportExcelUseCase.java            # 大數據分塊串流解析 UseCase
+│   ├── port/out/core/                               # Outbound Ports (業務輸出埠 - Rule 3-8)
+│   │   ├── ExcelWriterPort.java                     # 檔案寫入合約 (write, writeStream)
+│   │   └── ExcelReaderPort.java                     # 檔案讀取合約 (read, readStream, readChunked)
+│   ├── service/core/                                # CQRS 應用服務 (Rule 3-9)
+│   │   ├── ExcelCommandService.java                 # 匯出命令調度服務
+│   │   └── ExcelQueryService.java                   # 匯入讀取查詢服務
+│   ├── assembler/                                   # Model 轉字典組裝器
+│   │   └── ExcelBeanAssembler.java                  # 反射快取與 JavaBean/Record 雙向組裝器
+│   └── shared/                                      # 核心跨層資料載體
+│       ├── command/                                 # WriteExcelCommand.java, WriteStreamExcelCommand.java...
+│       ├── query/                                   # ReadExcelQuery.java...
+│       ├── dto/                                     # ExcelGottenResult.java...
+│       └── stream/                                  # ExcelRowConsumer.java, ExcelChunkConsumer.java, ExcelRowContext.java...
+│
+└── infrastructure/                                  # 基礎設施層 (Outbound Adapters & Engines)
+    ├── adapter/core/                                # 核心讀寫輸出適配器 (Rule 3-9)
+    │   ├── FastExcelWriterAdapter.java              # FastExcel 高效串流寫入適配器
+    │   ├── FastExcelReaderAdapter.java              # FastExcel 串流解析適配器
+    │   ├── PoiSxssfWriterAdapter.java               # Apache POI SXSSF 磁碟暫存寫入適配器
+    │   └── PoiSaxReaderAdapter.java                 # Apache POI SAX 事件驅動解析適配器
+    └── engine/                                      # 底層串流寫入技術引擎 (Internal SPI)
+        ├── ExcelStreamWriterEngine.java             # 寫入引擎抽象合約
+        ├── fastexcel/FastExcelStreamWriterEngine.java # FastExcel 實體底層引擎
+        └── poi/PoiSxssfStreamWriterEngine.java        # POI SXSSF 實體底層引擎
+
+### 6.2 測試套件 Package 結構 (`src/test/java`)
+
+```
+com.example.demo
+├── presentation/controller/core/
+│   ├── ExcelControllerTest.java                     # 核心讀寫控制器測試
+│   └── ExcelBeanMappingControllerTest.java          # 宣告式映射控制器測試
+├── application/service/core/
+│   ├── ExcelCommandServiceTest.java                 # 匯出應用服務測試
+│   └── ExcelQueryServiceTest.java                   # 匯入應用服務測試
+└── infrastructure/adapter/core/
+    ├── FastExcelWriterAdapterTest.java              # FastExcel 寫入適配器測試
+    ├── FastExcelReaderAdapterTest.java              # FastExcel 讀取適配器測試
+    ├── FastExcelStreamingTest.java                  # FastExcel 串流效能測試
+    ├── PoiSxssfWriterAdapterTest.java               # POI SXSSF 寫入適配器測試
+    └── PoiSaxReaderAdapterTest.java                 # POI SAX 讀取適配器測試
+```

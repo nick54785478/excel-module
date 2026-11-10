@@ -88,16 +88,16 @@ flowchart TD
 
 | 分層 (Layer) | 元件名稱 / 介面 | 角色與職責 | AGENTS.md 命名規範 |
 | :--- | :--- | :--- | :--- |
-| **Presentation** | [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelTaskController.java) | 對外提供 `GET /{id}/progress` 與 `GET /{id}/download` API | Controller |
+| **Presentation** | [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/task/ExcelTaskController.java) | 對外提供 `GET /{id}/progress` 與 `GET /{id}/download` API | Controller |
 | **Presentation** | [`ExcelTaskResourceAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/assembler/ExcelTaskResourceAssembler.java) | ACL 防腐層，負責 Task DTO 轉 Resource | Assembler |
-| **Application (Port In)** | [`GetExcelTaskUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/GetExcelTaskUseCase.java)<br>[`DownloadExcelTaskFileUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/DownloadExcelTaskFileUseCase.java) | 長任務進度查詢與檔案下載 UseCase 合約 | `*UseCase` (Rule 3-8) |
-| **Application (Port Out)**| [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelTaskRepositoryPort.java) | 應用層定義之資料庫操作純契約，嚴禁洩漏 JPA 實體 | `*Port` (Rule 3-8) |
+| **Application (Port In)** | [`GetExcelTaskUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/GetExcelTaskUseCase.java)<br>[`DownloadExcelTaskFileUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/DownloadExcelTaskFileUseCase.java) | 長任務進度查詢與檔案下載 UseCase 合約 | `*UseCase` (Rule 3-8) |
+| **Application (Port Out)**| [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/task/ExcelTaskRepositoryPort.java) | 應用層定義之資料庫操作純契約，嚴禁洩漏 JPA 實體 | `*Port` (Rule 3-8) |
 | **Application (Annotation)**| [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java) | 宣告式長任務監控註解，支援 SpEL 動態計算 | Annotation |
 | **Application (VO)**      | [`ExcelTaskType`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/ExcelTaskType.java)<br>[`ExcelTaskStatus`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/ExcelTaskStatus.java) | 任務類型與狀態不可變值物件 | Value Object |
 | **Application (Context)** | [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java) | ThreadLocal 執行期執行緒上下文管理器 | Context Holder |
 | **Infrastructure (AOP)**  | [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspect.java) | 切面攔截 `@TrackExcelTask`，自動管理任務生命週期與防覆蓋 | Outbound Aspect |
 | **Infrastructure (Persistence)** | [`ExcelTaskJpaEntity`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/persistence/task/entity/ExcelTaskJpaEntity.java)<br>[`ExcelTaskJpaRepository`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/persistence/task/repository/ExcelTaskJpaRepository.java) | 長任務 JPA ORM 技術實體與 Spring Data Repository | Technical Entity |
-| **Infrastructure (Adapter)** | [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence/ExcelTaskRepositoryAdapter.java) | 實作 `ExcelTaskRepositoryPort`，以 `REQUIRES_NEW` 獨立事務保證進度即時入庫 | `*Adapter` (Rule 3-9) |
+| **Infrastructure (Adapter)** | [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapter.java) | 實作 `ExcelTaskRepositoryPort`，以 `REQUIRES_NEW` 獨立事務保證進度即時入庫 | `*Adapter` (Rule 3-9) |
 
 ---
 
@@ -141,5 +141,83 @@ sequenceDiagram
 
 ## 5. 測試驗證全景 (Testing & Verification Status)
 
-* [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspectTest.java)：驗證同步與非同步任務自動建檔、狀態變更、進度記錄、例外標記 `FAILED` 兜底、ThreadLocal 巢狀保護以及 FastExcel / POI 串流沖刷進度自動回報。
-* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelTaskControllerTest.java)：驗證進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
+* [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspectTest.java)：驗證同步與非同步任務自動建檔、狀態變更、進度記錄、例外標記 `FAILED` 兜底、ThreadLocal 巢狀保護以及 FastExcel / POI 串流沖刷進度自動回報。
+* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java)：驗證進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
+
+---
+
+## 6. 子模組 Package 套件結構與分層對照 (Package Structure & Layer Mapping)
+
+本非同步長任務追蹤子模組遵循 Clean Architecture 六角形架構規範，落實依賴反向原則 (DIP) 與清晰的模組邊界，所屬原始碼與測試 Package 結構如下：
+
+### 6.1 主程式 Package 結構 (`src/main/java`)
+
+```
+com.example.demo
+├── presentation/                                    # 表現層 (Inbound Adapters)
+│   ├── controller/task/                             # 任務 REST 控制器
+│   │   └── ExcelTaskController.java                 # GET /tasks/{id}/progress, GET /tasks/{id}/download
+│   ├── assembler/                                   # 防腐層 Resource 組裝器
+│   │   └── ExcelTaskResourceAssembler.java          # 負責 Resource 與 Command/DTO 轉換
+│   └── resource/out/                                # 任務專屬 Response 資料載體 (Rule 3-2)
+│       ├── ExcelTaskRetrievedResource.java          # 任務詳細資訊回應載體
+│       └── ExcelTaskProgressResource.java           # 任務進度狀態回應載體
+│
+├── application/                                     # 應用層 (Application Core)
+│   ├── annotation/task/                             # 宣告式長任務標註
+│   │   ├── TrackExcelTask.java                      # 方法級切面監聽註解
+│   │   └── ExcelTaskId.java                         # 顯式指定 Task ID 參數標註
+│   ├── shared/context/                              # 上下文生命週期維護
+│   │   └── ExcelTaskContextHolder.java              # ThreadLocal 上下文傳遞與巢狀防護
+│   ├── port/in/task/                                # Inbound Ports (UseCases - Rule 3-8)
+│   │   ├── GetExcelTaskUseCase.java                 # 查詢任務狀態合約
+│   │   ├── DownloadExcelTaskFileUseCase.java        # 下載任務產物檔案合約
+│   │   ├── SubmitAsyncExcelExportUseCase.java       # 提交非同步匯出合約
+│   │   └── SubmitAsyncExcelImportUseCase.java       # 提交非同步匯入合約
+│   ├── port/out/task/                               # Outbound Ports (業務輸出埠 - Rule 3-8)
+│   │   └── ExcelTaskRepositoryPort.java             # 任務持久化儲存合約
+│   ├── service/task/                                # Application Services (CQRS - Rule 3-9)
+│   │   ├── ExcelTaskCommandService.java             # 負責任務建立、進度更新、完成與失敗
+│   │   └── ExcelTaskQueryService.java               # 負責任務查詢與產物檢索
+│   └── shared/                                      # 跨層共享不可變模型
+│       ├── command/                                 # Command 寫入命令 (Rule 3-4)
+│       │   ├── CreateExcelTaskCommand.java          # 建立任務命令
+│       │   ├── UpdateExcelTaskProgressCommand.java  # 更新進度命令
+│       │   ├── CompleteExcelTaskCommand.java        # 標記完成命令
+│       │   ├── FailExcelTaskCommand.java            # 標記失敗命令
+│       │   ├── SubmitAsyncExportCommand.java        # 提交非同步匯出命令
+│       │   └── SubmitAsyncImportCommand.java        # 提交非同步匯入命令
+│       ├── query/                                   # Query 查詢命令 (Rule 3-5)
+│       │   └── GetExcelTaskQuery.java               # 依 ID 查詢命令
+│       ├── dto/                                     # DTO 查詢結果純載體 (Rule 3-6)
+│       │   └── ExcelTaskGottenResult.java           # 任務狀態結果 DTO
+│       └── vo/                                      # 任務業務值物件 (Value Objects)
+│           ├── ExcelTaskStatus.java                 # 任務狀態枚舉 (PENDING, PROCESSING, COMPLETED, FAILED)
+│           └── ExcelTaskType.java                   # 任務類型枚舉 (IMPORT, EXPORT)
+│
+└── infrastructure/                                  # 基礎設施層 (Outbound Adapters & Persistence)
+    ├── aspect/                                      # Spring AOP 橫切切面
+    │   └── ExcelTaskTrackingAspect.java             # 攔截 @TrackExcelTask 自動接管生命週期
+    ├── adapter/task/                                # 輸出適配器 (Rule 3-9)
+    │   └── ExcelTaskRepositoryAdapter.java          # 實作 ExcelTaskRepositoryPort (REQUIRES_NEW 事務)
+    └── persistence/task/                            # JPA 技術持久化聚合切片 (Rule 2)
+        ├── entity/                                  # JPA ORM 實體
+        │   └── ExcelTaskJpaEntity.java              # 長任務資料庫對應實體
+        └── repository/                              # Spring Data JPA 存取介面
+            └── ExcelTaskJpaRepository.java          # 任務底層資料庫 CRUD 介面
+
+### 6.2 測試套件 Package 結構 (`src/test/java`)
+
+```
+com.example.demo
+├── presentation/controller/task/
+│   └── ExcelTaskControllerTest.java                 # 任務 REST API 端點整合測試 (MockMvc)
+├── application/service/task/
+│   ├── ExcelTaskCommandServiceTest.java             # 任務指令服務單元測試
+│   └── ExcelTaskQueryServiceTest.java               # 任務查詢服務單元測試
+└── infrastructure/
+    ├── aspect/
+    │   └── ExcelTaskTrackingAspectTest.java         # AOP 切面行為、進度回報與例外兜底測試
+    └── adapter/task/
+        └── ExcelTaskRepositoryAdapterTest.java      # 任務適配器與 JPA 整合測試
+```

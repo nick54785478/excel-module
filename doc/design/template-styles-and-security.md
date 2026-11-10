@@ -52,12 +52,12 @@ flowchart TD
 
 | 分層 (Layer) | 元件名稱 / 介面 | 角色與職責 | AGENTS.md 命名規範 |
 | :--- | :--- | :--- | :--- |
-| **Presentation** | [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java) | REST API 進入點，接收動態報表請求 | Controller |
+| **Presentation** | [`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/report/ExcelReportController.java) | REST API 進入點，接收動態報表請求 | Controller |
 | **Presentation** | [`ExcelReportResourceAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/assembler/ExcelReportResourceAssembler.java) | ACL 防腐層，負責 Request/Resource 轉 Command | Assembler |
-| **Application (Port In)** | [`ExportFinancialReportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/ExportFinancialReportUseCase.java) | 財務與採購報表匯出應用業務合約 | `*UseCase` (Rule 3-8) |
-| **Application (Service)** | [`ExcelReportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/ExcelReportApplicationService.java) | 流程協調者，僅依賴工廠輸出埠，無排版算術耦合 | `*ApplicationService` (Rule 3-9) |
-| **Application (Port Out)**| [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelReportDecoratorFactoryPort.java) | 依 `reportKey` 動態獲取裝飾策略之工廠輸出通訊埠 | `*Port` (Rule 3-8) |
-| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java) | 實體 Excel 二進位檔案寫入技術契約 | `*Port` (Rule 3-8) |
+| **Application (Port In)** | [`ExportFinancialReportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/report/ExportFinancialReportUseCase.java) | 財務與採購報表匯出應用業務合約 | `*UseCase` (Rule 3-8) |
+| **Application (Service)** | [`ExcelReportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/report/ExcelReportApplicationService.java) | 流程協調者，僅依賴工廠輸出埠，無排版算術耦合 | `*ApplicationService` (Rule 3-9) |
+| **Application (Port Out)**| [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java) | 依 `reportKey` 動態獲取裝飾策略之工廠輸出通訊埠 | `*Port` (Rule 3-8) |
+| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java) | 實體 Excel 二進位檔案寫入技術契約 | `*Port` (Rule 3-8) |
 | **Application (Strategy)**| [`ExcelReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java) | 應用層共用策略契約 SPI，由工廠管理與路由 | Strategy SPI |
 | **Application (Model)**   | [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java) | 包含標題、密碼、原始資料之不可變上下文 Record | Java 21 Record |
 | **Application (Model)**   | [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/CellRange.java) | 跨欄跨列矩形合併區間純數值物件 | Java 21 Record |
@@ -67,7 +67,7 @@ flowchart TD
 | **Infrastructure (Strategy)**| [`ProcurementReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/ProcurementReportDecoratorStrategy.java) | 採購月報專屬排版：合計列、SUM 公式、A~D 跨欄合併 | Strategy Component |
 | **Infrastructure (Strategy)**| [`BomCostAnalysisReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/BomCostAnalysisReportDecoratorStrategy.java) | BOM 成本分析排版：A~K 跨欄合併、L 欄 SUM 公式、深海軍藍 (#1B365D) 配色與密碼防護 | Strategy Component |
 | **Infrastructure (Strategy)**| [`DefaultNoOpDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/DefaultNoOpDecoratorStrategy.java) | 無操作保底策略，未匹配時原樣輸出，確保高可用 | Fallback Strategy |
-| **Infrastructure (Engine)**  | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapter.java)<br>[`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapter.java) | POI 5.5.1 與 FastExcel 0.20.2 底層引擎適配器 | `*Adapter` (Rule 3-9) |
+| **Infrastructure (Engine)**  | [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java)<br>[`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java) | POI 5.5.1 與 FastExcel 0.20.2 底層引擎適配器 | `*Adapter` (Rule 3-9) |
 
 ---
 
@@ -116,12 +116,69 @@ sequenceDiagram
 
 本子模組各項功能均具備完整的單元測試與整合測試，包含異常分支、保底降級與雙引擎適配：
 
-* [`ExcelReportApplicationServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/ExcelReportApplicationServiceTest.java)：驗證應用服務流程協調、工廠路由與保底策略呼叫。
-* [`ProcurementReportDecoratorStrategyTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/report/ProcurementReportDecoratorStrategyTest.java)：驗證合計列索引計算、SUM 公式生成、`CellRange` 合併區間與安全防護密碼設置。
+* [`ExcelReportApplicationServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/report/ExcelReportApplicationServiceTest.java)：驗證應用服務流程協調、工廠路由與保底策略呼叫。
+* [`ProcurementReportDecoratorStrategyTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategyTest.java)：驗證合計列索引計算、SUM 公式生成、`CellRange` 合併區間與安全防護密碼設置。
 * [`SpringReportDecoratorFactoryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapterTest.java)：驗證 Spring 容器 Bean 自動收錄、不區分大小寫查找與保底降級。
-* [`PoiSxssfWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/PoiSxssfWriterAdapterTest.java)：驗證 POI 引擎之多階儲存格合併、動態公式求值、密碼鎖定與頁首頁尾巨集。
-* [`FastExcelWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/FastExcelWriterAdapterTest.java)：驗證 FastExcel 引擎之巨量資料合併與公式串流沖刷。
-* [`ExcelReportControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelReportControllerTest.java)：驗證 REST 表現層參數接收、防腐轉換與自訂檔名標頭輸出。
+* [`PoiSxssfWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapterTest.java)：驗證 POI 引擎之多階儲存格合併、動態公式求值、密碼鎖定與頁首頁尾巨集。
+* [`FastExcelWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapterTest.java)：驗證 FastExcel 引擎之巨量資料合併與公式串流沖刷。
+* [`ExcelReportControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/report/ExcelReportControllerTest.java)：驗證 REST 表現層參數接收、防腐轉換與自訂檔名標頭輸出。
+
+---
+
+## 6. 子模組 Package 套件結構與分層對照 (Package Structure & Layer Mapping)
+
+企業級報表樣式、公式與安全防護子模組遵循 Clean Architecture 六角形架構，其 Package 套件結構如下：
+
+### 6.1 主程式 Package 結構 (`src/main/java`)
+
+```
+com.example.demo
+├── presentation/                                    # 表現層 (Inbound Adapters)
+│   ├── controller/report/                           # 報表 REST 控制器
+│   │   └── ExcelReportController.java               # POST /reports/{reportKey}/export
+│   ├── assembler/                                   # 防腐層 Resource 組裝器
+│   │   └── ExcelReportResourceAssembler.java        # Request 轉 Command 組裝器
+│   └── resource/                                    # 表現層資料載體 (Rule 3-1 & 3-2)
+│       ├── in/ (ExportFinancialReportResource.java)
+│       └── out/ (ExcelReportExportedResource.java)
+│
+├── application/                                     # 應用層 (Application Core)
+│   ├── port/in/report/                              # Inbound Ports (UseCases - Rule 3-8)
+│   │   └── ExportFinancialReportUseCase.java        # 財務/採購報表匯出 UseCase
+│   ├── port/out/report/                             # Outbound Ports (業務輸出埠 - Rule 3-8)
+│   │   └── ExcelReportDecoratorFactoryPort.java     # 策略工廠輸出埠
+│   ├── service/report/                              # 應用服務 (Rule 3-9)
+│   │   └── ExcelReportApplicationService.java       # 流程協調與策略調度
+│   └── shared/
+│       ├── strategy/                                # 應用層策略契約 SPI
+│       │   ├── ExcelReportDecoratorStrategy.java    # 樣式裝飾策略介面
+│       │   └── ReportDecorationContext.java         # 裝飾執行上下文
+│       └── command/                                 # 寫入命令載體
+│           └── ExportFinancialReportCommand.java
+│
+└── infrastructure/                                  # 基礎設施層 (Outbound Adapters & Strategies)
+    ├── adapter/report/                              # 輸出適配器 (Rule 3-9)
+    │   └── SpringReportDecoratorFactoryAdapter.java # 實作 DecoratorFactoryPort (自動收錄 Bean)
+    └── report/                                      # 具體業務報表裝飾策略 (Strategy Implementations)
+        ├── ProcurementReportDecoratorStrategy.java  # 採購損益月報策略
+        ├── BomCostAnalysisReportDecoratorStrategy.java # BOM 成本卷算分析策略
+        └── DefaultNoOpDecoratorStrategy.java        # 預設保底無操作策略
+
+### 6.2 測試套件 Package 結構 (`src/test/java`)
+
+```
+com.example.demo
+├── presentation/controller/report/
+│   └── ExcelReportControllerTest.java               # 報表 REST 控制器端點測試
+├── application/service/report/
+│   └── ExcelReportApplicationServiceTest.java       # 報表應用服務單元測試
+└── infrastructure/
+    ├── adapter/report/
+    │   └── SpringReportDecoratorFactoryAdapterTest.java # 工廠適配器單元測試
+    └── report/
+        ├── ProcurementReportDecoratorStrategyTest.java  # 採購策略單元測試
+        └── BomCostAnalysisReportDecoratorStrategyTest.java # BOM 分析策略單元測試
+```
 
 ```text
 Results:

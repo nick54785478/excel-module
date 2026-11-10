@@ -1,4 +1,4 @@
-# Excel 模組與物料清單 (BOM) API 測試手冊 (API Testing Guide)
+﻿# Excel 模組與物料清單 (BOM) API 測試手冊 (API Testing Guide)
 
 本目錄存放本專案所有 API 測試資產，支援 **Postman** 與 **OpenAPI 3.0 (Swagger UI)** 兩種主流測試方式。
 
@@ -9,6 +9,8 @@
 | 檔案名稱 | 格式 | 說明與用途 |
 | :--- | :---: | :--- |
 | [`template_styles_and_security_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/template_styles_and_security_testing_guide.md) | Markdown | **維度五「企業級報表樣式、動態公式、安全防護與自訂 BOM 成本卷算 (Template, Styles & Security)」完整測試手冊** |
+| [`excel_template_export_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/excel_template_export_testing_guide.md) | Markdown | **「Excel 宣告式範本匯出 API」完整測試手冊 (含 7 大端點、Swagger UI 實測與各範本 RequestData 大全)** |
+| [`jxls_dynamic_field_mapping_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/jxls_dynamic_field_mapping_testing_guide.md) | Markdown | **「JXLS 範本匯出與欄位動態映射引擎 (Dynamic Field Mapping)」完整實測情境與 OpenAPI 操作手冊** |
 | [`parallel_and_partition_export_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/parallel_and_partition_export_testing_guide.md) | Markdown | **「高並發平行管線 (模式 A) 與多活頁簿 ZIP 分片打包 (模式 B/A+B)」完整測試與操作手冊** |
 | [`declarative_bean_mapping_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/declarative_bean_mapping_guide.md) | Markdown | **維度一「宣告式物件映射 (Declarative Bean Mapping)」完整測試與使用指引** |
 | [`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md) | Markdown | **維度四「宣告式長任務監控模組 (@TrackExcelTask)」觸發、進度輪詢與下載完整測試指引** |
@@ -67,14 +69,14 @@
   4. `POST Zero-Config 智慧自動探測回標檔 (/feedback)`：免傳 Key，依 Sheet Name 自動探測並回標。
   5. `POST 宣告式 AOP 自動回標攔截匯入 (/declarative/orders)`：驗證 `@ValidateExcel` 切面短路防守與合規清單自動注入。
 * **`6. 物料與 BOM 聚合宣告式 Excel 映射模組 (Material & BOM Mapping)`**：
-  * 控制器：[`MaterialBomExcelController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/MaterialBomExcelController.java) (`/api/v1/excel/material-bom`)
+  * 控制器：[`MaterialBomExcelController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/bom/MaterialBomExcelController.java) (`/api/v1/excel/material-bom`)
   1. `GET 匯出系統現有物料主檔 Excel (/materials/export)`：直接查詢 Material 聚合根，一鍵下載 `materials_master.xlsx`。
   2. `POST 上傳物料 Excel 宣告式純解析 (/materials/import)`：反射反序列化為 `MaterialExcelModel` JSON。
   3. `GET 匯出系統現有單階 BOM 配方 Excel (/bom-items/export)`：直接查詢 BOM 聚合根，一鍵下載 `bom_items_master.xlsx`。
   4. `POST 上傳 BOM 配方 Excel 宣告式純解析 (/bom-items/import)`：反射反序列化為 `BomItemExcelModel` JSON。
 * **`7. Excel 企業級報表樣式、動態公式、安全防護與 BOM 成本分析模組 (Template, Styles & Security)`**：
   * 詳細指引參閱：[`template_styles_and_security_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/template_styles_and_security_testing_guide.md)
-  * 控制器：[`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java) (`/api/v1/excel/reports`)
+  * 控制器：[`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/report/ExcelReportController.java) (`/api/v1/excel/reports`)
   1. `GET 一鍵實測產品結構配方與標準成本卷算分析表 (/bom-cost-analysis)`：自訂策略 `BOM_COST_ANALYSIS`，穿透 Bom 與 Material 聚合根，注入動態用量公式、成本公式、A~K 欄大跨度跨欄合併、SUM 加總公式、深海軍藍樣式與密碼保護。
   2. `POST 結構化條件自訂 BOM 成本卷算分析表 (/bom-cost-analysis)`：支援傳入自訂母件料號、自訂子項清單、客製標題與解鎖密碼。
   3. `GET 一鍵匯出物料採購損益月報 (/procurement-analysis)`：自訂策略 `PROCUREMENT_ANALYSIS`，含採購小計公式、毛利率公式、合計彙總跨欄合併與密碼保護。
@@ -83,11 +85,19 @@
   6. `POST 自訂樣式、任意合併區間與任意公式匯出 (/custom-styled)`：支援 JSON 傳送任意表頭、資料矩陣、任意座標公式與矩形合併區間。
 * **`8. Excel 高並發平行管線與分片打包匯出模組 (Parallel Pipeline & Partition Export)`**：
   * 詳細指引參閱：[`parallel_and_partition_export_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/parallel_and_partition_export_testing_guide.md)
-  * 控制器：[`ExcelParallelExportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelParallelExportController.java) (`/api/v1/excel/parallel`)
+  * 控制器：[`ExcelParallelExportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/parallel/ExcelParallelExportController.java) (`/api/v1/excel/parallel`)
   1. `POST 模式 A 微觀管線串流寫出 (/pipeline/stream)`：多執行緒平行查詢資料庫 + `ArrayBlockingQueue` 背壓佇列防護 + 單寫入緒循序串流輸出，零 JVM 堆疊快取。
   2. `POST 模式 B / A+B 宏觀分片 ZIP 串流寫出 (/partition/zip/stream)`：突破單表 104 萬列天花板，多個獨立活頁簿在多核心上完全並行產製，邊產製邊動態壓縮寫入 Servlet Response 輸出串流。
   3. `GET 一鍵下載模式 A 管線樣本 (/pipeline-sample)`：瀏覽器直接 GET 下載 10,000 筆訂單管線匯出成果。
   4. `GET 一鍵下載模式 B 分片 ZIP 樣本 (/partition-zip-sample)`：瀏覽器直接 GET 下載包含 3 個分片活頁簿之 ZIP 壓縮檔。
+* **`9. JXLS 範本匯出與欄位動態映射模組 (JXLS Template Export & Field Mapping Engine)`**：
+  * 詳細指引參閱：[`jxls_dynamic_field_mapping_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/jxls_dynamic_field_mapping_testing_guide.md)
+  * 控制器：[`ExcelTemplateExportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/template/ExcelTemplateExportController.java) (`/api/v1/excel/templates`)
+  1. `POST 依自訂欄位映射匯出 Excel (/{templateKey}/export-mapped)`：自動開箱 Value Object、格式轉換策略 (CURRENCY, DATE, ENUM_DICT, MASKING)、SpEL 虛擬表達式跨欄求值與預設值保底，二進位下載。
+  2. `POST 依自訂欄位映射串流匯出 Excel (/{templateKey}/stream-mapped)`：大數據零緩衝串流直通 HTTP Servlet OutputStream。
+  3. `POST 欄位動態映射即時預覽 (/mapping/preview)`：Dry-Run 模式，不渲染 Excel，直接回傳求值後之 JXLS Context JSON，供前端與 QA 極速除錯。
+  4. `POST 依標準資料模型匯出 Excel (/{templateKey}/export)`：傳統傳入 dataModel 渲染下載。
+  5. `GET 查詢已註冊範本規格清單 (/)`：取得可用範本鍵值、中繼變數與分類。
 
 ### 4. 執行自動化測試 (Collection Runner)
 點選集合右側的 **`Run collection`**，可一鍵自動執行全部 26 個請求，所有測試腳本（`pm.test`）將自動驗證狀態碼、標頭與回應內容。

@@ -1,8 +1,8 @@
 # ExcelWriterPort 與 ExcelPartitionWriterPort 設計對比與選型指引 (Writer Ports Comparison & Decision Guide)
 
 > 📌 本文件座落於 [`doc/design/excel-writer-vs-partition-writer-comparison.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/excel-writer-vs-partition-writer-comparison.md)，深入比較 `excel-module` 中兩大寫入輸出埠（Outbound Ports）：  
-> 1. 底層單活頁簿序列化引擎埠：[`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java)  
-> 2. 高並發管線與分片打包輸出埠：[`ExcelPartitionWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelPartitionWriterPort.java)  
+> 1. 底層單活頁簿序列化引擎埠：[`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java)  
+> 2. 高並發管線與分片打包輸出埠：[`ExcelPartitionWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/parallel/ExcelPartitionWriterPort.java)  
 > 
 > 提供架構分層定位、核心機制差異、以及開發者在不同資料規模與業務場景下的**選型決策樹 (Decision Tree)**。
 
@@ -67,7 +67,7 @@ flowchart TD
 
 ## 2. 深度特性維度對比矩陣 (Comprehensive Feature Comparison)
 
-| 比較維度 | [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelWriterPort.java) | [`ExcelPartitionWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelPartitionWriterPort.java) |
+| 比較維度 | [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java) | [`ExcelPartitionWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/parallel/ExcelPartitionWriterPort.java) |
 | :--- | :--- | :--- |
 | **核心職責** | 專注於**「單一 Excel 活頁簿 (.xlsx) 的二進位序列化與記憶體沖刷」**。 | 專注於**「多執行緒平行查 DB、背壓佇列管線 (模式 A) 與多活頁簿 ZIP 分片打包 (模式 B)」**。 |
 | **資料提供模式** | **被動式提供 (Push / Passive Iterable)**：<br/>呼叫端必須事先備妥資料清單 (`List<List<Object>>`)，或提供被動拉取的 `Iterable<List<Object>>`。 | **主動式拉取 (Pull via SPI)**：<br/>接收函數式提供者 [`ExcelChunkProvider`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/pipeline/ExcelChunkProvider.java)，由適配器內部多執行緒主動按 offset/limit 平行查詢。 |
@@ -225,4 +225,53 @@ flowchart TD
 > - **`ExcelWriterPort` 是基礎設施層的「引擎基石」**：負責把結構化資料以最乾淨、最嚴格的常數記憶體 Flush 機制轉換為 OpenXML 字節流，嚴守單執行緒安全。
 > - **`ExcelPartitionWriterPort` 是高並發業務的「火箭推進器」**：負責調度執行緒池、背壓有界佇列與 ZIP 封裝，解決資料庫查詢 I/O 瓶頸與單表百萬列限制。
 > - 兩者職責分明、高度互補，共同建構了本模組從「單筆精緻報表」到「千萬級超大規模大數據」的全場景覆蓋能力。
+
+---
+
+## 7. 子模組 Package 套件結構與分層對照 (Package Structure & Layer Mapping)
+
+平行分區匯出子模組遵循 Clean Architecture 六角形架構，其 Package 套件結構如下：
+
+### 7.1 主程式 Package 結構 (`src/main/java`)
+
+```
+com.example.demo
+├── presentation/                                    # 表現層 (Inbound Adapters)
+│   ├── controller/parallel/                         # 平行匯出 REST 控制器
+│   │   └── ExcelParallelController.java             # 平行分區/ZIP 壓縮匯出端點
+│   ├── assembler/                                   # 防腐層 Resource 組裝器
+│   │   └── ExcelParallelResourceAssembler.java      # Request 轉 Command 組裝器
+│   └── resource/                                    # 表現層資料載體 (Rule 3-1 & 3-2)
+│       ├── in/ (ExportParallelExcelResource.java)
+│       └── out/ (ExcelParallelExportedResource.java)
+│
+├── application/                                     # 應用層 (Application Core)
+│   ├── port/in/parallel/                            # Inbound Ports (UseCases - Rule 3-8)
+│   │   └── ExportParallelExcelUseCase.java          # 平行分區匯出 UseCase
+│   ├── port/out/parallel/                           # Outbound Ports (業務輸出埠 - Rule 3-8)
+│   │   └── ExcelPartitionWriterPort.java            # 平行寫入與 ZIP 分片打包合約
+│   ├── service/parallel/                            # 應用服務 (Rule 3-9)
+│   │   └── ExcelParallelCommandService.java         # 平行匯出調度應用服務
+│   └── shared/command/                              # 跨層命令載體 (Rule 3-4)
+│       └── ExportParallelExcelCommand.java          # 平行分區寫入指令
+│
+└── infrastructure/                                  # 基礎設施層 (Outbound Adapters & Engines)
+    ├── adapter/parallel/                            # 輸出適配器 (Rule 3-9)
+    │   └── ParallelPartitionExcelWriterAdapter.java # 實作 ExcelPartitionWriterPort (背壓與執行緒池)
+    └── engine/                                      # 底層共用串流序列化引擎 (Internal SPI)
+        ├── ExcelStreamWriterEngine.java             # 寫入引擎抽象合約
+        ├── fastexcel/FastExcelStreamWriterEngine.java # FastExcel 實體引擎
+        └── poi/PoiSxssfStreamWriterEngine.java        # POI SXSSF 實體引擎
+
+### 7.2 測試套件 Package 結構 (`src/test/java`)
+
+```
+com.example.demo
+├── presentation/controller/parallel/
+│   └── ExcelParallelControllerTest.java             # 平行匯出 REST 控制器測試
+├── application/service/parallel/
+│   └── ExcelParallelCommandServiceTest.java         # 平行匯出命令服務測試
+└── infrastructure/adapter/parallel/
+    └── ParallelPartitionExcelWriterAdapterTest.java # 平行分區適配器與 ZIP 串流測試
+```
 

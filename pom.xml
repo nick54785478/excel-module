@@ -175,6 +175,20 @@
 			<version>5.5.1</version>
 		</dependency>
 
+		<!-- JXLS 核心庫：維度七宣告式範本填充引擎，支援所見即所得 (WYSIWYG) 範本填充 -->
+		<dependency>
+			<groupId>org.jxls</groupId>
+			<artifactId>jxls</artifactId>
+			<version>3.2.0</version>
+		</dependency>
+
+		<!-- JXLS POI 轉換器模組：基於 Apache POI 5.x 實作範本轉換、動態公式平移與 JEXL 安全沙箱評估 -->
+		<dependency>
+			<groupId>org.jxls</groupId>
+			<artifactId>jxls-poi</artifactId>
+			<version>3.2.0</version>
+		</dependency>
+
 		<!-- ===================================================================== -->
 		<!-- 5. 規則引擎：宣告式業務驗證與錯誤標記管道 (EasyRules)                  -->
 		<!-- ===================================================================== -->

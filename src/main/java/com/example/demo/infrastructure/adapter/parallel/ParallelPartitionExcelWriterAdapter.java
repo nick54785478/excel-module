@@ -25,7 +25,7 @@ import java.util.zip.ZipOutputStream;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import com.example.demo.application.port.out.ExcelPartitionWriterPort;
+import com.example.demo.application.port.out.parallel.ExcelPartitionWriterPort;
 import com.example.demo.application.shared.command.ExportPartitionZipCommand;
 import com.example.demo.application.shared.command.ExportPipelineExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;

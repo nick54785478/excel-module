@@ -87,6 +87,6 @@ excelReaderPort.readChunked(inputStream, query, 500, (chunk, ctx) -> {
 
 ## 4. 單元與整合測試驗證 (Testing & Verification)
 
-* [`FastExcelReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/FastExcelReaderAdapterTest.java)：驗證逐列串流讀取、分塊消費批次組裝、`stop()` 中斷與標頭自適應。
-* [`PoiSaxReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/engine/PoiSaxReaderAdapterTest.java)：驗證 POI SAX 串流解析在大檔案下的記憶體平穩度與型別還原。
+* [`FastExcelReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/FastExcelReaderAdapterTest.java)：驗證逐列串流讀取、分塊消費批次組裝、`stop()` 中斷與標頭自適應。
+* [`PoiSaxReaderAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/PoiSaxReaderAdapterTest.java)：驗證 POI SAX 串流解析在大檔案下的記憶體平穩度與型別還原。
 

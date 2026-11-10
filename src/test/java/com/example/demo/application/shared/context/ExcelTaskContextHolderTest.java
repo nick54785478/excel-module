@@ -8,7 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.example.demo.application.port.out.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
 import com.example.demo.application.shared.vo.ExcelTaskType;
 
 /**

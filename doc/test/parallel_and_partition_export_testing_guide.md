@@ -295,9 +295,9 @@ unzip -l orders_multi_partition_25k.zip
 
 | 測試類別 | 測試案例數 | 覆蓋的核心場景 |
 | :--- | :---: | :--- |
-| [`ExcelParallelCommandServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/ExcelParallelCommandServiceTest.java) | 4 | Inbound Port UseCase 呼叫、參數防禦、傳參驗證 |
+| [`ExcelParallelCommandServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/parallel/ExcelParallelCommandServiceTest.java) | 4 | Inbound Port UseCase 呼叫、參數防禦、傳參驗證 |
 | [`ParallelPartitionExcelWriterAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/parallel/ParallelPartitionExcelWriterAdapterTest.java) | 4 | 模式 A 生產者-消費者資料完整性、生產端異常即時傳播中斷、模式 B 多活頁簿 ZIP 條目解析、模式 A+B 組合拳 |
-| [`ExcelParallelExportControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelParallelExportControllerTest.java) | 6 | MockMvc 驗證 GET/POST 傳統下載、**POST `/pipeline/stream` 串流** 與 **POST `/partition/zip/stream` 串流** 狀態碼 200 與 Content-Type 標頭 |
+| [`ExcelParallelExportControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/parallel/ExcelParallelExportControllerTest.java) | 6 | MockMvc 驗證 GET/POST 傳統下載、**POST `/pipeline/stream` 串流** 與 **POST `/partition/zip/stream` 串流** 狀態碼 200 與 Content-Type 標頭 |
 
 ### 執行平行匯出專屬測試指令
 ```bash

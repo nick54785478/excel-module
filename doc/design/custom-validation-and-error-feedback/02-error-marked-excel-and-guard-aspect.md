@@ -11,7 +11,7 @@
 
 ## 1. 視覺化高傳真錯誤回標檔生成 (Error-Marked Feedback)
 
-座落於 [`com.example.demo.infrastructure.adapter.feedback.PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/feedback/PoiExcelErrorMarkerAdapter.java)，實作 [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelErrorMarkerPort.java)：
+座落於 [`com.example.demo.infrastructure.adapter.validation.PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapter.java)，實作 [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelErrorMarkerPort.java)：
 
 ### 1.1 核心樣式規範
 1. **原樣保留**：高傳真讀取使用者上傳之原始試算表（包含自訂字型、列高、框線）。
@@ -136,7 +136,7 @@ public class ExcelTemplateConfiguration {
 
 ## 4. REST API 控制器規格
 
-座落於 [`com.example.demo.presentation.controller.ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelValidationController.java)：
+座落於 [`com.example.demo.presentation.controller.ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/validation/ExcelValidationController.java)：
 
 | HTTP 方法 | 端點路徑 | 說明與用途 |
 | :--- | :--- | :--- |
@@ -151,7 +151,7 @@ public class ExcelTemplateConfiguration {
 ## 5. 單元與整合測試驗證 (Testing & Verification)
 
 * [`ExcelTemplateRegistryTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/template/ExcelTemplateRegistryTest.java)：驗證純空容器建立、配置層預載 4 大業務範本、大小寫與別名智能匹配、工作表名稱反查、OCP 動態註冊與 `ExcelTemplateCustomizer` SPI 擴充管線等 6 大場景。
-* [`EasyRulesExcelValidatorAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validator/EasyRulesExcelValidatorAdapterTest.java)：驗證 EasyRules 行級規則評估、非短路錯誤全量累積與跨欄位連動驗證。
-* [`PoiExcelErrorMarkerAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/feedback/PoiExcelErrorMarkerAdapterTest.java)：驗證 POI 原始格式保留、出錯儲存格淡紅底深紅字套用與最右側錯誤原因追加。
-* [`ExcelValidationControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelValidationControllerTest.java)：驗證 5 隻端點的檔案上傳、HTTP 422 錯誤報告、檔案下載與 AOP 切面攔截。
+* [`EasyRulesExcelValidatorAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapterTest.java)：驗證 EasyRules 行級規則評估、非短路錯誤全量累積與跨欄位連動驗證。
+* [`PoiExcelErrorMarkerAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapterTest.java)：驗證 POI 原始格式保留、出錯儲存格淡紅底深紅字套用與最右側錯誤原因追加。
+* [`ExcelValidationControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/validation/ExcelValidationControllerTest.java)：驗證 5 隻端點的檔案上傳、HTTP 422 錯誤報告、檔案下載與 AOP 切面攔截。
 

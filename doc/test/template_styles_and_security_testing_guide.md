@@ -1,4 +1,4 @@
-# Excel 企業級報表樣式、動態公式、安全防護與 BOM 成本分析 API 測試手冊 (Template, Styles, Security & BOM Cost Analysis Testing Guide)
+﻿# Excel 企業級報表樣式、動態公式、安全防護與 BOM 成本分析 API 測試手冊 (Template, Styles, Security & BOM Cost Analysis Testing Guide)
 
 > 📌 **文件位置**：[`doc/test/template_styles_and_security_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/template_styles_and_security_testing_guide.md)  
 > 🎯 **適用對象**：測試工程師 (QA)、後端研發人員、前端開發人員、成本會計與資安審計人員  
@@ -82,7 +82,7 @@ flowchart TD
 
 ## 2. REST API 測試端點總覽
 
-控制器類別：[`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelReportController.java)  
+控制器類別：[`ExcelReportController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/report/ExcelReportController.java)  
 基礎路徑 (Base URL)：`http://localhost:8080/api/v1/excel/reports`
 
 | # | HTTP 方法 | 端點路徑 (Endpoint) | 功能說明 | 核心展示特性 | 預期回應 |

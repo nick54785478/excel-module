@@ -61,7 +61,7 @@ flowchart TD
 
 ## 2. REST API 測試端點總覽 (精簡 5 隻核心接口)
 
-控制器類別：[`ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/ExcelValidationController.java)  
+控制器類別：[`ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/validation/ExcelValidationController.java)  
 基礎路徑 (Base URL)：`http://localhost:8080/api/v1/excel/validation`
 
 經過架構重構與開放封閉原則 (OCP) 收斂，介面已由過往為各業務硬編碼之重複端點全面精簡為 **5 隻高內聚核心 API**：
@@ -390,10 +390,10 @@ pm.test("Content-Disposition contains encoded filename", function () {
 
 | 測試類別路徑 | 架構層級 | 測試職責與驗證情境 |
 | :--- | :--- | :--- |
-| [`ExcelValidationControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/ExcelValidationControllerTest.java) | 表現層 (Presentation) | 驗證 Multipart 檔案上傳接收、HTTP 200/422/400 狀態碼切換、JSON 錯誤欄位反序列化、二進位回標檔下載 Header。 |
-| [`ExcelValidationApplicationServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/ExcelValidationApplicationServiceTest.java) | 應用層 (Application) | 驗證 `ValidateExcelUseCase` 調度邏輯、全數合格時略過回標生成、存在錯誤時觸發 `ExcelErrorMarkerPort`。 |
-| [`EasyRulesExcelValidatorAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validator/EasyRulesExcelValidatorAdapterTest.java) | 基礎設施層 (Adapter) | 驗證 EasyRules 規則引擎之非短路全量錯誤累積、JavaBean 與 Java 21 Record 泛型推論、同一列多項違規事實收集。 |
-| [`PoiExcelErrorMarkerAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/feedback/PoiExcelErrorMarkerAdapterTest.java) | 基礎設施層 (Adapter) | 驗證 Apache POI 儲存格淡紅底深紅字樣式渲染 (`ROSE` / `DARK_RED`)、工作表最右側表頭與錯誤內容欄位自動追加。 |
+| [`ExcelValidationControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/validation/ExcelValidationControllerTest.java) | 表現層 (Presentation) | 驗證 Multipart 檔案上傳接收、HTTP 200/422/400 狀態碼切換、JSON 錯誤欄位反序列化、二進位回標檔下載 Header。 |
+| [`ExcelValidationApplicationServiceTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/service/validation/ExcelValidationApplicationServiceTest.java) | 應用層 (Application) | 驗證 `ValidateExcelUseCase` 調度邏輯、全數合格時略過回標生成、存在錯誤時觸發 `ExcelErrorMarkerPort`。 |
+| [`EasyRulesExcelValidatorAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapterTest.java) | 基礎設施層 (Adapter) | 驗證 EasyRules 規則引擎之非短路全量錯誤累積、JavaBean 與 Java 21 Record 泛型推論、同一列多項違規事實收集。 |
+| [`PoiExcelErrorMarkerAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapterTest.java) | 基礎設施層 (Adapter) | 驗證 Apache POI 儲存格淡紅底深紅字樣式渲染 (`ROSE` / `DARK_RED`)、工作表最右側表頭與錯誤內容欄位自動追加。 |
 | [`TestTemplateGeneratorTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/TestTemplateGeneratorTest.java) | 整合驗證 (Integration) | 驗證 `doc/template/` 下所有實體測試範本檔案結構，確保各範本皆可正常解析且預期違規點 100% 吻合。 |
 
 ### 本地執行測試指令

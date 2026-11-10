@@ -73,11 +73,11 @@ public record ExcelValidationGottenResult<T>(
 
 ## 3. 基礎設施層 EasyRules 規則引擎組件庫
 
-座落於 [`com.example.demo.infrastructure.adapter.validator`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator)：
+座落於 [`com.example.demo.infrastructure.adapter.validator`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation)：
 
 ### 3.1 規則契約與抽象基類
-* [`ExcelRowValidationRule<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator/rules/ExcelRowValidationRule.java)：定義 `evaluate(T item, int rowIndex)` 與 `int priority()`。
-* [`AbstractExcelRowValidationRule<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator/rules/AbstractExcelRowValidationRule.java)：封裝 EasyRules 的 `@Rule`, `@Condition`, `@Action` 註解。
+* [`ExcelRowValidationRule<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/rules/ExcelRowValidationRule.java)：定義 `evaluate(T item, int rowIndex)` 與 `int priority()`。
+* [`AbstractExcelRowValidationRule<T>`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/rules/AbstractExcelRowValidationRule.java)：封裝 EasyRules 的 `@Rule`, `@Condition`, `@Action` 註解。
 
 ### 3.2 具體商業規則實作範例
 ```java
@@ -103,7 +103,7 @@ public class OrderAmountValidationRule extends AbstractExcelRowValidationRule<Or
 ```
 
 ### 3.3 規則排程適配器：`EasyRulesExcelValidatorAdapter`
-座落於 [`com.example.demo.infrastructure.adapter.validator.EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validator/EasyRulesExcelValidatorAdapter.java)：
-* 實作應用層 Outbound Port [`ExcelRowValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/ExcelRowValidatorPort.java)。
+座落於 [`com.example.demo.infrastructure.adapter.validation.EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapter.java)：
+* 實作應用層 Outbound Port [`ExcelRowValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelRowValidatorPort.java)。
 * 建立 `RulesEngineParameters().skipOnFirstAppliedRule(false).skipOnFirstFailedRule(false)`，確保整張工作表的所有規則完整掃描，全量非短路累積錯誤。
 

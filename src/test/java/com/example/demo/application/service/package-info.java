@@ -1,7 +1,7 @@
 /**
- * 應用層使用案例測試 (UseCase Unit Tests)
+ * 應用層服務單元測試根套件 (Application Service Unit Tests)
  * <p>
- * 針對各 Application Service (UseCase 實作) 進行單元測試，驗證業務流程、例外拋出與事件發布。
- * 遵循 BDD / Gherkin (Feature, Scenario, Given-When-Then) 測試規範。
+ * 遵循 BDD Gherkin 語法規範 (AGENTS.md 規則 5)，驗證各領域 UseCase 實作服務之業務邏輯、領域事件發布與異常流程。
+ * </p>
  */
 package com.example.demo.application.service;
