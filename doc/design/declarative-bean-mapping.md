@@ -124,7 +124,7 @@ sequenceDiagram
 
 ### 6.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/core/                             # 核心控制器
@@ -158,10 +158,11 @@ com.example.demo
     ├── FastExcelReaderAdapter.java                  # 核心讀取適配器
     ├── PoiSxssfWriterAdapter.java                   # POI 寫入適配器
     └── PoiSaxReaderAdapter.java                     # POI 讀取適配器
+```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/core/
 │   └── ExcelBeanMappingControllerTest.java          # 宣告式控制器端點整合測試

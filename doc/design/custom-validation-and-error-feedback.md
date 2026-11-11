@@ -147,7 +147,7 @@ sequenceDiagram
 
 ### 6.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/validation/                       # 校驗 REST 控制器
@@ -188,10 +188,11 @@ com.example.demo
         ├── OrderAmountValidationRule.java           # 訂單金額正數檢核
         ├── OrderQuantityValidationRule.java         # 訂單數量門檻檢核
         └── ProductPriceValidationRule.java          # 商品價格範圍檢核
+```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/validation/
 │   ├── ExcelValidationControllerTest.java           # 校驗 REST 控制器測試

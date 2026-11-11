@@ -165,7 +165,7 @@ JXLS 宣告式範本匯出與動態欄位映射子模組遵循 Clean Architectur
 
 ### 7.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/template/                         # 範本 REST API 控制器
@@ -219,10 +219,11 @@ com.example.demo
 │
 └── config/                                          # 配置層 (The Dirtiest Layer)
     └── ExcelJxlsConfiguration.java                  # JXLS 3.2.0 Transformer 與 JEXL 安全沙箱裝配
+```
 
 ### 7.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/template/
 │   └── ExcelTemplateExportControllerTest.java       # 範本匯出 REST 控制器完整情境測試

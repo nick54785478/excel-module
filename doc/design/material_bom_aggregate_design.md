@@ -104,7 +104,7 @@ BOM 與物料管理子模組嚴格遵循 DDD 垂直切片架構與六角形架�
 
 ### 5.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── domain/                                          # 核心領域層 (Pure Java / 零外層依賴)
 │   ├── bom/                                         # BOM 聚合邊界
@@ -158,10 +158,11 @@ com.example.demo
         └── material/                                # 物料 JPA 模組
             ├── entity/ (MaterialJpaEntity.java)
             └── repository/ (MaterialJpaRepository.java)
+```
 
 ### 5.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/bom/
 │   ├── BomControllerTest.java                       # BOM REST 控制器測試

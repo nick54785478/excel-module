@@ -114,7 +114,7 @@ sequenceDiagram
 
 ### 6.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/core/                             # 核心 Excel 讀寫 REST API 控制器
@@ -156,10 +156,11 @@ com.example.demo
         ├── ExcelStreamWriterEngine.java             # 寫入引擎抽象合約
         ├── fastexcel/FastExcelStreamWriterEngine.java # FastExcel 實體底層引擎
         └── poi/PoiSxssfStreamWriterEngine.java        # POI SXSSF 實體底層引擎
+```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/core/
 │   ├── ExcelControllerTest.java                     # 核心讀寫控制器測試

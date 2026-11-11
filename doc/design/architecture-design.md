@@ -402,7 +402,7 @@ gantt
 
 本專案全數子模組落實 **Clean Architecture 5 大分層架構** 與 **DDD 垂直切片**，在 `presentation/controller`、`application/port/in`、`application/port/out`、`application/service` 以及 `infrastructure/adapter` 全面達成 **7 大標準子模組對稱切片**：
 
-```
+```text
 src/main/java/com/example/demo/
 ├── presentation/controller/            # 1. 表現層控制器 (7 大子模組切片)
 │   ├── bom/                            #   ├── BOM 與物料管理 API

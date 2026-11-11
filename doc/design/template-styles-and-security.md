@@ -131,7 +131,7 @@ sequenceDiagram
 
 ### 6.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/report/                           # 報表 REST 控制器
@@ -163,10 +163,11 @@ com.example.demo
         ├── ProcurementReportDecoratorStrategy.java  # 採購損益月報策略
         ├── BomCostAnalysisReportDecoratorStrategy.java # BOM 成本卷算分析策略
         └── DefaultNoOpDecoratorStrategy.java        # 預設保底無操作策略
+```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/report/
 │   └── ExcelReportControllerTest.java               # 報表 REST 控制器端點測試

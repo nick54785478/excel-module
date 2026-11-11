@@ -11,19 +11,18 @@
 Apache POI 的 `SXSSFWorkbook` 專為串流大數據寫入而設計，其核心記憶體限制機制為「滑動視窗 (Sliding Window)」：
 
 ```mermaid
-flowchart LR
-    subgraph SXSSF_Internals ["SXSSFWorkbook 內部運作"]
-        direction TB
+flowchart TD
+    subgraph SXSSF_Internals["SXSSFWorkbook 內部運作機制"]
         MEM["記憶體視窗 (預設保留 100 列)"]
         SDW["SheetDataWriter (暫存 XML 檔案寫入器)"]
-        DISK["磁碟暫存檔 (poi-sxssf-sheet*.xml)"]
+        DISK["磁碟暫存檔 (poi-sxssf-sheet.xml)"]
         STYLES["全域 StylesTable / SharedStringsTable"]
         ZIP["OPCPackage / ZipArchiveOutputStream"]
 
-        MEM -->|列數達 100 觸發 flushRows()| SDW
+        MEM -->|列數達 100 觸發 flushRows 沖刷| SDW
         SDW -->|無鎖寫入 XML 節點| DISK
         MEM -.->|參照全域索引| STYLES
-        DISK -->|dispose() 刪除 / write() 壓縮| ZIP
+        DISK -->|dispose 刪除暫存與 write 壓縮寫出| ZIP
     end
 ```
 

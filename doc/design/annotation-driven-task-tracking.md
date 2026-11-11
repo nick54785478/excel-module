@@ -152,7 +152,7 @@ sequenceDiagram
 
 ### 6.1 主程式 Package 結構 (`src/main/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/                                    # 表現層 (Inbound Adapters)
 │   ├── controller/task/                             # 任務 REST 控制器
@@ -205,10 +205,11 @@ com.example.demo
         │   └── ExcelTaskJpaEntity.java              # 長任務資料庫對應實體
         └── repository/                              # Spring Data JPA 存取介面
             └── ExcelTaskJpaRepository.java          # 任務底層資料庫 CRUD 介面
+```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
 
-```
+```text
 com.example.demo
 ├── presentation/controller/task/
 │   └── ExcelTaskControllerTest.java                 # 任務 REST API 端點整合測試 (MockMvc)

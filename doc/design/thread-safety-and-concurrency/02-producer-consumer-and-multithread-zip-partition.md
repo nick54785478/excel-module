@@ -40,7 +40,7 @@ flowchart LR
     end
 
     subgraph Queue_Boundary ["背壓有界佇列 (Bounded Buffer)"]
-        Q["ArrayBlockingQueue<Chunk>\n(容量: 50, 溢滿自動阻塞生產者)"]
+        Q["ArrayBlockingQueue(Chunk)<br/>(容量: 50, 溢滿自動阻塞生產者)"]
     end
 
     subgraph Consumer ["專屬單一消費緒 (Single Sequential Writer)"]
@@ -52,7 +52,7 @@ flowchart LR
     P2 -->|推入| Q
     P3 -->|推入| Q
     Q -->|拉取| C
-    C -->|定期 flushRows(0)| OUT
+    C -->|定期 flushRows 沖刷| OUT
 ```
 
 ---
