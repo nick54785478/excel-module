@@ -1,28 +1,39 @@
 package com.example.demo.infrastructure.adapter.template;
 
-import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
-import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
-import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
-import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
+import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
+import com.example.demo.infrastructure.persistence.template.entity.ExcelTemplateJpaEntity;
+import com.example.demo.infrastructure.persistence.template.repository.ExcelTemplateJpaRepository;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Classpath 範本儲存庫適配器 (Outbound Adapter)。
+ * Classpath 與持久化資料庫整合之 Excel 範本儲存庫適配器 (Outbound Adapter)。
  * <p>
  * 遵循 AGENTS.md 規則 3-9，適配器一律以 {@code Adapter} 結尾。
- * 實作應用層 {@link ExcelTemplateRegistryPort}，
- * 自 {@code classpath:/templates/excel/} 載入 Excel 範本檔案，
- * 並透過 {@link ConcurrentHashMap} 提供記憶體位元組快取與零停機熱刷新支援。
+ * 實作應用層 {@link ExcelTemplateRegistryPort}，採用「資料庫優先 (DB-First)」架構，
+ * 透過 {@link ExcelTemplateJpaRepository} 查詢資料庫資料表 {@code t_excel_template} 中註冊之範本中繼規格與檔案儲存路徑，
+ * 徹底消弭硬編碼範本中繼資訊 (DRY / Single Source of Truth 原則)。
+ * </p>
+ * <p>
+ * 同時保留 {@link ConcurrentHashMap} 二進位位元組快取池與記憶體中繼註冊表，
+ * 具備極致 I/O 效能、零停機熱刷新 (Hot-Reload) 以及在無資料庫或單元測試環境下的優雅降級能力。
  * </p>
  */
 @Slf4j
@@ -48,12 +59,13 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
 
     /**
      * 當前適配器實例實際使用的範本資源路徑前綴。
-     * <p>
-     * 支援透過多載建構函式由外部抽換（例如在單元測試中指向 mock 路徑，或於多環境中指定客製目錄），
-     * 預設為 {@link #DEFAULT_TEMPLATE_PATH_PREFIX}。
-     * </p>
      */
     private final String templatePrefix;
+
+    /**
+     * Excel 範本 JPA 持久化儲存庫 (可選注入，支援無資料庫環境降級)。
+     */
+    private final ExcelTemplateJpaRepository templateRepository;
 
     /**
      * 實體 Excel 範本檔案二進位位元組內容的執行緒安全快取池 (In-Memory Byte Array Cache)。
@@ -70,69 +82,48 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
     private final Map<String, byte[]> templateCache = new ConcurrentHashMap<>();
 
     /**
-     * 範本中繼資訊與變數結構規格的執行緒安全註冊表 (Template Metadata Registry)。
+     * 範本中繼資訊與變數結構規格的執行緒安全記憶體註冊表 (In-Memory Template Metadata Registry)。
      * <p>
-     * <b>【設計目的與架構效益】</b>
-     * <ul>
-     *   <li><b>範本規格探索 (Discovery API)</b>：Key 為範本識別鍵 (大寫)，Value 為 {@link ExcelTemplateGottenResult}。
-     *       提供對外 REST API (如 {@code GET /api/v1/excel/templates}) 快速查詢目前系統已註冊之範本名稱、業務分類、
-     *       描述以及 JXLS 所需之必備變數清單 (requiredVariables)。</li>
-     *   <li><b>防呆與前後端契約校驗</b>：讓調用端（前端或第三方微服務）在呼叫匯出前，能先行確認該範本所需的資料模型結構，
-     *       避免因資料欄位缺失導致報表渲染空白。</li>
-     * </ul>
+     * 作為資料庫異常或動態手動註冊（例如測試、動態產製）的降級與補充容器。
      * </p>
      */
     private final Map<String, ExcelTemplateGottenResult> metadataRegistry = new ConcurrentHashMap<>();
 
     /**
-     * 預設建構函式，指向預設 Classpath 路徑 {@code templates/excel/}。
+     * 預設建構函式，由 Spring 容器依賴注入 {@link ExcelTemplateJpaRepository}。
+     *
+     * @param templateRepository 範本持久化儲存庫 (可為 null)
      */
-    public ClasspathExcelTemplateRegistryAdapter() {
-        this(DEFAULT_TEMPLATE_PATH_PREFIX);
+    @Autowired
+    public ClasspathExcelTemplateRegistryAdapter(
+            @Autowired(required = false) ExcelTemplateJpaRepository templateRepository) {
+        this(DEFAULT_TEMPLATE_PATH_PREFIX, templateRepository);
     }
 
     /**
-     * 建構函式：指定自訂範本路徑前綴。
+     * 建構函式：指定自訂範本路徑前綴 (純記憶體降級模式)。
      *
      * @param templatePrefix 範本路徑前綴
      */
     public ClasspathExcelTemplateRegistryAdapter(String templatePrefix) {
-        this.templatePrefix = Objects.requireNonNull(templatePrefix, "templatePrefix 不得為空");
-        registerBuiltInMetadata();
+        this(templatePrefix, null);
     }
 
     /**
-     * 預先註冊內建模組之核心範本中繼規格。
+     * 全參建構函式：支援自訂範本路徑前綴與持久化儲存庫注入。
+     *
+     * @param templatePrefix     範本路徑前綴
+     * @param templateRepository 範本持久化儲存庫 (可為 null)
      */
-    private void registerBuiltInMetadata() {
-        registerMetadata(new ExcelTemplateGottenResult(
-            "MATERIAL_MASTER",
-            "物料主檔清單",
-            "MATERIAL",
-            "物料主檔資訊清單，基於 Material 聚合根，包含料號、品名、規格、分類、計量單位與標準成本",
-            List.of("materials", "companyName", "exportDate"),
-            Instant.now()
-        ));
-        registerMetadata(new ExcelTemplateGottenResult(
-            "BOM_COST_ANALYSIS",
-            "產品結構配方與成本分析展開表",
-            "BOM",
-            "產品結構配方與標準成本卷算分析表，基於 Bom 聚合根與 BomItem 實體，支援有效用量與成本加總動態公式",
-            List.of("parentMaterialCode", "parentMaterialName", "version", "status", "baseQuantity", "currency", "items"),
-            Instant.now()
-        ));
-        registerMetadata(new ExcelTemplateGottenResult(
-            "PROCUREMENT_COMPARISON",
-            "採購詢價比價單",
-            "PROCUREMENT",
-            "包含多供應商比價明細、最佳報價推薦與自適應加總公式",
-            List.of("inquiryNo", "inquiryDate", "quotationItems", "vendorNames"),
-            Instant.now()
-        ));
+    public ClasspathExcelTemplateRegistryAdapter(
+            String templatePrefix,
+            ExcelTemplateJpaRepository templateRepository) {
+        this.templatePrefix = Objects.requireNonNull(templatePrefix, "templatePrefix 不得為空");
+        this.templateRepository = templateRepository;
     }
 
     /**
-     * 動態註冊或更新範本中繼資訊。
+     * 動態註冊或更新範本中繼資訊至記憶體快取容器。
      *
      * @param metadata 範本中繼規格 DTO
      */
@@ -168,12 +159,41 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
         if (templateKey == null || templateKey.isBlank()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(metadataRegistry.get(templateKey.toUpperCase(Locale.ROOT)));
+        String normalizedKey = templateKey.toUpperCase(Locale.ROOT);
+        // 1. 優先查詢資料庫 (Single Source of Truth)
+        if (templateRepository != null) {
+            try {
+                Optional<ExcelTemplateGottenResult> dbResult = templateRepository
+                        .findByTemplateKeyAndActiveTrue(normalizedKey)
+                        .map(ExcelTemplateJpaEntity::toGottenResult);
+                if (dbResult.isPresent()) {
+                    return dbResult;
+                }
+            } catch (Exception e) {
+                log.warn("自資料庫查詢範本中繼資訊異常，降級嘗試記憶體註冊表: key={}, error={}", normalizedKey, e.getMessage());
+            }
+        }
+        // 2. 降級查詢動態記憶體註冊表
+        return Optional.ofNullable(metadataRegistry.get(normalizedKey));
     }
 
     @Override
     public List<ExcelTemplateGottenResult> listTemplates() {
-        return List.copyOf(metadataRegistry.values());
+        Map<String, ExcelTemplateGottenResult> combined = new LinkedHashMap<>();
+        // 1. 優先自資料庫載入所有啟用中之範本中繼規格
+        if (templateRepository != null) {
+            try {
+                templateRepository.findByActiveTrue().forEach(entity -> {
+                    ExcelTemplateGottenResult dto = entity.toGottenResult();
+                    combined.put(dto.templateKey().toUpperCase(Locale.ROOT), dto);
+                });
+            } catch (Exception e) {
+                log.warn("自資料庫載入範本清單異常，降級為純記憶體模式: error={}", e.getMessage());
+            }
+        }
+        // 2. 合併手動或動態註冊於記憶體中之範本 (若資料庫無相同 key 則補入)
+        metadataRegistry.forEach((key, dto) -> combined.putIfAbsent(key, dto));
+        return List.copyOf(combined.values());
     }
 
     @Override
@@ -182,9 +202,25 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
             return false;
         }
         String normalizedKey = templateKey.toUpperCase(Locale.ROOT);
+        // 1. 檢查記憶體二進位快取池
         if (templateCache.containsKey(normalizedKey)) {
             return true;
         }
+        // 2. 檢查記憶體中繼註冊表
+        if (metadataRegistry.containsKey(normalizedKey)) {
+            return true;
+        }
+        // 3. 檢查資料庫持久化記錄
+        if (templateRepository != null) {
+            try {
+                if (templateRepository.existsByTemplateKeyAndActiveTrue(normalizedKey)) {
+                    return true;
+                }
+            } catch (Exception e) {
+                log.warn("檢查資料庫範本存在性異常，降級檢查 Classpath 資源: key={}, error={}", normalizedKey, e.getMessage());
+            }
+        }
+        // 4. 最後檢查 Classpath 實體檔案是否存在
         Resource resource = resolveClasspathResource(normalizedKey);
         return resource.exists();
     }
@@ -212,14 +248,32 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
     }
 
     private byte[] loadTemplateBytes(String normalizedKey) {
-        Resource resource = resolveClasspathResource(normalizedKey);
+        Resource resource = null;
+        // 1. 若資料庫有註冊該範本且標註路徑，依據實體記錄路徑載入
+        if (templateRepository != null) {
+            try {
+                Optional<ExcelTemplateJpaEntity> entityOpt = templateRepository.findByTemplateKeyAndActiveTrue(normalizedKey);
+                if (entityOpt.isPresent()) {
+                    ExcelTemplateJpaEntity entity = entityOpt.get();
+                    if ("CLASSPATH".equalsIgnoreCase(entity.getStorageType()) && entity.getFilePath() != null) {
+                        resource = new ClassPathResource(entity.getFilePath());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("自資料庫查詢範本路徑異常，降級使用預設 Classpath 規則: key={}, error={}", normalizedKey, e.getMessage());
+            }
+        }
+        // 2. 若資料庫未指定或非 Classpath，使用預設規則路徑解析
+        if (resource == null) {
+            resource = resolveClasspathResource(normalizedKey);
+        }
         if (!resource.exists()) {
             throw new ExcelTemplateNotFoundException("找不到指定的 Excel 範本資源: " + resource.getDescription());
         }
         try (InputStream is = resource.getInputStream()) {
             byte[] bytes = is.readAllBytes();
             log.info("成功自 Classpath 載入並快取範本: key={}, path={}, size={} bytes",
-                normalizedKey, resource.getDescription(), bytes.length);
+                    normalizedKey, resource.getDescription(), bytes.length);
             return bytes;
         } catch (Exception e) {
             throw new ExcelTemplateNotFoundException("讀取 Excel 範本檔案串流遭遇異常: " + normalizedKey, e);

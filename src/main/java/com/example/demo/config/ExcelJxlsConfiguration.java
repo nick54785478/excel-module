@@ -1,19 +1,22 @@
 package com.example.demo.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateWriterPort;
 import com.example.demo.infrastructure.adapter.template.ClasspathExcelTemplateRegistryAdapter;
 import com.example.demo.infrastructure.adapter.template.JxlsFieldMappingAdapter;
 import com.example.demo.infrastructure.adapter.template.JxlsTemplateWriterAdapter;
+import com.example.demo.infrastructure.persistence.template.repository.ExcelTemplateJpaRepository;
 import com.example.demo.infrastructure.template.mapping.engine.JxlsFieldMappingEngine;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * JXLS 宣告式範本引擎全域配置類別 (Configuration Layer - Composition Root)。
@@ -55,12 +58,14 @@ public class ExcelJxlsConfiguration {
     /**
      * 註冊範本儲存庫輸出埠實作 (ClasspathExcelTemplateRegistryAdapter)。
      *
+     * @param templateRepository Excel 範本 JPA 持久化儲存庫 (可選注入)
      * @return ExcelTemplateRegistryPort 實例
      */
     @Bean
     @ConditionalOnMissingBean(ExcelTemplateRegistryPort.class)
-    public ExcelTemplateRegistryPort excelTemplateRegistryPort() {
-        return new ClasspathExcelTemplateRegistryAdapter(templatePrefix);
+    public ExcelTemplateRegistryPort excelTemplateRegistryPort(
+            @Autowired(required = false) ExcelTemplateJpaRepository templateRepository) {
+        return new ClasspathExcelTemplateRegistryAdapter(templatePrefix, templateRepository);
     }
 
     /**
