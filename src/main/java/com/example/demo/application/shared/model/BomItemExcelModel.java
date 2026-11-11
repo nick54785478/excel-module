@@ -13,7 +13,12 @@ import com.example.demo.application.annotation.mapping.ExcelSheet;
  * 與其內部實體 {@link com.example.demo.domain.bom.aggregate.entity.BomItem}。
  * 透過 {@link ExcelSheet} 與 {@link ExcelColumn} 定義單階 BOM 配方之 Excel 表頭與資料欄位映射。
  */
-@ExcelSheet(name = "單階BOM清單", headerRowIndex = 0, dataRowStartIndex = 1)
+@ExcelSheet(
+		name = "單階BOM清單",
+		aliases = {"單階BOM匯入清單", "多階層BOM展開清單", "BOM清單", "BOM配方", "單階BOM", "BOM"},
+		headerRowIndex = 0,
+		dataRowStartIndex = 1
+)
 public class BomItemExcelModel {
 
 	@ExcelColumn(name = "母件料號", index = 0, aliases = {"母件代碼", "父料號", "主件料號"})

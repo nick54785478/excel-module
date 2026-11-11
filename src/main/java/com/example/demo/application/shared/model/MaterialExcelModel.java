@@ -13,7 +13,12 @@ import com.example.demo.application.annotation.mapping.ExcelSheet;
  * 透過 {@link ExcelSheet} 與 {@link ExcelColumn} 定義 Excel 表頭、欄位順序與格式化規則。
  * 保持 Domain 領域層為純 Java，將技術性 Excel 映射封裝於應用層展示模型中。
  */
-@ExcelSheet(name = "物料主檔清單", headerRowIndex = 0, dataRowStartIndex = 1)
+@ExcelSheet(
+		name = "物料主檔清單",
+		aliases = {"物料主檔對照表", "物料清單", "物料主檔", "物料對照表", "物料表", "Materials"},
+		headerRowIndex = 0,
+		dataRowStartIndex = 1
+)
 public class MaterialExcelModel {
 
 	@ExcelColumn(name = "物料編號", index = 0, aliases = {"物料料號", "料號", "品號", "MaterialCode"})

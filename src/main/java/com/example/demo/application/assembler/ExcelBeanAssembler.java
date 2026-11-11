@@ -29,6 +29,7 @@ import com.example.demo.application.annotation.mapping.ExcelColumn;
 import com.example.demo.application.annotation.mapping.ExcelSheet;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.model.CellCoordinate;
@@ -384,7 +385,18 @@ public final class ExcelBeanAssembler {
 				if (matched.isPresent()) {
 					return matched.get();
 				}
-				// 2-2. 語意簡化模糊比對 (例如 "單階BOM清單" 與 "單階BOM匯入清單" 同屬單階BOM)
+				// 2-2. 註解別名比對 (Sheet Aliases Match)
+				if (metadata.sheetAliases() != null) {
+					for (String alias : metadata.sheetAliases()) {
+						if (alias != null && !alias.isBlank()) {
+							Optional<ExcelSheetGottenResult> aliasMatched = result.getSheet(alias.trim());
+							if (aliasMatched.isPresent()) {
+								return aliasMatched.get();
+							}
+						}
+					}
+				}
+				// 2-3. 語意簡化模糊比對 (例如 "單階BOM清單" 與 "單階BOM匯入清單" 同屬單階BOM)
 				String simplifiedTarget = simplifySheetName(trimmed);
 				for (ExcelSheetGottenResult sheet : result.getSheets()) {
 					String simplifiedSheet = simplifySheetName(sheet.sheetName());
@@ -402,6 +414,132 @@ public final class ExcelBeanAssembler {
 
 		// 3. 預設退回第一個工作表
 		return result.getFirstSheet().orElse(null);
+	}
+
+	/**
+	 * 判斷指定工作表是否匹配特定模型類別 (依據表名、@ExcelSheet 別名與欄位表頭匹配度)。
+	 *
+	 * @param <T>        模型型別
+	 * @param sheet      工作表讀取結果物件
+	 * @param modelClass 模型類別 Class
+	 * @return 若該工作表相符則回傳 {@code true}，否則為 {@code false}
+	 */
+	public static <T> boolean isSheetMatchingModel(ExcelSheetGottenResult sheet, Class<T> modelClass) {
+		if (sheet == null || modelClass == null) {
+			return false;
+		}
+		ModelMetadata metadata = getMetadata(modelClass);
+		String sheetName = sheet.sheetName() != null ? sheet.sheetName().trim() : "";
+
+		// 1. 工作表名稱精確比對 (@ExcelSheet name 與 aliases)
+		if (!sheetName.isEmpty()) {
+			if (metadata.sheetName() != null && metadata.sheetName().equalsIgnoreCase(sheetName)) {
+				return true;
+			}
+			if (metadata.sheetAliases() != null) {
+				for (String alias : metadata.sheetAliases()) {
+					if (alias != null && !alias.isBlank() && alias.trim().equalsIgnoreCase(sheetName)) {
+						return true;
+					}
+				}
+			}
+			// 語意模糊比對 (例如 "單階BOM清單" 與 "單階BOM匯入清單" 同屬單階BOM)
+			String simplifiedTarget = simplifySheetName(metadata.sheetName());
+			String simplifiedSheet = simplifySheetName(sheetName);
+			if (!simplifiedTarget.isEmpty() && !simplifiedSheet.isEmpty()) {
+				if (simplifiedSheet.equalsIgnoreCase(simplifiedTarget)
+						|| simplifiedSheet.contains(simplifiedTarget)
+						|| simplifiedTarget.contains(simplifiedSheet)) {
+					return true;
+				}
+			}
+			if (metadata.sheetAliases() != null) {
+				for (String alias : metadata.sheetAliases()) {
+					if (alias != null && !alias.isBlank()) {
+						String simplifiedAlias = simplifySheetName(alias);
+						if (!simplifiedAlias.isEmpty()
+								&& (simplifiedSheet.equalsIgnoreCase(simplifiedAlias)
+										|| simplifiedSheet.contains(simplifiedAlias)
+										|| simplifiedAlias.contains(simplifiedSheet))) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		// 2. 若工作表名稱為具體非通用名稱 (非 Sheet1, 工作表1 等)，且模型定義了明確的 @ExcelSheet 名稱，
+		// 則表示該工作表屬於其他具體業務領域，嚴禁跨領域誤判
+		boolean hasConfiguredSheetName = metadata.sheetName() != null && !metadata.sheetName().isBlank()
+				&& !metadata.sheetName().equals(modelClass.getSimpleName());
+		boolean isGenericSheetName = sheetName.isEmpty()
+				|| sheetName.matches("^(?i)(sheet|工作表|table|data|頁|page)\\s*\\d*$");
+
+		if (hasConfiguredSheetName && !isGenericSheetName) {
+			return false;
+		}
+
+		// 3. 通用工作表名稱或未指定 sheetName 時，進行表頭欄位匹配度檢查
+		List<String> headers = sheet.headers();
+		if (headers != null && !headers.isEmpty()) {
+			int[] colIndices = resolveColumnIndices(metadata, headers);
+			int matchedCount = 0;
+			for (int idx : colIndices) {
+				if (idx >= 0) {
+					matchedCount++;
+				}
+			}
+			int threshold = Math.max(3, (int) Math.ceil(metadata.columns().size() * 0.5));
+			return matchedCount >= threshold;
+		}
+
+		return false;
+	}
+
+	/**
+	 * 走訪活頁簿中所有與目標模型相符之工作表，並將解析所得之模型集合全部合併回傳。
+	 *
+	 * @param <T>        目標模型型別
+	 * @param result     Excel 活頁簿讀取結果 DTO
+	 * @param modelClass 目標模型類別 Class
+	 * @return 包含所有相符工作表合併名稱與全部解析物件之 {@link BeanSheetGottenResult}
+	 */
+	public static <T> BeanSheetGottenResult<T> toAllBeans(ExcelGottenResult result, Class<T> modelClass) {
+		Objects.requireNonNull(modelClass, "modelClass 不得為空");
+		if (result == null || result.isEmpty()) {
+			return new BeanSheetGottenResult<>("無資料", Collections.emptyList());
+		}
+
+		List<T> allItems = new ArrayList<>();
+		List<String> matchedSheetNames = new ArrayList<>();
+
+		for (ExcelSheetGottenResult sheet : result.getSheets()) {
+			if (isSheetMatchingModel(sheet, modelClass)) {
+				List<T> sheetItems = toBeanList(sheet, modelClass);
+				if (!sheetItems.isEmpty()) {
+					allItems.addAll(sheetItems);
+					matchedSheetNames.add(sheet.sheetName());
+				}
+			}
+		}
+
+		// 若沒有任何工作表經由規則匹配，但活頁簿只有一個工作表，則保底嘗試解析該唯一工作表
+		if (matchedSheetNames.isEmpty() && result.getSheetCount() == 1) {
+			ExcelSheetGottenResult firstSheet = result.getSheets().get(0);
+			List<T> items = toBeanList(firstSheet, modelClass);
+			return new BeanSheetGottenResult<>(firstSheet.sheetName(), items);
+		}
+
+		String aggregatedSheetName;
+		if (matchedSheetNames.isEmpty()) {
+			aggregatedSheetName = "無相符工作表";
+		} else if (matchedSheetNames.size() == 1) {
+			aggregatedSheetName = matchedSheetNames.get(0);
+		} else {
+			aggregatedSheetName = "全部工作表 (" + String.join(", ", matchedSheetNames) + ")";
+		}
+
+		return new BeanSheetGottenResult<>(aggregatedSheetName, allItems);
 	}
 
 	private static String simplifySheetName(String sheetName) {
@@ -1280,6 +1418,7 @@ public final class ExcelBeanAssembler {
 	private static ModelMetadata buildMetadata(Class<?> clazz) {
 		ExcelSheet sheetAnno = clazz.getAnnotation(ExcelSheet.class);
 		String sheetName = clazz.getSimpleName();
+		String[] sheetAliases = new String[0];
 		SheetProtectionConfig protectionConfig = null;
 		SheetHeaderFooterConfig headerFooterConfig = null;
 
@@ -1288,6 +1427,9 @@ public final class ExcelBeanAssembler {
 				sheetName = sheetAnno.value().trim();
 			} else if (!sheetAnno.name().isBlank()) {
 				sheetName = sheetAnno.name().trim();
+			}
+			if (sheetAnno.aliases() != null && sheetAnno.aliases().length > 0) {
+				sheetAliases = sheetAnno.aliases();
 			}
 
 			if (sheetAnno.protect() || !sheetAnno.protectPassword().isBlank()) {
@@ -1412,7 +1554,7 @@ public final class ExcelBeanAssembler {
 		// 排序欄位：若有 explicitIndex >= 0 依其排序，否則依宣告順序排序
 		columns.sort(Comparator.comparingInt((ColumnMetadata c) -> c.explicitIndex() >= 0 ? c.explicitIndex() : (10000 + c.naturalOrder())));
 
-		return new ModelMetadata(sheetName, isRecord, columns, canonicalConstructor, noArgConstructor, protectionConfig, headerFooterConfig);
+		return new ModelMetadata(sheetName, sheetAliases, isRecord, columns, canonicalConstructor, noArgConstructor, protectionConfig, headerFooterConfig);
 	}
 
 	/**
@@ -1440,6 +1582,7 @@ public final class ExcelBeanAssembler {
 	 * 模型層級元數據記錄
 	 *
 	 * @param sheetName            預設工作表名稱
+	 * @param sheetAliases         工作表相容別名清單
 	 * @param isRecord             是否為 Java 21 Record
 	 * @param columns              欄位元數據排序清單
 	 * @param canonicalConstructor 若為 Record 時的標準建構子
@@ -1449,6 +1592,7 @@ public final class ExcelBeanAssembler {
 	 */
 	private record ModelMetadata(
 			String sheetName,
+			String[] sheetAliases,
 			boolean isRecord,
 			List<ColumnMetadata> columns,
 			Constructor<?> canonicalConstructor,

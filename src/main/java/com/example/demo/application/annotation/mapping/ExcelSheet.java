@@ -37,6 +37,15 @@ public @interface ExcelSheet {
 	String name() default "";
 
 	/**
+	 * 工作表名稱相容別名清單 (Sheet Name Aliases)。
+	 * <p>
+	 * 支援在活頁簿中自動搜尋與多個工作表名稱或別名進行宣告式匹配。
+	 *
+	 * @return 工作表別名字串陣列 (預設為空陣列)
+	 */
+	String[] aliases() default {};
+
+	/**
 	 * 標題列索引 (從 0 起算，預設為 0)。
 	 *
 	 * @return 標題列索引

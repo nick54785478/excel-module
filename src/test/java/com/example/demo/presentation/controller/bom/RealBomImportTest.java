@@ -93,14 +93,14 @@ public class RealBomImportTest {
     }
 
     /**
-     * Feature: 純註解宣告式解析並獲取實際工作表名稱 (Annotation-Driven)
-     * Scenario: 調用 importBeanSheet(in, BomItemExcelModel.class)
-     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
-     * When: 自動依據 @ExcelSheet(name="單階BOM清單") 探測工作表
-     * Then: 正確解析出「單階BOM匯入清單」為工作表真實名稱，且解析 16 筆資料
+     * Feature: 未填 sheetName 時宣告式全量解析所有相符工作表 (All-Sheets Mode)
+     * Scenario: 調用 importBeanSheet(in, BomItemExcelModel.class) 未指定工作表名稱
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案 (內含多階層與單階兩張相符之 BOM 表)
+     * When: 未傳入 sheetName 執行宣告式匯入
+     * Then: 自動走訪並將「多階層BOM展開清單」(27筆) 與「單階BOM匯入清單」(16筆) 全數讀出合併，總計 43 筆
      */
     @Test
-    @DisplayName("場景：Annotation 模式自動探測回傳真實工作表名稱與資料")
+    @DisplayName("場景：未填 sheetName 時自動將所有相符之 BOM 工作表全量讀出")
     void testImportBeanSheetAnnotationMode() throws Exception {
         Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
         try (InputStream in = Files.newInputStream(path)) {
@@ -108,10 +108,9 @@ public class RealBomImportTest {
                     in,
                     BomItemExcelModel.class
             );
-            assertThat(result.sheetName()).isEqualTo("單階BOM匯入清單");
-            assertThat(result.totalCount()).isEqualTo(16);
-            assertThat(result.items()).hasSize(16);
-            assertThat(result.items().get(0).getChildMaterialName()).isEqualTo("飛控主板電路模組總成");
+            assertThat(result.sheetName()).contains("多階層BOM展開清單").contains("單階BOM匯入清單");
+            assertThat(result.totalCount()).isEqualTo(43);
+            assertThat(result.items()).hasSize(43);
         }
     }
 

@@ -99,15 +99,15 @@ public class ExcelQueryService implements ImportExcelUseCase, StreamImportExcelU
 	}
 
 	/**
-	 * 【宣告式物件工作表智慧解析模組 (Annotation-Driven Bean Sheet Reader)】
+	 * 【宣告式物件工作表全量/智慧解析模組 (All-Sheets Bean Reader)】
 	 * <p>
-	 * 依據目標模型上的 {@link com.example.demo.application.annotation.mapping.ExcelSheet} 宣告式註解，
-	 * 自動智慧探測活頁簿中最相符的工作表並解析為強型別模型結果 DTO。
+	 * 依據目標模型上的 {@link com.example.demo.application.annotation.mapping.ExcelSheet} 宣告式註解與欄位表頭匹配度，
+	 * 自動走訪活頁簿中所有相符之工作表並將資料全數解析合併回傳 (沒填 sheetName 時全部讀出)。
 	 *
 	 * @param <T>         模型型別
 	 * @param inputStream 檔案輸入串流
 	 * @param modelClass  目標模型類別 Class
-	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
+	 * @return 包含真實工作表名稱與全部模型集合之 {@link BeanSheetGottenResult}
 	 * @throws IllegalArgumentException 當未找到任何匹配之工作表或檔案為空時拋出
 	 */
 	@Override
@@ -115,33 +115,33 @@ public class ExcelQueryService implements ImportExcelUseCase, StreamImportExcelU
 		Objects.requireNonNull(inputStream, "inputStream must not be null");
 		Objects.requireNonNull(modelClass, "modelClass must not be null");
 		ExcelGottenResult result = importExcel(inputStream, ReadExcelQuery.defaultQuery());
-		ExcelSheetGottenResult targetSheet = ExcelBeanAssembler.resolveTargetSheet(result, modelClass, null);
-		if (targetSheet == null || targetSheet.isEmpty()) {
-			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到符合 @ExcelSheet 宣告之工作表");
+		BeanSheetGottenResult<T> allBeans = ExcelBeanAssembler.toAllBeans(result, modelClass);
+		if (allBeans.isEmpty()) {
+			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到任何符合 @ExcelSheet 宣告之工作表或資料為空");
 		}
-		List<T> items = ExcelBeanAssembler.toBeanList(targetSheet, modelClass);
-		return new BeanSheetGottenResult<>(targetSheet.sheetName(), items);
+		return allBeans;
 	}
 
 	/**
 	 * 【指定工作表精確解析模組 (SheetName-Driven Bean Sheet Reader)】
 	 * <p>
 	 * 依據呼叫端指定之工作表名稱 (sheetName) 進行嚴格比對並解析為強型別模型結果 DTO。
-	 * 若在 Excel 活頁簿中找不到該指定名稱之工作表，嚴格拋出 {@link IllegalArgumentException} 例外以防止錯誤降級。
+	 * 若 sheetName 為空或空白，則自動全量讀出所有相符工作表 (沒填就全部讀出)；
+	 * 若指定了特定 sheetName 但在活頁簿中找不到該工作表，嚴格拋出 {@link IllegalArgumentException} 例外以防止錯誤降級。
 	 *
 	 * @param <T>         模型型別
 	 * @param inputStream 檔案輸入串流
-	 * @param sheetName   指定讀取之工作表名稱 (必填)
+	 * @param sheetName   指定讀取之工作表名稱 (選填，若為空則讀取全數相符工作表)
 	 * @param modelClass  目標模型類別 Class
 	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
-	 * @throws IllegalArgumentException 當指定之工作表名稱為空或活頁簿中找不到該工作表時拋出
+	 * @throws IllegalArgumentException 當指定之工作表名稱不存在時拋出
 	 */
 	@Override
 	public <T> BeanSheetGottenResult<T> importBeanSheet(InputStream inputStream, String sheetName, Class<T> modelClass) {
 		Objects.requireNonNull(inputStream, "inputStream must not be null");
 		Objects.requireNonNull(modelClass, "modelClass must not be null");
 		if (sheetName == null || sheetName.isBlank()) {
-			throw new IllegalArgumentException("指定讀取之工作表名稱 (sheetName) 不能為空");
+			return importBeanSheet(inputStream, modelClass);
 		}
 		ExcelGottenResult result = importExcel(inputStream, ReadExcelQuery.defaultQuery());
 		String trimmed = sheetName.trim();
