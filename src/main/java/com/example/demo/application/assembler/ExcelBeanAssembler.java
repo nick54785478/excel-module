@@ -999,27 +999,27 @@ public final class ExcelBeanAssembler {
 
 		try {
 			if (Integer.class.equals(targetType) || int.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return (int) Math.round(Double.parseDouble(clean));
 			}
 			if (Long.class.equals(targetType) || long.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return Math.round(Double.parseDouble(clean));
 			}
 			if (Double.class.equals(targetType) || double.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return Double.parseDouble(clean);
 			}
 			if (Float.class.equals(targetType) || float.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return Float.parseFloat(clean);
 			}
 			if (BigDecimal.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return new BigDecimal(clean);
 			}
 			if (BigInteger.class.equals(targetType)) {
-				String clean = str.replace(",", "").replace("$", "").replace("¥", "").trim();
+				String clean = str.replace(",", "").replace("$", "").replace("¥", "").replace("%", "").trim();
 				return new BigDecimal(clean).toBigInteger();
 			}
 			if (Boolean.class.equals(targetType) || boolean.class.equals(targetType)) {
