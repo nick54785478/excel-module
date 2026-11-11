@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
@@ -46,13 +47,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * 與物料清單配方 ({@link com.example.demo.domain.bom.aggregate.root.Bom}) 對應之 Excel 宣告式物件映射 (Declarative Bean Mapping) API。
  * </p>
  * <p>
- * <b>【精簡架構與 4 隻核心 API】</b><br>
- * 捨棄冗餘的自訂 JSON 轉檔端點與重複的 URL 前綴，回歸最標準的「系統實機資料一鍵匯出 (GET) ＋ 試算表宣告式解析 (POST)」對稱結構：
+ * <b>【架構定位與 6 隻核心 API】</b><br>
+ * 提供對稱完整的「系統實機資料一鍵匯出 (GET) ＋ 雙模態試算表匯入解析 (POST)」端點：
  * <ol>
  *   <li>{@code GET  /materials/export}：一鍵下載資料庫現有物料主檔 Excel (materials_master.xlsx)</li>
- *   <li>{@code POST /materials/import}：上傳物料 Excel 檔案並宣告式解析為 MaterialExcelModel 清單</li>
+ *   <li>{@code POST /materials/import}：上傳物料 Excel 檔案並純依 {@code @ExcelSheet} 註解自動智慧探測解析 (無須指定 sheetName)</li>
+ *   <li>{@code POST /materials/import/by-sheet}：上傳物料 Excel 檔案並依指定 {@code sheetName} 精確解析 (找不到時拋出例外)</li>
  *   <li>{@code GET  /bom-items/export}：一鍵下載資料庫現有單階 BOM 配方 Excel (bom_items_master.xlsx)</li>
- *   <li>{@code POST /bom-items/import}：上傳單階 BOM Excel 檔案並宣告式解析為 BomItemExcelModel 清單</li>
+ *   <li>{@code POST /bom-items/import}：上傳單階 BOM Excel 檔案並純依 {@code @ExcelSheet} 註解自動智慧探測解析 (無須指定 sheetName)</li>
+ *   <li>{@code POST /bom-items/import/by-sheet}：上傳單階 BOM Excel 檔案並依指定 {@code sheetName} 精確解析 (找不到時拋出例外)</li>
  * </ol>
  * </p>
  */
@@ -136,10 +139,10 @@ public class MaterialBomExcelController {
 	}
 
 	/**
-	 * API 2: 上傳 Excel 檔案並宣告式解析為物料模型清單 (Material 業務模型)
+	 * API 2-A: 上傳 Excel 檔案並依 @ExcelSheet 宣告式解析為物料模型清單 (Annotation-Driven 模式)
 	 * <p>
-	 * 上傳物料 Excel 檔案，後端自動依據 {@code @ExcelSheet} 與 {@code @ExcelColumn} 宣告式映射規則，
-	 * 反射解析試算表資料列並轉譯為 {@link MaterialExcelModel} 清單，回傳 JSON 結構以供預覽或後續業務處理。
+	 * 上傳物料 Excel 檔案，後端完全依據模型類別上的 {@code @ExcelSheet} 與 {@code @ExcelColumn} 宣告式映射規則，
+	 * 自動智慧探測活頁簿中最適工作表並轉譯為 {@link MaterialExcelModel} 清單，回傳 JSON (無須提供 sheetName 參數)。
 	 * </p>
 	 *
 	 * @param file 欲上傳解析之物料 Excel 檔案 (.xlsx)
@@ -147,8 +150,8 @@ public class MaterialBomExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "檔案上傳並宣告式解析為 MaterialExcelModel (Material 業務模型)",
-			description = "上傳物料 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 MaterialExcelModel 清單，回傳 JSON。"
+			summary = "檔案上傳並依 @ExcelSheet 宣告式解析為 MaterialExcelModel (Annotation 模式)",
+			description = "上傳物料 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 智慧探測匹配工作表並映射為 MaterialExcelModel 清單，回傳包含真實工作表名稱之 JSON。"
 	)
 	@ApiResponses({
 			@ApiResponse(
@@ -171,33 +174,97 @@ public class MaterialBomExcelController {
 	@PostMapping(value = "/materials/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MaterialImportedResource> importMaterials(
 			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
-			@RequestParam("file") MultipartFile file,
-			@Parameter(description = "指定讀取之工作表名稱 (選填，若未指定則自動依 @ExcelSheet 智慧探測匹配)", required = false)
-			@RequestParam(value = "sheetName", required = false) String sheetName
+			@RequestParam("file") MultipartFile file
 	) throws IOException {
 
 		// ---------------------------------------------------------------------
 		// 步驟 1：邊界防禦檢核 (Input Guard Clause)
 		// ---------------------------------------------------------------------
-		// 確保上傳檔案不為空，若無附加內容立即阻斷，避免無效串流開銷
 		if (file == null || file.isEmpty()) {
 			throw new IllegalArgumentException("上傳之 Excel 檔案不能為空");
 		}
 
 		// ---------------------------------------------------------------------
-		// 步驟 2：調度應用層通用匯入案例 (Inbound Port)
+		// 步驟 2：調度應用層宣告式工作表智慧解析案例 (Inbound Port)
 		// ---------------------------------------------------------------------
-		// 若指定 sheetName 則套用特定查詢，否則調用預設匯入並由 ExcelBeanAssembler 智慧探測對應工作表
-		List<MaterialExcelModel> models = (sheetName != null && !sheetName.isBlank())
-				? importExcelUseCase.importBeans(file.getInputStream(), ReadExcelQuery.ofSheet(sheetName.trim()), MaterialExcelModel.class)
-				: importExcelUseCase.importBeans(file.getInputStream(), MaterialExcelModel.class);
+		BeanSheetGottenResult<MaterialExcelModel> result = importExcelUseCase.importBeanSheet(
+				file.getInputStream(), MaterialExcelModel.class);
 
 		// ---------------------------------------------------------------------
 		// 步驟 3：防腐層 (ACL) 轉換
 		// ---------------------------------------------------------------------
-		// 透過 MaterialBomResourceAssembler 將應用層模型清單包裝為表現層純資料載體 MaterialImportedResource
-		String targetSheet = (sheetName != null && !sheetName.isBlank()) ? sheetName.trim() : "物料主檔清單";
-		MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(models, targetSheet);
+		MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
+				result.items(), result.sheetName());
+
+		// ---------------------------------------------------------------------
+		// 步驟 4：回傳 HTTP 200 OK 結構化回應
+		// ---------------------------------------------------------------------
+		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * API 2-B: 上傳 Excel 檔案並指定工作表名稱解析為物料模型清單 (SheetName-Driven 模式)
+	 * <p>
+	 * 上傳物料 Excel 檔案並指定讀取特定工作表名稱 ({@code sheetName})，若在活頁簿中找不到該工作表則嚴格拋出例外，
+	 * 防止錯誤降級讀取非預期資料。
+	 * </p>
+	 *
+	 * @param file      欲上傳解析之物料 Excel 檔案 (.xlsx)
+	 * @param sheetName 指定讀取之工作表名稱 (必填)
+	 * @return HTTP 200 與解析完成之 {@link MaterialImportedResource} 結構化資料
+	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
+	 */
+	@Operation(
+			summary = "檔案上傳並指定工作表名稱解析為 MaterialExcelModel (SheetName 模式)",
+			description = "上傳物料 Excel 檔案並指定讀取特定工作表名稱 (sheetName)，若找不到該工作表則嚴格拋出例外，成功則回傳 JSON。"
+	)
+	@ApiResponses({
+			@ApiResponse(
+					responseCode = "200",
+					description = "成功解析指定工作表之物料 Excel 內容",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = MaterialImportedResource.class)
+					)
+			),
+			@ApiResponse(
+					responseCode = "400",
+					description = "檔案為空、工作表不存在或解析失敗",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = ValidationFailedResource.class)
+					)
+			)
+	})
+	@PostMapping(value = {"/materials/import/by-sheet", "/materials/import-by-sheet"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<MaterialImportedResource> importMaterialsBySheet(
+			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
+			@RequestParam("file") MultipartFile file,
+			@Parameter(description = "指定讀取之工作表名稱 (必填)", required = true)
+			@RequestParam("sheetName") String sheetName
+	) throws IOException {
+
+		// ---------------------------------------------------------------------
+		// 步驟 1：邊界防禦檢核 (Input Guard Clause)
+		// ---------------------------------------------------------------------
+		if (file == null || file.isEmpty()) {
+			throw new IllegalArgumentException("上傳之 Excel 檔案不能為空");
+		}
+		if (sheetName == null || sheetName.isBlank()) {
+			throw new IllegalArgumentException("指定讀取之工作表名稱 (sheetName) 不能為空");
+		}
+
+		// ---------------------------------------------------------------------
+		// 步驟 2：調度應用層指定工作表精確解析案例 (Inbound Port)
+		// ---------------------------------------------------------------------
+		BeanSheetGottenResult<MaterialExcelModel> result = importExcelUseCase.importBeanSheet(
+				file.getInputStream(), sheetName.trim(), MaterialExcelModel.class);
+
+		// ---------------------------------------------------------------------
+		// 步驟 3：防腐層 (ACL) 轉換
+		// ---------------------------------------------------------------------
+		MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
+				result.items(), result.sheetName());
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應
@@ -238,10 +305,10 @@ public class MaterialBomExcelController {
 	}
 
 	/**
-	 * API 4: 上傳 Excel 檔案並宣告式解析為單階 BOM 配方模型清單 (BOM 業務模型)
+	 * API 4-A: 上傳 Excel 檔案並依 @ExcelSheet 宣告式解析為單階 BOM 配方模型清單 (Annotation-Driven 模式)
 	 * <p>
-	 * 上傳 BOM 配方 Excel 檔案，後端自動依據 {@code @ExcelSheet} 與 {@code @ExcelColumn} 宣告式映射規則，
-	 * 反射解析試算表資料列並轉譯為 {@link BomItemExcelModel} 清單，回傳 JSON 結構以供預覽或後續業務處理。
+	 * 上傳 BOM 配方 Excel 檔案，後端完全依據模型類別上的 {@code @ExcelSheet} 與 {@code @ExcelColumn} 宣告式映射規則，
+	 * 自動智慧探測活頁簿中最適工作表並轉譯為 {@link BomItemExcelModel} 清單，回傳 JSON (無須提供 sheetName 參數)。
 	 * </p>
 	 *
 	 * @param file 欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)
@@ -249,8 +316,8 @@ public class MaterialBomExcelController {
 	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
 	 */
 	@Operation(
-			summary = "檔案上傳並宣告式解析為 BomItemExcelModel (BOM 業務模型)",
-			description = "上傳 BOM Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 BomItemExcelModel 清單，回傳 JSON。"
+			summary = "檔案上傳並依 @ExcelSheet 宣告式解析為 BomItemExcelModel (Annotation 模式)",
+			description = "上傳 BOM Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 智慧探測匹配工作表並映射為 BomItemExcelModel 清單，回傳包含真實工作表名稱之 JSON。"
 	)
 	@ApiResponses({
 			@ApiResponse(
@@ -273,9 +340,7 @@ public class MaterialBomExcelController {
 	@PostMapping(value = "/bom-items/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BomItemImportedResource> importBomItems(
 			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
-			@RequestParam("file") MultipartFile file,
-			@Parameter(description = "指定讀取之工作表名稱 (選填，若未指定則自動依 @ExcelSheet 智慧探測匹配)", required = false)
-			@RequestParam(value = "sheetName", required = false) String sheetName
+			@RequestParam("file") MultipartFile file
 	) throws IOException {
 
 		// ---------------------------------------------------------------------
@@ -286,19 +351,86 @@ public class MaterialBomExcelController {
 		}
 
 		// ---------------------------------------------------------------------
-		// 步驟 2：調度應用層通用匯入案例 (Inbound Port)
+		// 步驟 2：調度應用層宣告式工作表智慧解析案例 (Inbound Port)
 		// ---------------------------------------------------------------------
-		// 若指定 sheetName 則套用特定查詢，否則調用預設匯入並由 ExcelBeanAssembler 智慧探測對應工作表
-		List<BomItemExcelModel> models = (sheetName != null && !sheetName.isBlank())
-				? importExcelUseCase.importBeans(file.getInputStream(), ReadExcelQuery.ofSheet(sheetName.trim()), BomItemExcelModel.class)
-				: importExcelUseCase.importBeans(file.getInputStream(), BomItemExcelModel.class);
+		BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
+				file.getInputStream(), BomItemExcelModel.class);
 
 		// ---------------------------------------------------------------------
 		// 步驟 3：防腐層 (ACL) 轉換
 		// ---------------------------------------------------------------------
-		// 透過 MaterialBomResourceAssembler 將應用層模型清單包裝為表現層純資料載體 BomItemImportedResource
-		String targetSheet = (sheetName != null && !sheetName.isBlank()) ? sheetName.trim() : "單階BOM清單";
-		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(models, targetSheet);
+		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+				result.items(), result.sheetName());
+
+		// ---------------------------------------------------------------------
+		// 步驟 4：回傳 HTTP 200 OK 結構化回應
+		// ---------------------------------------------------------------------
+		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * API 4-B: 上傳 Excel 檔案並指定工作表名稱解析為單階 BOM 配方模型清單 (SheetName-Driven 模式)
+	 * <p>
+	 * 上傳 BOM 配方 Excel 檔案並指定讀取特定工作表名稱 ({@code sheetName})，若在活頁簿中找不到該工作表則嚴格拋出例外，
+	 * 防止錯誤降級讀取非預期資料。
+	 * </p>
+	 *
+	 * @param file      欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)
+	 * @param sheetName 指定讀取之工作表名稱 (必填)
+	 * @return HTTP 200 與解析完成之 {@link BomItemImportedResource} 結構化資料
+	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
+	 */
+	@Operation(
+			summary = "檔案上傳並指定工作表名稱解析為 BomItemExcelModel (SheetName 模式)",
+			description = "上傳 BOM Excel 檔案並指定讀取特定工作表名稱 (sheetName)，若找不到該工作表則嚴格拋出例外，成功則回傳 JSON。"
+	)
+	@ApiResponses({
+			@ApiResponse(
+					responseCode = "200",
+					description = "成功解析指定工作表之 BOM Excel 內容",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = BomItemImportedResource.class)
+					)
+			),
+			@ApiResponse(
+					responseCode = "400",
+					description = "檔案為空、工作表不存在或解析失敗",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = ValidationFailedResource.class)
+					)
+			)
+	})
+	@PostMapping(value = {"/bom-items/import/by-sheet", "/bom-items/import-by-sheet"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<BomItemImportedResource> importBomItemsBySheet(
+			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
+			@RequestParam("file") MultipartFile file,
+			@Parameter(description = "指定讀取之工作表名稱 (必填)", required = true)
+			@RequestParam("sheetName") String sheetName
+	) throws IOException {
+
+		// ---------------------------------------------------------------------
+		// 步驟 1：邊界防禦檢核 (Input Guard Clause)
+		// ---------------------------------------------------------------------
+		if (file == null || file.isEmpty()) {
+			throw new IllegalArgumentException("上傳之 Excel 檔案不能為空");
+		}
+		if (sheetName == null || sheetName.isBlank()) {
+			throw new IllegalArgumentException("指定讀取之工作表名稱 (sheetName) 不能為空");
+		}
+
+		// ---------------------------------------------------------------------
+		// 步驟 2：調度應用層指定工作表精確解析案例 (Inbound Port)
+		// ---------------------------------------------------------------------
+		BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
+				file.getInputStream(), sheetName.trim(), BomItemExcelModel.class);
+
+		// ---------------------------------------------------------------------
+		// 步驟 3：防腐層 (ACL) 轉換
+		// ---------------------------------------------------------------------
+		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+				result.items(), result.sheetName());
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應

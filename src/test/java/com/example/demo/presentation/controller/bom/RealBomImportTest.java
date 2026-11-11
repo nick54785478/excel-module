@@ -12,10 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
+import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * BOM Excel 實體檔案匯入與宣告式解析整合測試。
@@ -86,6 +89,96 @@ public class RealBomImportTest {
                     BomItemExcelModel.class
             );
             assertThat(models).hasSize(16);
+        }
+    }
+
+    /**
+     * Feature: 純註解宣告式解析並獲取實際工作表名稱 (Annotation-Driven)
+     * Scenario: 調用 importBeanSheet(in, BomItemExcelModel.class)
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
+     * When: 自動依據 @ExcelSheet(name="單階BOM清單") 探測工作表
+     * Then: 正確解析出「單階BOM匯入清單」為工作表真實名稱，且解析 16 筆資料
+     */
+    @Test
+    @DisplayName("場景：Annotation 模式自動探測回傳真實工作表名稱與資料")
+    void testImportBeanSheetAnnotationMode() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        try (InputStream in = Files.newInputStream(path)) {
+            BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
+                    in,
+                    BomItemExcelModel.class
+            );
+            assertThat(result.sheetName()).isEqualTo("單階BOM匯入清單");
+            assertThat(result.totalCount()).isEqualTo(16);
+            assertThat(result.items()).hasSize(16);
+            assertThat(result.items().get(0).getChildMaterialName()).isEqualTo("飛控主板電路模組總成");
+        }
+    }
+
+    /**
+     * Feature: 指定工作表名稱解析並獲取工作表名稱與資料 (SheetName-Driven)
+     * Scenario: 調用 importBeanSheet(in, "多階層BOM展開清單", BomItemExcelModel.class)
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
+     * When: 指定讀取「多階層BOM展開清單」
+     * Then: 正確解析出「多階層BOM展開清單」為工作表名稱，且解析 27 筆資料
+     */
+    @Test
+    @DisplayName("場景：SheetName 模式指定工作表精確解析")
+    void testImportBeanSheetSheetNameMode() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        try (InputStream in = Files.newInputStream(path)) {
+            BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
+                    in,
+                    "多階層BOM展開清單",
+                    BomItemExcelModel.class
+            );
+            assertThat(result.sheetName()).isEqualTo("多階層BOM展開清單");
+            assertThat(result.totalCount()).isEqualTo(27);
+            assertThat(result.items()).hasSize(27);
+        }
+    }
+
+    /**
+     * Feature: 指定不存在之工作表時嚴格拋出例外
+     * Scenario: 調用 importBeanSheet(in, "不存在的配方表", BomItemExcelModel.class)
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
+     * When: 指定不存在之工作表名稱
+     * Then: 拋出 IllegalArgumentException 例外，訊息指明找不到工作表
+     */
+    @Test
+    @DisplayName("異常：SheetName 模式指定不存在工作表時拋出例外")
+    void testImportBeanSheetSheetNotFoundThrowsException() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        try (InputStream in = Files.newInputStream(path)) {
+            assertThatThrownBy(() -> importExcelUseCase.importBeanSheet(
+                    in,
+                    "不存在的配方表",
+                    BomItemExcelModel.class
+            ))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("在 Excel 活頁簿中找不到指定名稱之工作表: 不存在的配方表");
+        }
+    }
+
+    /**
+     * Feature: 物料主檔純註解宣告式解析並獲取實際工作表名稱 (Annotation-Driven)
+     * Scenario: 調用 importBeanSheet(in, MaterialExcelModel.class)
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
+     * When: 自動依據 @ExcelSheet(name="物料主檔清單") 探測工作表
+     * Then: 正確解析出「物料主檔對照表」為真實工作表名稱，且解析 19 筆資料
+     */
+    @Test
+    @DisplayName("場景：物料主檔 Annotation 模式自動匹配物料主檔對照表")
+    void testImportMaterialBeanSheetAnnotationMode() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        try (InputStream in = Files.newInputStream(path)) {
+            BeanSheetGottenResult<MaterialExcelModel> result = importExcelUseCase.importBeanSheet(
+                    in,
+                    MaterialExcelModel.class
+            );
+            assertThat(result.sheetName()).isEqualTo("物料主檔對照表");
+            assertThat(result.totalCount()).isEqualTo(19);
+            assertThat(result.items()).hasSize(19);
         }
     }
 }

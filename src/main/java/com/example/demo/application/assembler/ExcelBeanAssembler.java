@@ -369,6 +369,8 @@ public final class ExcelBeanAssembler {
 					return sheet;
 				}
 			}
+			// 明確指定特定工作表名稱但未比對成功，直接返回 null，嚴禁保底降級至其他工作表
+			return null;
 		}
 
 		// 2. 依據 Model 上的 @ExcelSheet 註解工作表名稱進行探測

@@ -14,6 +14,7 @@ import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.port.in.core.StreamImportExcelUseCase;
 import com.example.demo.application.port.out.core.ExcelReaderPort;
 import com.example.demo.application.shared.command.StreamImportExcelCommand;
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelStreamImportGottenResult;
@@ -95,6 +96,66 @@ public class ExcelQueryService implements ImportExcelUseCase, StreamImportExcelU
 		ExcelGottenResult result = importExcel(inputStream, query);
 		String targetSheet = query != null ? query.getSheetName() : null;
 		return ExcelBeanAssembler.toBeanList(result, modelClass, targetSheet);
+	}
+
+	/**
+	 * 【宣告式物件工作表智慧解析模組 (Annotation-Driven Bean Sheet Reader)】
+	 * <p>
+	 * 依據目標模型上的 {@link com.example.demo.application.annotation.mapping.ExcelSheet} 宣告式註解，
+	 * 自動智慧探測活頁簿中最相符的工作表並解析為強型別模型結果 DTO。
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param modelClass  目標模型類別 Class
+	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
+	 * @throws IllegalArgumentException 當未找到任何匹配之工作表或檔案為空時拋出
+	 */
+	@Override
+	public <T> BeanSheetGottenResult<T> importBeanSheet(InputStream inputStream, Class<T> modelClass) {
+		Objects.requireNonNull(inputStream, "inputStream must not be null");
+		Objects.requireNonNull(modelClass, "modelClass must not be null");
+		ExcelGottenResult result = importExcel(inputStream, ReadExcelQuery.defaultQuery());
+		ExcelSheetGottenResult targetSheet = ExcelBeanAssembler.resolveTargetSheet(result, modelClass, null);
+		if (targetSheet == null || targetSheet.isEmpty()) {
+			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到符合 @ExcelSheet 宣告之工作表");
+		}
+		List<T> items = ExcelBeanAssembler.toBeanList(targetSheet, modelClass);
+		return new BeanSheetGottenResult<>(targetSheet.sheetName(), items);
+	}
+
+	/**
+	 * 【指定工作表精確解析模組 (SheetName-Driven Bean Sheet Reader)】
+	 * <p>
+	 * 依據呼叫端指定之工作表名稱 (sheetName) 進行嚴格比對並解析為強型別模型結果 DTO。
+	 * 若在 Excel 活頁簿中找不到該指定名稱之工作表，嚴格拋出 {@link IllegalArgumentException} 例外以防止錯誤降級。
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param sheetName   指定讀取之工作表名稱 (必填)
+	 * @param modelClass  目標模型類別 Class
+	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
+	 * @throws IllegalArgumentException 當指定之工作表名稱為空或活頁簿中找不到該工作表時拋出
+	 */
+	@Override
+	public <T> BeanSheetGottenResult<T> importBeanSheet(InputStream inputStream, String sheetName, Class<T> modelClass) {
+		Objects.requireNonNull(inputStream, "inputStream must not be null");
+		Objects.requireNonNull(modelClass, "modelClass must not be null");
+		if (sheetName == null || sheetName.isBlank()) {
+			throw new IllegalArgumentException("指定讀取之工作表名稱 (sheetName) 不能為空");
+		}
+		ExcelGottenResult result = importExcel(inputStream, ReadExcelQuery.defaultQuery());
+		String trimmed = sheetName.trim();
+		ExcelSheetGottenResult targetSheet = result.getSheet(trimmed)
+				.or(() -> result.getSheets().stream()
+						.filter(s -> s.sheetName().trim().equalsIgnoreCase(trimmed))
+						.findFirst())
+				.orElse(null);
+
+		if (targetSheet == null) {
+			throw new IllegalArgumentException("在 Excel 活頁簿中找不到指定名稱之工作表: " + trimmed);
+		}
+		List<T> items = ExcelBeanAssembler.toBeanList(targetSheet, modelClass);
+		return new BeanSheetGottenResult<>(targetSheet.sheetName(), items);
 	}
 
 	/**

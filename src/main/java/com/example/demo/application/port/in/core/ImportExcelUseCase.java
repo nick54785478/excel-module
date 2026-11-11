@@ -3,6 +3,7 @@ package com.example.demo.application.port.in.core;
 import java.io.InputStream;
 import java.util.List;
 
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.query.ReadExcelQuery;
@@ -44,6 +45,33 @@ public interface ImportExcelUseCase {
 	 * @return 強型別 Model 清單
 	 */
 	<T> List<T> importBeans(InputStream inputStream, ReadExcelQuery query, Class<T> modelClass);
+
+	/**
+	 * 依據目標模型上的 {@link com.example.demo.application.annotation.mapping.ExcelSheet} 宣告式註解，
+	 * 自動智慧探測活頁簿中最相符的工作表並解析為強型別模型結果 DTO。
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param modelClass  目標模型類別 Class
+	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
+	 * @throws IllegalArgumentException 當未找到任何匹配之工作表或檔案為空時拋出
+	 */
+	<T> BeanSheetGottenResult<T> importBeanSheet(InputStream inputStream, Class<T> modelClass);
+
+	/**
+	 * 依據呼叫端指定之工作表名稱 (sheetName) 進行嚴格比對並解析為強型別模型結果 DTO。
+	 * <p>
+	 * 若在 Excel 活頁簿中找不到該指定名稱之工作表，嚴格拋出 {@link IllegalArgumentException} 例外以防止錯誤降級。
+	 * </p>
+	 *
+	 * @param <T>         模型型別
+	 * @param inputStream 檔案輸入串流
+	 * @param sheetName   指定讀取之工作表名稱 (必填)
+	 * @param modelClass  目標模型類別 Class
+	 * @return 包含真實工作表名稱與模型集合之 {@link BeanSheetGottenResult}
+	 * @throws IllegalArgumentException 當指定之工作表名稱為空或活頁簿中找不到該工作表時拋出
+	 */
+	<T> BeanSheetGottenResult<T> importBeanSheet(InputStream inputStream, String sheetName, Class<T> modelClass);
 
 	/**
 	 * 執行 Excel 檔案解析並回傳第一個工作表純資料載體

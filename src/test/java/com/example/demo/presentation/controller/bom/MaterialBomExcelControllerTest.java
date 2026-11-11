@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
@@ -95,14 +96,14 @@ class MaterialBomExcelControllerTest {
 	}
 
 	/**
-	 * Feature: 物料主檔 Excel 上傳解析
-	 * Scenario: 上傳物料 Excel 檔案並宣告式解析為 MaterialExcelModel 清單
-	 * Given: 模擬上傳包含 1 筆物料之 Excel 檔案
-	 * When: 發送 POST multipart 請求
-	 * Then: 回應 200 OK 且包含正確之 MaterialImportedResource JSON 結構
+	 * Feature: 物料主檔 Excel 上傳解析 (Annotation 模式)
+	 * Scenario: 上傳物料 Excel 檔案並純依 @ExcelSheet 宣告式解析為 MaterialExcelModel 清單
+	 * Given: 模擬上傳包含 1 筆物料之 Excel 檔案，ImportExcelUseCase 回傳包含真實工作表名稱之結果
+	 * When: 發送 POST multipart 請求至 /materials/import
+	 * Then: 回應 200 OK 且包含正確之 MaterialImportedResource JSON 結構與真實工作表名稱
 	 */
 	@Test
-	@DisplayName("場景：POST 上傳檔案宣告式解析為 MaterialImportedResource")
+	@DisplayName("場景：POST 上傳檔案純依 @ExcelSheet 宣告式解析為 MaterialImportedResource")
 	void shouldImportMaterialsSuccessfully() throws Exception {
 		// Given
 		MockMultipartFile file = new MockMultipartFile(
@@ -115,19 +116,83 @@ class MaterialBomExcelControllerTest {
 		MaterialExcelModel parsedModel = new MaterialExcelModel(
 				"MAT-001", "高精度馬達", "2204-KV2300", "RAW_MATERIAL", "PCS", new BigDecimal("450.00"), "ACTIVE"
 		);
-		when(importExcelUseCase.importBeans(any(InputStream.class), eq(MaterialExcelModel.class)))
-				.thenReturn(List.of(parsedModel));
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq(MaterialExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("物料主檔對照表", List.of(parsedModel)));
 
 		// When & Then
 		mockMvc.perform(multipart("/api/v1/excel/material-bom/materials/import").file(file))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.totalCount").value(1))
-				.andExpect(jsonPath("$.sheetName").value("物料主檔清單"))
+				.andExpect(jsonPath("$.sheetName").value("物料主檔對照表"))
 				.andExpect(jsonPath("$.items[0].materialCode").value("MAT-001"))
 				.andExpect(jsonPath("$.items[0].materialName").value("高精度馬達"));
 
-		verify(importExcelUseCase).importBeans(any(InputStream.class), eq(MaterialExcelModel.class));
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq(MaterialExcelModel.class));
+	}
+
+	/**
+	 * Feature: 物料主檔指定工作表 Excel 上傳解析 (SheetName 模式)
+	 * Scenario: 上傳物料 Excel 檔案並指定 sheetName 參數精確解析
+	 * Given: 模擬上傳 Excel 檔案並指定 sheetName="自訂物料表"
+	 * When: 發送 POST multipart 請求至 /materials/import/by-sheet
+	 * Then: 回應 200 OK 且包含指定工作表名稱與解析資料
+	 */
+	@Test
+	@DisplayName("場景：POST 上傳檔案指定 sheetName 成功解析為 MaterialImportedResource")
+	void shouldImportMaterialsBySheetSuccessfully() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"materials.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{1, 2, 3}
+		);
+
+		MaterialExcelModel parsedModel = new MaterialExcelModel(
+				"MAT-002", "碳纖維機架", "F450-V2", "RAW_MATERIAL", "SET", new BigDecimal("1200.00"), "ACTIVE"
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("自訂物料表"), eq(MaterialExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("自訂物料表", List.of(parsedModel)));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/materials/import/by-sheet")
+						.file(file)
+						.param("sheetName", "自訂物料表"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.totalCount").value(1))
+				.andExpect(jsonPath("$.sheetName").value("自訂物料表"))
+				.andExpect(jsonPath("$.items[0].materialCode").value("MAT-002"));
+
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("自訂物料表"), eq(MaterialExcelModel.class));
+	}
+
+	/**
+	 * Feature: 物料主檔指定工作表不存在異常處理 (SheetName 模式)
+	 * Scenario: 指定之工作表在 Excel 活頁簿中不存在
+	 * Given: 模擬調用 importBeanSheet 拋出 IllegalArgumentException
+	 * When: 發送 POST multipart 請求至 /materials/import/by-sheet
+	 * Then: 回應 400 Bad Request
+	 */
+	@Test
+	@DisplayName("異常：指定不存在之工作表名稱時拋出 400 錯誤")
+	void shouldRejectWhenSheetNameNotFoundOnImportMaterialsBySheet() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"materials.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{1, 2, 3}
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("不存在的表"), eq(MaterialExcelModel.class)))
+				.thenThrow(new IllegalArgumentException("在 Excel 活頁簿中找不到指定名稱之工作表: 不存在的表"));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/materials/import/by-sheet")
+						.file(file)
+						.param("sheetName", "不存在的表"))
+				.andExpect(status().isBadRequest());
 	}
 
 	// =========================================================================
@@ -159,14 +224,14 @@ class MaterialBomExcelControllerTest {
 	}
 
 	/**
-	 * Feature: 單階 BOM 配方 Excel 上傳解析
-	 * Scenario: 上傳 BOM Excel 檔案並宣告式解析為 BomItemExcelModel 清單
-	 * Given: 模擬上傳包含 1 筆 BOM 子項之 Excel 檔案
-	 * When: 發送 POST multipart 請求
-	 * Then: 回應 200 OK 且包含正確之 BomItemImportedResource JSON 結構
+	 * Feature: 單階 BOM 配方 Excel 上傳解析 (Annotation 模式)
+	 * Scenario: 上傳 BOM Excel 檔案並純依 @ExcelSheet 宣告式解析為 BomItemExcelModel 清單
+	 * Given: 模擬上傳包含 1 筆 BOM 子項之 Excel 檔案，ImportExcelUseCase 回傳真實工作表名稱「單階BOM匯入清單」
+	 * When: 發送 POST multipart 請求至 /bom-items/import
+	 * Then: 回應 200 OK 且包含正確之 BomItemImportedResource JSON 結構與真實工作表名稱「單階BOM匯入清單」
 	 */
 	@Test
-	@DisplayName("場景：POST 上傳檔案宣告式解析為 BomItemImportedResource")
+	@DisplayName("場景：POST 上傳檔案純依 @ExcelSheet 宣告式解析為 BomItemImportedResource")
 	void shouldImportBomItemsSuccessfully() throws Exception {
 		// Given
 		MockMultipartFile file = new MockMultipartFile(
@@ -180,19 +245,84 @@ class MaterialBomExcelControllerTest {
 				"MAT-FG-001", "1.0", 1, "MAT-RM-001", "碳纖維螺旋槳",
 				new BigDecimal("4"), "PCS", new BigDecimal("0.02"), "P1-P4", "四軸螺旋槳"
 		);
-		when(importExcelUseCase.importBeans(any(InputStream.class), eq(BomItemExcelModel.class)))
-				.thenReturn(List.of(parsedModel));
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq(BomItemExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("單階BOM匯入清單", List.of(parsedModel)));
 
 		// When & Then
 		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import").file(file))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.totalCount").value(1))
-				.andExpect(jsonPath("$.sheetName").value("單階BOM清單"))
+				.andExpect(jsonPath("$.sheetName").value("單階BOM匯入清單"))
 				.andExpect(jsonPath("$.items[0].parentMaterialCode").value("MAT-FG-001"))
 				.andExpect(jsonPath("$.items[0].childMaterialCode").value("MAT-RM-001"));
 
-		verify(importExcelUseCase).importBeans(any(InputStream.class), eq(BomItemExcelModel.class));
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq(BomItemExcelModel.class));
+	}
+
+	/**
+	 * Feature: 單階 BOM 配方指定工作表 Excel 上傳解析 (SheetName 模式)
+	 * Scenario: 上傳 BOM Excel 檔案並指定 sheetName="多階層BOM展開清單"
+	 * Given: 模擬上傳 Excel 檔案並指定工作表名稱
+	 * When: 發送 POST multipart 請求至 /bom-items/import/by-sheet
+	 * Then: 回應 200 OK 且包含指定工作表名稱與資料
+	 */
+	@Test
+	@DisplayName("場景：POST 上傳檔案指定 sheetName 成功解析為 BomItemImportedResource")
+	void shouldImportBomItemsBySheetSuccessfully() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"bom_items.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{4, 5, 6}
+		);
+
+		BomItemExcelModel parsedModel = new BomItemExcelModel(
+				"MAT-FG-001", "1.0", 1, "MAT-SFG-001", "飛控主板電路模組總成",
+				new BigDecimal("1"), "PCS", BigDecimal.ZERO, "FC-ASM", "核心飛控組裝件"
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(BomItemExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("多階層BOM展開清單", List.of(parsedModel)));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import/by-sheet")
+						.file(file)
+						.param("sheetName", "多階層BOM展開清單"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.totalCount").value(1))
+				.andExpect(jsonPath("$.sheetName").value("多階層BOM展開清單"))
+				.andExpect(jsonPath("$.items[0].childMaterialName").value("飛控主板電路模組總成"));
+
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(BomItemExcelModel.class));
+	}
+
+	/**
+	 * Feature: 單階 BOM 指定工作表不存在異常處理 (SheetName 模式)
+	 * Scenario: 指定之工作表在 Excel 活頁簿中不存在
+	 * Given: 模擬調用 importBeanSheet 拋出 IllegalArgumentException
+	 * When: 發送 POST multipart 請求至 /bom-items/import/by-sheet
+	 * Then: 回應 400 Bad Request
+	 */
+	@Test
+	@DisplayName("異常：指定不存在之工作表名稱時拋出 400 錯誤")
+	void shouldRejectWhenSheetNameNotFoundOnImportBomItemsBySheet() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"bom_items.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{4, 5, 6}
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("不存在的BOM表"), eq(BomItemExcelModel.class)))
+				.thenThrow(new IllegalArgumentException("在 Excel 活頁簿中找不到指定名稱之工作表: 不存在的BOM表"));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import/by-sheet")
+						.file(file)
+						.param("sheetName", "不存在的BOM表"))
+				.andExpect(status().isBadRequest());
 	}
 
 	/**
