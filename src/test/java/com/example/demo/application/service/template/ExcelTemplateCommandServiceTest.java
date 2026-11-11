@@ -1,14 +1,19 @@
 package com.example.demo.application.service.template;
 
+import com.example.demo.application.port.out.bom.MaterialRepositoryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.port.out.template.ExcelTemplateRepositoryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateWriterPort;
-import com.example.demo.application.port.out.bom.MaterialRepositoryPort;
+import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
+import com.example.demo.application.shared.command.DeleteExcelTemplateCommand;
 import com.example.demo.application.shared.command.ExportTemplateExcelCommand;
 import com.example.demo.application.shared.command.ExportTemplateWithMappingCommand;
-import com.example.demo.application.shared.mapping.TemplateMappingDefinition;
+import com.example.demo.application.shared.command.UpdateExcelTemplateCommand;
+import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
 import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
 import com.example.demo.application.shared.exception.ExcelWriteException;
+import com.example.demo.application.shared.mapping.TemplateMappingDefinition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +25,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,10 +36,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * 範本 Excel 匯出應用層服務單元測試 (ExcelTemplateCommandServiceTest)。
+ * 範本 Excel 匯出與維護管理應用層服務單元測試 (ExcelTemplateCommandServiceTest)。
  * <p>
  * 遵循 AGENTS.md 規則 5 測試規範，每個測試案例皆標註清晰之 Gherkin 語法註解。
- * 測試覆蓋正常業務流程、範本不存在異常分支與底層寫入錯誤處理。
+ * 測試覆蓋正常業務流程、範本 CRUD 維護、異常分支與底層寫入錯誤處理。
  * </p>
  */
 @ExtendWith(MockitoExtension.class)
@@ -51,11 +58,20 @@ class ExcelTemplateCommandServiceTest {
     @Mock
     private MaterialRepositoryPort materialRepositoryPort;
 
+    @Mock
+    private ExcelTemplateRepositoryPort templateRepositoryPort;
+
     private ExcelTemplateCommandService service;
 
     @BeforeEach
     void setUp() {
-        service = new ExcelTemplateCommandService(templateRegistryPort, templateWriterPort, templateFieldMapperPort, materialRepositoryPort);
+        service = new ExcelTemplateCommandService(
+            templateRegistryPort,
+            templateWriterPort,
+            templateFieldMapperPort,
+            materialRepositoryPort,
+            templateRepositoryPort
+        );
     }
 
     /**
@@ -291,6 +307,78 @@ class ExcelTemplateCommandServiceTest {
         assertThat(result).isEqualTo(expectedContext);
         verify(templateFieldMapperPort).mapToTemplateContext(any(), eq(mappingDef));
         verifyNoInteractions(templateWriterPort);
+    }
+
+    /**
+     * Feature: 建立並註冊新範本規格 (Create)
+     * Scenario: 呼叫 createTemplate 委派 templateRepositoryPort 並觸發快取刷新
+     *   Given 合法之 CreateExcelTemplateCommand
+     *   When 調用 createTemplate
+     *   Then 應儲存成功並通知 registryPort 刷新快取
+     */
+    @Test
+    @DisplayName("Gherkin: 建立範本規格成功情境")
+    void shouldCreateTemplateSuccessfully() {
+        CreateExcelTemplateCommand command = new CreateExcelTemplateCommand(
+            "NEW_REPORT", "全新報表", "CUSTOM", "說明", List.of("items"), "CLASSPATH", "path.xlsx", null
+        );
+        ExcelTemplateGottenResult expected = new ExcelTemplateGottenResult(
+            "NEW_REPORT", "全新報表", "CUSTOM", "說明", List.of("items"), Instant.now()
+        );
+
+        when(templateRepositoryPort.save(command)).thenReturn(expected);
+
+        ExcelTemplateGottenResult result = service.createTemplate(command);
+
+        assertThat(result).isNotNull();
+        assertThat(result.templateKey()).isEqualTo("NEW_REPORT");
+        verify(templateRepositoryPort).save(command);
+        verify(templateRegistryPort).refreshCache("NEW_REPORT");
+    }
+
+    /**
+     * Feature: 更新範本規格 (Update)
+     * Scenario: 呼叫 updateTemplate 委派 templateRepositoryPort 並觸發快取刷新
+     *   Given 合法之 UpdateExcelTemplateCommand
+     *   When 調用 updateTemplate
+     *   Then 應更新成功並通知 registryPort 刷新快取
+     */
+    @Test
+    @DisplayName("Gherkin: 更新範本規格成功情境")
+    void shouldUpdateTemplateSuccessfully() {
+        UpdateExcelTemplateCommand command = new UpdateExcelTemplateCommand(
+            "PROCUREMENT_COMPARISON", "修訂報表", "PROCUREMENT", "更新說明", List.of("items"), null, null, null, true
+        );
+        ExcelTemplateGottenResult expected = new ExcelTemplateGottenResult(
+            "PROCUREMENT_COMPARISON", "修訂報表", "PROCUREMENT", "更新說明", List.of("items"), Instant.now()
+        );
+
+        when(templateRepositoryPort.update(command)).thenReturn(expected);
+
+        ExcelTemplateGottenResult result = service.updateTemplate(command);
+
+        assertThat(result).isNotNull();
+        assertThat(result.templateName()).isEqualTo("修訂報表");
+        verify(templateRepositoryPort).update(command);
+        verify(templateRegistryPort).refreshCache("PROCUREMENT_COMPARISON");
+    }
+
+    /**
+     * Feature: 刪除範本規格 (Delete)
+     * Scenario: 呼叫 deleteTemplate 委派 templateRepositoryPort 刪除並觸發快取刷新
+     *   Given 合法之 DeleteExcelTemplateCommand
+     *   When 調用 deleteTemplate
+     *   Then 應刪除成功並通知 registryPort 刷新快取
+     */
+    @Test
+    @DisplayName("Gherkin: 刪除範本規格成功情境")
+    void shouldDeleteTemplateSuccessfully() {
+        DeleteExcelTemplateCommand command = new DeleteExcelTemplateCommand("OBSOLETE_REPORT");
+
+        service.deleteTemplate(command);
+
+        verify(templateRepositoryPort).deleteByTemplateKey("OBSOLETE_REPORT");
+        verify(templateRegistryPort).refreshCache("OBSOLETE_REPORT");
     }
 }
 

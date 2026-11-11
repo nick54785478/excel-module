@@ -1,11 +1,19 @@
 package com.example.demo.presentation.controller.template;
 
+import com.example.demo.application.port.in.template.CreateExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.DeleteExcelTemplateUseCase;
 import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
 import com.example.demo.application.port.in.template.ExportTemplateWithMappingUseCase;
+import com.example.demo.application.port.in.template.GetExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.ListExcelTemplateUseCase;
 import com.example.demo.application.port.in.template.PreviewTemplateMappingUseCase;
 import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
 import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
+import com.example.demo.application.port.in.template.UpdateExcelTemplateUseCase;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
+import com.example.demo.application.shared.command.DeleteExcelTemplateCommand;
+import com.example.demo.application.shared.command.UpdateExcelTemplateCommand;
 import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
 import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
 import com.example.demo.presentation.assembler.ExcelTemplateResourceAssembler;
@@ -25,15 +33,17 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * ExcelTemplateExportController REST API 表現層單元測試。
  * <p>
  * 遵循 AGENTS.md 規則 5 測試規範，每個測試案例皆標註清晰之 Gherkin 語法註解。
- * 測試覆蓋範本清單檢索、單一範本查詢、二進位匯出下載、串流匯出下載與不存在之 404 處置。
+ * 測試覆蓋範本清單檢索、單一範本查詢、二進位匯出下載、串流匯出下載、CRUD 維護端點與 404 處置。
  * </p>
  */
 @DisplayName("表現層: ExcelTemplateExportController REST 控制器測試")
@@ -46,6 +56,11 @@ class ExcelTemplateExportControllerTest {
     private ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase;
     private StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase;
     private PreviewTemplateMappingUseCase previewTemplateMappingUseCase;
+    private CreateExcelTemplateUseCase createExcelTemplateUseCase;
+    private UpdateExcelTemplateUseCase updateExcelTemplateUseCase;
+    private DeleteExcelTemplateUseCase deleteExcelTemplateUseCase;
+    private GetExcelTemplateUseCase getExcelTemplateUseCase;
+    private ListExcelTemplateUseCase listExcelTemplateUseCase;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +70,19 @@ class ExcelTemplateExportControllerTest {
         exportTemplateWithMappingUseCase = mock(ExportTemplateWithMappingUseCase.class);
         streamExportTemplateWithMappingUseCase = mock(StreamExportTemplateWithMappingUseCase.class);
         previewTemplateMappingUseCase = mock(PreviewTemplateMappingUseCase.class);
+        createExcelTemplateUseCase = mock(CreateExcelTemplateUseCase.class);
+        updateExcelTemplateUseCase = mock(UpdateExcelTemplateUseCase.class);
+        deleteExcelTemplateUseCase = mock(DeleteExcelTemplateUseCase.class);
+        getExcelTemplateUseCase = mock(GetExcelTemplateUseCase.class);
+        listExcelTemplateUseCase = mock(ListExcelTemplateUseCase.class);
+
+        when(listExcelTemplateUseCase.listTemplates(any())).thenAnswer(inv -> templateRegistryPort.listTemplates());
+        when(getExcelTemplateUseCase.getTemplate(any())).thenAnswer(inv -> {
+            com.example.demo.application.shared.query.GetExcelTemplateQuery q = inv.getArgument(0);
+            return templateRegistryPort.findTemplateInfo(q.templateKey())
+                .orElseThrow(() -> new ExcelTemplateNotFoundException("查無範本: " + q.templateKey()));
+        });
+
         ExcelTemplateResourceAssembler resourceAssembler = new ExcelTemplateResourceAssembler();
 
         ExcelTemplateExportController controller = new ExcelTemplateExportController(
@@ -64,7 +92,12 @@ class ExcelTemplateExportControllerTest {
             resourceAssembler,
             exportTemplateWithMappingUseCase,
             streamExportTemplateWithMappingUseCase,
-            previewTemplateMappingUseCase
+            previewTemplateMappingUseCase,
+            createExcelTemplateUseCase,
+            updateExcelTemplateUseCase,
+            deleteExcelTemplateUseCase,
+            getExcelTemplateUseCase,
+            listExcelTemplateUseCase
         );
 
         this.mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -330,6 +363,94 @@ class ExcelTemplateExportControllerTest {
             .andExpect(jsonPath("$.materials[0].materialName").value("無人機零件"));
 
         verify(previewTemplateMappingUseCase).previewTemplateMapping(any());
+    }
+
+    /**
+     * Feature: 建立並註冊新 Excel 範本端點測試 (POST /api/v1/excel/templates)
+     * Scenario: 發送合法 JSON 請求本文，成功建立並回傳 HTTP 201 Created 與範本回應物件
+     *   Given 合法之 CreateExcelTemplateResource
+     *   When 發送 POST /api/v1/excel/templates
+     *   Then 應回傳 HTTP 201 Created 且 body 包含 templateKey
+     */
+    @Test
+    @DisplayName("Gherkin: 建立範本端點 POST 201 Created 成功情境")
+    void shouldCreateTemplateViaEndpointSuccessfully() throws Exception {
+        ExcelTemplateGottenResult result = new ExcelTemplateGottenResult(
+            "EQUIPMENT_MAINTENANCE", "設備維護月報", "MAINTENANCE", "說明", List.of("equipments"), Instant.now()
+        );
+        when(createExcelTemplateUseCase.createTemplate(any(CreateExcelTemplateCommand.class))).thenReturn(result);
+
+        String jsonRequest = """
+            {
+                "templateKey": "EQUIPMENT_MAINTENANCE",
+                "templateName": "設備維護月報",
+                "category": "MAINTENANCE",
+                "description": "說明",
+                "requiredVariables": ["equipments"]
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/excel/templates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonRequest))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.templateKey").value("EQUIPMENT_MAINTENANCE"))
+            .andExpect(jsonPath("$.templateName").value("設備維護月報"))
+            .andExpect(jsonPath("$.category").value("MAINTENANCE"));
+
+        verify(createExcelTemplateUseCase).createTemplate(any(CreateExcelTemplateCommand.class));
+    }
+
+    /**
+     * Feature: 更新既有 Excel 範本規格端點測試 (PUT /api/v1/excel/templates/{templateKey})
+     * Scenario: 發送更新 JSON 請求，成功異動並回傳 HTTP 200 OK
+     *   Given 合法之 UpdateExcelTemplateResource
+     *   When 發送 PUT /api/v1/excel/templates/EQUIPMENT_MAINTENANCE
+     *   Then 應回傳 HTTP 200 OK 且 body 包含更新後之欄位
+     */
+    @Test
+    @DisplayName("Gherkin: 更新範本端點 PUT 200 OK 成功情境")
+    void shouldUpdateTemplateViaEndpointSuccessfully() throws Exception {
+        ExcelTemplateGottenResult result = new ExcelTemplateGottenResult(
+            "EQUIPMENT_MAINTENANCE", "設備維護月報 (改版)", "OPERATIONS", "新說明", List.of("equipments", "items"), Instant.now()
+        );
+        when(updateExcelTemplateUseCase.updateTemplate(any(UpdateExcelTemplateCommand.class))).thenReturn(result);
+
+        String jsonRequest = """
+            {
+                "templateName": "設備維護月報 (改版)",
+                "category": "OPERATIONS",
+                "description": "新說明",
+                "requiredVariables": ["equipments", "items"],
+                "active": true
+            }
+            """;
+
+        mockMvc.perform(put("/api/v1/excel/templates/EQUIPMENT_MAINTENANCE")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonRequest))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.templateKey").value("EQUIPMENT_MAINTENANCE"))
+            .andExpect(jsonPath("$.templateName").value("設備維護月報 (改版)"))
+            .andExpect(jsonPath("$.category").value("OPERATIONS"));
+
+        verify(updateExcelTemplateUseCase).updateTemplate(any(UpdateExcelTemplateCommand.class));
+    }
+
+    /**
+     * Feature: 刪除 Excel 範本端點測試 (DELETE /api/v1/excel/templates/{templateKey})
+     * Scenario: 呼叫 DELETE 成功移除範本並回傳 HTTP 204 No Content
+     *   Given 指定範本存在
+     *   When 發送 DELETE /api/v1/excel/templates/OBSOLETE_REPORT
+     *   Then 應回傳 HTTP 204 No Content
+     */
+    @Test
+    @DisplayName("Gherkin: 刪除範本端點 DELETE 204 No Content 成功情境")
+    void shouldDeleteTemplateViaEndpointSuccessfully() throws Exception {
+        mockMvc.perform(delete("/api/v1/excel/templates/OBSOLETE_REPORT"))
+            .andExpect(status().isNoContent());
+
+        verify(deleteExcelTemplateUseCase).deleteTemplate(any(DeleteExcelTemplateCommand.class));
     }
 }
 

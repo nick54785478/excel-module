@@ -44,5 +44,17 @@ public interface ExcelTemplateRegistryPort {
      * @return true 若範本已註冊且實體檔案存在
      */
     boolean exists(String templateKey);
+
+    /**
+     * 刷新指定範本鍵值之快取 (熱刷新支援)。
+     *
+     * @param templateKey 範本唯一識別鍵
+     */
+    default void refreshCache(String templateKey) {}
+
+    /**
+     * 清空範本快取容器。
+     */
+    default void clearCache() {}
 }
 

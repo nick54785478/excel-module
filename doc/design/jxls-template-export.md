@@ -61,6 +61,7 @@ flowchart LR
 | 👉 **[Part 3：Domain Aggregate JXLS 範本規格與實作說明 (03-domain-aggregate-jxls-templates.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/jxls-template-export/03-domain-aggregate-jxls-templates.md)** | **領域聚合根實體範本落地**<br/>• Material 物料主檔範本 (`material_master.xlsx`)<br/>• Bom 配方與成本卷算分析範本 (`bom_cost_analysis.xlsx`)<br/>• 採購詢價比價單範本 (`procurement_comparison.xlsx`)<br/>• JXLS 3.x `varIndex="idx"` 與動態公式 `$[...]` 規範 | 報表設計師、領域專家、測試工程師 | `Material`<br/>`Bom`<br/>`BomItem`<br/>`JxlsAggregateTemplateGeneratorTest` |
 | 👉 **[Part 4：JXLS 欄位動態映射與資料轉換引擎架構 (04-dynamic-field-mapping-engine.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/jxls-template-export/04-dynamic-field-mapping-engine.md)** | **【模組一：資料維度】使用者自訂欄位對齊與開箱**<br/>• 應用層輸出埠 `ExcelTemplateFieldMapperPort`<br/>• 基礎設施層專屬映射引擎 `JxlsFieldMappingEngine`<br/>• Value Object 智慧自動開箱與屬性導航快取<br/>• 插件式格式轉換策略 SPI (`FieldConverter`)<br/>• 虛擬跨欄位動態計算 (Virtual Expressions)<br/>• Fluent Java DSL 與 JSON 動態設定檔規範 | 系統架構師、多租戶平台開發者、後端工程師 | `ExcelTemplateFieldMapperPort`<br/>`JxlsFieldMappingEngine`<br/>`FieldConverter`<br/>`TemplateMappingDefinition`<br/>`FieldMappingRule` |
 | 👉 **[Part 5：動態範本裝飾與 JXLS 批註指令注入引擎架構 (05-dynamic-template-decorator.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/jxls-template-export/05-dynamic-template-decorator.md)** | **【模組二：範本維度】零範本動態標註與產生器**<br/>• 應用層輸出埠 `ExcelTemplateDecoratorPort`<br/>• 基礎設施層裝飾核心 `DynamicJxlsTemplateDecorator`<br/>• POI 儲存格批註注入器 (`CellCommentInjector`)<br/>• 動態座標換算 (`DirectiveAnchorCalculator`)<br/>• 純空白生成模式 vs 企業底稿修飾模式<br/>• 自選欄位即時組裝 JXLS 批註與表頭樣式 | 報表引擎開發者、前端架構師、平台工程師 | `ExcelTemplateDecoratorPort`<br/>`DynamicJxlsTemplateDecorator`<br/>`DynamicTemplateDefinition`<br/>`DynamicColumnSpec`<br/>`CellCommentInjector` |
+| 👉 **[Part 6：JXLS 範本資料庫維護管理與六角形架構 CRUD 規範 (06-excel-template-management-crud.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/jxls-template-export/06-excel-template-management-crud.md)** | **【模組三：生命週期維護】DB-First 範本資料庫維護與 CRUD**<br/>• 六角形架構輸入埠 (`CreateExcelTemplateUseCase`, `UpdateExcelTemplateUseCase`, `DeleteExcelTemplateUseCase`)<br/>• 應用層持久化輸出埠 `ExcelTemplateRepositoryPort` 與適配器 `ExcelTemplateRepositoryAdapter`<br/>• 資料庫表 `t_excel_template` 與 JPA 實體映射<br/>• 零停機快取熱刷新機制 (Cache Invalidation)<br/>• 統一 REST API 端點 (POST/PUT/DELETE/GET) | 系統維運人員、後台管理開發者、API 設計師 | `ExcelTemplateRepositoryPort`<br/>`ExcelTemplateRepositoryAdapter`<br/>`CreateExcelTemplateUseCase`<br/>`UpdateExcelTemplateUseCase`<br/>`DeleteExcelTemplateUseCase` |
 
 ---
 
@@ -233,6 +234,7 @@ com.example.demo
 └── infrastructure/
     ├── adapter/template/
     │   ├── ClasspathExcelTemplateRegistryAdapterTest.java
+    │   ├── ExcelTemplateRepositoryAdapterTest.java  # 範本持久化適配器單元測試
     │   ├── JxlsTemplateWriterAdapterTest.java
     │   ├── JxlsFieldMappingAdapterTest.java
     │   ├── JxlsFieldMappingIntegrationTest.java

@@ -1,31 +1,5 @@
 package com.example.demo.presentation.controller.template;
 
-import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.ExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.in.template.PreviewTemplateMappingUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
-import com.example.demo.application.shared.command.ExportTemplateExcelCommand;
-import com.example.demo.application.shared.command.ExportTemplateWithMappingCommand;
-import com.example.demo.presentation.assembler.ExcelTemplateResourceAssembler;
-import com.example.demo.presentation.resource.in.ExportTemplateExcelResource;
-import com.example.demo.presentation.resource.in.ExportTemplateWithMappingResource;
-import com.example.demo.presentation.resource.out.ExcelTemplateRetrievedResource;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,16 +7,67 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.demo.application.port.in.template.CreateExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.DeleteExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
+import com.example.demo.application.port.in.template.ExportTemplateWithMappingUseCase;
+import com.example.demo.application.port.in.template.GetExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.ListExcelTemplateUseCase;
+import com.example.demo.application.port.in.template.PreviewTemplateMappingUseCase;
+import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
+import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
+import com.example.demo.application.port.in.template.UpdateExcelTemplateUseCase;
+import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
+import com.example.demo.application.shared.command.DeleteExcelTemplateCommand;
+import com.example.demo.application.shared.command.ExportTemplateExcelCommand;
+import com.example.demo.application.shared.command.ExportTemplateWithMappingCommand;
+import com.example.demo.application.shared.command.UpdateExcelTemplateCommand;
+import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
+import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
+import com.example.demo.presentation.assembler.ExcelTemplateResourceAssembler;
+import com.example.demo.presentation.resource.in.CreateExcelTemplateResource;
+import com.example.demo.presentation.resource.in.ExportTemplateExcelResource;
+import com.example.demo.presentation.resource.in.ExportTemplateWithMappingResource;
+import com.example.demo.presentation.resource.in.UpdateExcelTemplateResource;
+import com.example.demo.presentation.resource.out.ExcelTemplateCreatedResource;
+import com.example.demo.presentation.resource.out.ExcelTemplateRetrievedResource;
+import com.example.demo.presentation.resource.out.ExcelTemplateUpdatedResource;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+
 /**
- * 宣告式範本 Excel 匯出 REST API 控制器 (Presentation Layer - Inbound Adapter)。
+ * 宣告式範本 Excel 匯出與維護管理 REST API 控制器 (Presentation Layer - Inbound Adapter)。
  * <p>
  * 遵循 Clean Architecture 職責劃分，作為 HTTP 入口端點，
- * 接收 Request Resource，透過 {@link ExcelTemplateResourceAssembler} 轉為應用層 Command，
- * 調度各項 UseCase 執行渲染，並將產物二進位資料或串流封裝為 HTTP 附件回應 (Content-Disposition: attachment)。
+ * 接收 Request Resource，透過 {@link ExcelTemplateResourceAssembler} 轉為應用層 Command / Query，
+ * 調度各項 UseCase 執行範本的 CRUD 維護、資料渲染與匯出，並將產物封裝為 HTTP 回應。
  * 同步支援純資料模型注入模式與動態欄位映射規格 (Dynamic Field Mapping) 模式。
  * </p>
  */
-@Tag(name = "Excel 宣告式範本匯出 API", description = "提供基於 JXLS 3.x 範本定義之 Excel 報表匯出、串流直通下載、動態欄位映射適配與範本清單探索端點")
+@Tag(name = "Excel 宣告式範本管理與匯出 API", description = "提供基於 JXLS 3.x 範本定義之 Excel 報表匯出、串流直通下載、動態欄位映射適配與範本規格 CRUD 維護端點")
 @Validated
 @RestController
 @RequestMapping("/api/v1/excel/templates")
@@ -59,6 +84,12 @@ public class ExcelTemplateExportController {
     private final StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase;
     private final PreviewTemplateMappingUseCase previewTemplateMappingUseCase;
 
+    private final CreateExcelTemplateUseCase createExcelTemplateUseCase;
+    private final UpdateExcelTemplateUseCase updateExcelTemplateUseCase;
+    private final DeleteExcelTemplateUseCase deleteExcelTemplateUseCase;
+    private final GetExcelTemplateUseCase getExcelTemplateUseCase;
+    private final ListExcelTemplateUseCase listExcelTemplateUseCase;
+
     /**
      * 相容輕量建構函式。
      */
@@ -67,11 +98,28 @@ public class ExcelTemplateExportController {
             StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
             ExcelTemplateRegistryPort templateRegistryPort,
             ExcelTemplateResourceAssembler resourceAssembler) {
-        this(exportTemplateExcelUseCase, streamExportTemplateExcelUseCase, templateRegistryPort, resourceAssembler, null, null, null);
+        this(exportTemplateExcelUseCase, streamExportTemplateExcelUseCase, templateRegistryPort, resourceAssembler,
+             null, null, null, null, null, null, null, null);
     }
 
     /**
-     * 完整功能建構函式：支援自訂欄位映射與預覽用例。
+     * 相容七參建構函式：支援自訂欄位映射與預覽用例。
+     */
+    public ExcelTemplateExportController(
+            ExportTemplateExcelUseCase exportTemplateExcelUseCase,
+            StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
+            ExcelTemplateRegistryPort templateRegistryPort,
+            ExcelTemplateResourceAssembler resourceAssembler,
+            ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase,
+            StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase,
+            PreviewTemplateMappingUseCase previewTemplateMappingUseCase) {
+        this(exportTemplateExcelUseCase, streamExportTemplateExcelUseCase, templateRegistryPort, resourceAssembler,
+             exportTemplateWithMappingUseCase, streamExportTemplateWithMappingUseCase, previewTemplateMappingUseCase,
+             null, null, null, null, null);
+    }
+
+    /**
+     * 完整功能建構函式：支援範本規格 CRUD 維護用例與動態欄位映射。
      */
     @Autowired
     public ExcelTemplateExportController(
@@ -81,7 +129,12 @@ public class ExcelTemplateExportController {
             ExcelTemplateResourceAssembler resourceAssembler,
             @Autowired(required = false) ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase,
             @Autowired(required = false) StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase,
-            @Autowired(required = false) PreviewTemplateMappingUseCase previewTemplateMappingUseCase) {
+            @Autowired(required = false) PreviewTemplateMappingUseCase previewTemplateMappingUseCase,
+            @Autowired(required = false) CreateExcelTemplateUseCase createExcelTemplateUseCase,
+            @Autowired(required = false) UpdateExcelTemplateUseCase updateExcelTemplateUseCase,
+            @Autowired(required = false) DeleteExcelTemplateUseCase deleteExcelTemplateUseCase,
+            @Autowired(required = false) GetExcelTemplateUseCase getExcelTemplateUseCase,
+            @Autowired(required = false) ListExcelTemplateUseCase listExcelTemplateUseCase) {
         this.exportTemplateExcelUseCase = Objects.requireNonNull(exportTemplateExcelUseCase, "exportTemplateExcelUseCase 不得為空");
         this.streamExportTemplateExcelUseCase = Objects.requireNonNull(streamExportTemplateExcelUseCase, "streamExportTemplateExcelUseCase 不得為空");
         this.templateRegistryPort = Objects.requireNonNull(templateRegistryPort, "templateRegistryPort 不得為空");
@@ -89,26 +142,112 @@ public class ExcelTemplateExportController {
         this.exportTemplateWithMappingUseCase = exportTemplateWithMappingUseCase;
         this.streamExportTemplateWithMappingUseCase = streamExportTemplateWithMappingUseCase;
         this.previewTemplateMappingUseCase = previewTemplateMappingUseCase;
+        this.createExcelTemplateUseCase = createExcelTemplateUseCase;
+        this.updateExcelTemplateUseCase = updateExcelTemplateUseCase;
+        this.deleteExcelTemplateUseCase = deleteExcelTemplateUseCase;
+        this.getExcelTemplateUseCase = getExcelTemplateUseCase;
+        this.listExcelTemplateUseCase = listExcelTemplateUseCase;
     }
 
     /**
-     * 查詢所有已註冊之 Excel 範本清單與中繼規格。
+     * 建立並註冊新的 Excel 範本規格 (Create)。
      *
+     * @param resource 建立範本請求資源
+     * @return 201 Created 與建立完成之範本回應資源
+     */
+    @Operation(summary = "建立並註冊新的 Excel 範本", description = "註冊全新範本識別鍵、名稱、分類、描述與必備變數清單")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "成功建立並註冊範本"),
+        @ApiResponse(responseCode = "400", description = "請求參數格式不合法或範本鍵值重複")
+    })
+    @PostMapping
+    public ResponseEntity<ExcelTemplateCreatedResource> createTemplate(
+            @Valid @RequestBody CreateExcelTemplateResource resource) {
+        if (createExcelTemplateUseCase == null) {
+            throw new UnsupportedOperationException("系統未配置 CreateExcelTemplateUseCase 實作");
+        }
+        CreateExcelTemplateCommand command = resourceAssembler.toCommand(resource);
+        ExcelTemplateGottenResult result = createExcelTemplateUseCase.createTemplate(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resourceAssembler.toCreatedResource(result));
+    }
+
+    /**
+     * 更新既有 Excel 範本中繼資訊 (Update)。
+     *
+     * @param templateKey 範本唯一識別鍵
+     * @param resource    更新範本請求資源
+     * @return 200 OK 與更新完成之範本回應資源
+     */
+    @Operation(summary = "更新既有 Excel 範本規格", description = "異動範本顯示名稱、分類、用途說明、必備變數清單或啟用狀態")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功更新範本規格"),
+        @ApiResponse(responseCode = "404", description = "找不到指定範本")
+    })
+    @PutMapping("/{templateKey}")
+    public ResponseEntity<ExcelTemplateUpdatedResource> updateTemplate(
+            @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
+            @PathVariable String templateKey,
+            @Valid @RequestBody UpdateExcelTemplateResource resource) {
+        if (updateExcelTemplateUseCase == null) {
+            throw new UnsupportedOperationException("系統未配置 UpdateExcelTemplateUseCase 實作");
+        }
+        UpdateExcelTemplateCommand command = resourceAssembler.toCommand(templateKey, resource);
+        ExcelTemplateGottenResult result = updateExcelTemplateUseCase.updateTemplate(command);
+        return ResponseEntity.ok(resourceAssembler.toUpdatedResource(result));
+    }
+
+    /**
+     * 刪除或下架指定 Excel 範本 (Delete)。
+     *
+     * @param templateKey 範本唯一識別鍵
+     * @return 204 No Content
+     */
+    @Operation(summary = "刪除指定 Excel 範本", description = "自系統移除指定識別鍵之範本持久化記錄並自動更新快取")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "成功刪除指定範本"),
+        @ApiResponse(responseCode = "404", description = "找不到指定範本")
+    })
+    @DeleteMapping("/{templateKey}")
+    public ResponseEntity<Void> deleteTemplate(
+            @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
+            @PathVariable String templateKey) {
+        if (deleteExcelTemplateUseCase == null) {
+            throw new UnsupportedOperationException("系統未配置 DeleteExcelTemplateUseCase 實作");
+        }
+        DeleteExcelTemplateCommand command = resourceAssembler.toDeleteCommand(templateKey);
+        deleteExcelTemplateUseCase.deleteTemplate(command);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 查詢所有已註冊之 Excel 範本清單與中繼規格 (Read - List)。
+     *
+     * @param category   業務分類篩選 (可選)
+     * @param activeOnly 是否僅回傳啟用中範本 (可選)
      * @return 範本中繼資訊清單
      */
-    @Operation(summary = "查詢所有已註冊之 Excel 範本清單", description = "取得系統已註冊之範本識別鍵、名稱、業務分類與必備變數清單")
+    @Operation(summary = "查詢所有已註冊之 Excel 範本清單", description = "取得系統已註冊之範本識別鍵、名稱、業務分類與必備變數清單，支援依分類篩選")
     @ApiResponse(responseCode = "200", description = "成功取得範本清單")
     @GetMapping
-    public ResponseEntity<List<ExcelTemplateRetrievedResource>> listTemplates() {
-        List<ExcelTemplateRetrievedResource> list = templateRegistryPort.listTemplates()
-            .stream()
+    public ResponseEntity<List<ExcelTemplateRetrievedResource>> listTemplates(
+            @Parameter(description = "業務分類篩選代碼 (例如 PROCUREMENT, BOM, MATERIAL)")
+            @RequestParam(required = false) String category,
+            @Parameter(description = "是否僅查詢啟用中範本")
+            @RequestParam(required = false, defaultValue = "true") Boolean activeOnly) {
+        List<ExcelTemplateGottenResult> dtos;
+        if (listExcelTemplateUseCase != null) {
+            dtos = listExcelTemplateUseCase.listTemplates(resourceAssembler.toListQuery(category, activeOnly));
+        } else {
+            dtos = templateRegistryPort.listTemplates();
+        }
+        List<ExcelTemplateRetrievedResource> list = dtos.stream()
             .map(resourceAssembler::toResource)
             .toList();
         return ResponseEntity.ok(list);
     }
 
     /**
-     * 查詢單一範本之中繼規格資訊。
+     * 查詢單一範本之中繼規格資訊 (Read - Get)。
      *
      * @param templateKey 範本唯一識別鍵
      * @return 範本中繼規格回應資源
@@ -122,6 +261,14 @@ public class ExcelTemplateExportController {
     public ResponseEntity<ExcelTemplateRetrievedResource> getTemplateInfo(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
             @PathVariable String templateKey) {
+        if (getExcelTemplateUseCase != null) {
+            try {
+                ExcelTemplateGottenResult dto = getExcelTemplateUseCase.getTemplate(resourceAssembler.toQuery(templateKey));
+                return ResponseEntity.ok(resourceAssembler.toResource(dto));
+            } catch (ExcelTemplateNotFoundException e) {
+                return ResponseEntity.notFound().build();
+            }
+        }
         return templateRegistryPort.findTemplateInfo(templateKey)
             .map(resourceAssembler::toResource)
             .map(ResponseEntity::ok)
@@ -160,14 +307,13 @@ public class ExcelTemplateExportController {
      * @param templateKey 範本識別鍵
      * @param resource    匯出請求資源載體
      * @param response    HTTP Servlet 回應物件
-     * @throws IOException 當網路串流寫出發生 I/O 錯誤時拋出
+     * @throws IOException 串流寫入 I/O 異常
      */
-    @Operation(summary = "依據範本串流匯出 Excel 檔案 (Streaming 模式)", description = "直通輸出串流，產物直接寫入 HTTP Response，適用於較大資料量以節省記憶體堆疊")
+    @Operation(summary = "依據範本串流匯出 Excel 檔案 (Zero-Copy 串流模式)", description = "以低記憶體串流方式將 JXLS 產物直通 HTTP Response OutputStream")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功串流輸出檔案"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
+        @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
         @ApiResponse(responseCode = "404", description = "指定範本不存在"),
-        @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
+        @ApiResponse(responseCode = "500", description = "伺服器串流輸出異常")
     })
     @PostMapping("/{templateKey}/stream")
     public void streamExportFromTemplate(
@@ -177,37 +323,36 @@ public class ExcelTemplateExportController {
             HttpServletResponse response) throws IOException {
 
         ExportTemplateExcelCommand command = resourceAssembler.toCommand(templateKey, resource);
-        String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
 
         response.setContentType(EXCEL_MIME_TYPE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
+        String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName);
 
         streamExportTemplateExcelUseCase.streamExportFromTemplate(response.getOutputStream(), command);
         response.flushBuffer();
     }
 
     /**
-     * 依據自訂動態欄位映射規格匯出 Excel 檔案 (Buffered 模式)。
+     * 依據範本與動態欄位映射匯出 Excel (Buffered 模式)。
      *
      * @param templateKey 範本識別鍵
-     * @param resource    具自訂映射規格與來源資料之請求資源載體
+     * @param resource    自訂映射請求本文
      * @return Excel (.xlsx) 二進位位元組附件下載
      */
-    @Operation(summary = "依據自訂欄位映射匯出 Excel 檔案 (Buffered 模式)", description = "接收自訂欄位映射規格 (Field Mapping Definition)，自動開箱 Value Object 並執行各類轉換器與 SpEL 運算後以 JXLS 範本渲染下載")
+    @Operation(summary = "依據自訂欄位映射匯出 Excel 範本報表", description = "接收來源資料物件清單與宣告式欄位映射規格 (JSON)，動態適配轉換後執行 JXLS 渲染")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功產製並回傳檔案二進位資料"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在"),
-        @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
+        @ApiResponse(responseCode = "200", description = "成功動態映射並產製檔案"),
+        @ApiResponse(responseCode = "400", description = "映射規則無效或資料格式錯誤"),
+        @ApiResponse(responseCode = "404", description = "指定範本不存在")
     })
     @PostMapping("/{templateKey}/export-mapped")
     public ResponseEntity<byte[]> exportFromTemplateWithMapping(
-            @Parameter(description = "範本識別鍵", example = "material_master")
+            @Parameter(description = "範本識別鍵", example = "MATERIAL_MASTER")
             @PathVariable String templateKey,
             @Valid @RequestBody ExportTemplateWithMappingResource resource) {
 
         if (exportTemplateWithMappingUseCase == null) {
-            throw new UnsupportedOperationException("未啟用動態欄位映射功能");
+            throw new UnsupportedOperationException("系統未配置 ExportTemplateWithMappingUseCase 實作");
         }
         ExportTemplateWithMappingCommand command = resourceAssembler.toCommand(templateKey, resource);
         byte[] excelBytes = exportTemplateWithMappingUseCase.exportFromTemplateWithMapping(command);
@@ -216,58 +361,55 @@ public class ExcelTemplateExportController {
     }
 
     /**
-     * 依據自訂動態欄位映射規格串流匯出 Excel 檔案 (Streaming 模式)。
+     * 依據範本與動態欄位映射串流匯出 Excel (Zero-Copy 串流模式)。
      *
      * @param templateKey 範本識別鍵
-     * @param resource    具自訂映射規格與來源資料之請求資源載體
+     * @param resource    自訂映射請求本文
      * @param response    HTTP Servlet 回應物件
-     * @throws IOException 當網路串流寫出發生 I/O 錯誤時拋出
+     * @throws IOException 串流寫入 I/O 異常
      */
-    @Operation(summary = "依據自訂欄位映射串流匯出 Excel 檔案 (Streaming 模式)", description = "接收自訂欄位映射規格，邊渲染邊直通輸出串流，適用於較大資料量以節省記憶體堆疊")
+    @Operation(summary = "依據自訂欄位映射串流匯出 Excel (Zero-Copy 模式)", description = "接收來源資料與宣告式欄位映射規格，動態映射後以串流模式直接輸出至 HTTP 客戶端")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功串流輸出檔案"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在"),
-        @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
+        @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
+        @ApiResponse(responseCode = "404", description = "指定範本不存在")
     })
     @PostMapping("/{templateKey}/stream-mapped")
     public void streamExportFromTemplateWithMapping(
-            @Parameter(description = "範本識別鍵", example = "material_master")
+            @Parameter(description = "範本識別鍵", example = "MATERIAL_MASTER")
             @PathVariable String templateKey,
             @Valid @RequestBody ExportTemplateWithMappingResource resource,
             HttpServletResponse response) throws IOException {
 
         if (streamExportTemplateWithMappingUseCase == null) {
-            throw new UnsupportedOperationException("未啟用動態欄位映射串流功能");
+            throw new UnsupportedOperationException("系統未配置 StreamExportTemplateWithMappingUseCase 實作");
         }
         ExportTemplateWithMappingCommand command = resourceAssembler.toCommand(templateKey, resource);
-        String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
 
         response.setContentType(EXCEL_MIME_TYPE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
+        String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName);
 
         streamExportTemplateWithMappingUseCase.streamExportFromTemplateWithMapping(response.getOutputStream(), command);
         response.flushBuffer();
     }
 
     /**
-     * 預覽動態欄位映射後之 JXLS 資料模型 Context (Dry-Run / Preview API)。
+     * 預覽動態欄位映射轉換結果。
      *
-     * @param resource 具自訂映射規格與來源資料之請求資源載體
-     * @return 供 JXLS 渲染消費之資料模型 JSON 結構
+     * @param resource 自訂映射請求本文
+     * @return 映射後的資料上下文 Map
      */
-    @Operation(summary = "預覽欄位動態映射後之 JXLS 資料模型 Context (Dry-Run / Preview)", description = "接收映射規格與來源資料，執行屬性導航、開箱、轉換器與虛擬表達式，回傳渲染前的資料上下文 JSON，便於除錯與驗證")
+    @Operation(summary = "預覽動態欄位映射轉換結果 (除錯與校驗用)", description = "不執行實體 Excel 檔案渲染，僅回傳資料模型經由 Field Mapping 引擎轉換後的結構化 JSON")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功求值並回傳 JXLS Context Map"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-        @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
+        @ApiResponse(responseCode = "200", description = "成功預覽映射結果"),
+        @ApiResponse(responseCode = "400", description = "映射規則無效")
     })
     @PostMapping("/mapping/preview")
     public ResponseEntity<Map<String, Object>> previewMapping(
             @Valid @RequestBody ExportTemplateWithMappingResource resource) {
 
         if (previewTemplateMappingUseCase == null) {
-            throw new UnsupportedOperationException("未啟用動態欄位映射預覽功能");
+            throw new UnsupportedOperationException("系統未配置 PreviewTemplateMappingUseCase 實作");
         }
         String templateKey = (resource.mappingDefinition() != null && resource.mappingDefinition().templateKey() != null)
             ? resource.mappingDefinition().templateKey()
@@ -278,17 +420,11 @@ public class ExcelTemplateExportController {
         return ResponseEntity.ok(previewMap);
     }
 
-    /**
-     * 建構標準 HTTP 附件下載回應 (Content-Disposition: attachment)。
-     */
-    private ResponseEntity<byte[]> createAttachmentResponse(byte[] fileBytes, String fileName) {
+    private ResponseEntity<byte[]> createAttachmentResponse(byte[] content, String fileName) {
         String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(EXCEL_MIME_TYPE));
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
-        headers.setContentLength(fileBytes.length);
         return ResponseEntity.ok()
-            .headers(headers)
-            .body(fileBytes);
+            .contentType(MediaType.parseMediaType(EXCEL_MIME_TYPE))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
+            .body(content);
     }
 }
