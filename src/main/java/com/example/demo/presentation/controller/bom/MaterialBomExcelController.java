@@ -236,7 +236,7 @@ public class MaterialBomExcelController {
 					)
 			)
 	})
-	@PostMapping(value = {"/materials/import/by-sheet", "/materials/import-by-sheet"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PostMapping(value = "/materials/import/by-sheet", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MaterialImportedResource> importMaterialsBySheet(
 			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
 			@RequestParam("file") MultipartFile file,
@@ -402,7 +402,7 @@ public class MaterialBomExcelController {
 					)
 			)
 	})
-	@PostMapping(value = {"/bom-items/import/by-sheet", "/bom-items/import-by-sheet"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PostMapping(value = "/bom-items/import/by-sheet", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BomItemImportedResource> importBomItemsBySheet(
 			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
 			@RequestParam("file") MultipartFile file,
