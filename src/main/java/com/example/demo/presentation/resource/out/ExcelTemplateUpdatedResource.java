@@ -40,3 +40,4 @@ public record ExcelTemplateUpdatedResource(
         @Schema(description = "最後更新時間戳記")
         Instant updatedAt
 ) {}
+

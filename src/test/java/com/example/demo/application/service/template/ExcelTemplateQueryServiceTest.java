@@ -113,3 +113,4 @@ class ExcelTemplateQueryServiceTest {
         assertThat(results.get(0).templateKey()).isEqualTo("PROCUREMENT_COMPARISON");
     }
 }
+

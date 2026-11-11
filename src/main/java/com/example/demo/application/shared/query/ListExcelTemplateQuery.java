@@ -24,3 +24,4 @@ public record ListExcelTemplateQuery(
         return new ListExcelTemplateQuery(null, true);
     }
 }
+

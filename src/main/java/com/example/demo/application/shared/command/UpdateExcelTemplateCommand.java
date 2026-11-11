@@ -37,3 +37,4 @@ public record UpdateExcelTemplateCommand(
         requiredVariables = requiredVariables != null ? List.copyOf(requiredVariables) : Collections.emptyList();
     }
 }
+

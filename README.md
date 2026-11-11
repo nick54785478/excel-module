@@ -5,9 +5,49 @@
 [![Architecture](https://img.shields.io/badge/Architecture-DDD%20%7C%20Clean%20%7C%20Hexagonal-blue.svg)](#1-架構設計與雙引擎模型-architecture--dual-engine)
 [![Engine](https://img.shields.io/badge/Engine-FastExcel%200.20.2%20%2B%20Apache%20POI%205.5.1-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
 [![Rule Engine](https://img.shields.io/badge/Rule%20Engine-EasyRules%204.1.0-red.svg)](https://github.com/j-easy/easy-rules)
-[![Tests](https://img.shields.io/badge/Tests-249%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
+[![Tests](https://img.shields.io/badge/Tests-278%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
 
 > 📌 本模組為企業級高性能試算表處理解決方案，原生結合製造業 **物料清單 (Bill of Materials, BOM)** 多階遞迴展開與匯出引擎。嚴格遵循 **領域驅動設計 (DDD)**、**Clean Architecture** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，實踐表現層、應用層、領域層與底層實作的完全解耦。
+
+---
+
+## 🧩 七大核心子模組一覽 (7 Core Sub-Modules Overview)
+
+本專案依據 **DDD 垂直切片 (Vertical Slice Architecture)** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，將核心功能嚴密劃分為 **七大對稱子模組**。各子模組於 `presentation`、`application`、`infrastructure` 以及 `test` 層級皆具備獨立專屬的 Package 命名空間，結構對稱、職責單一：
+
+| 子模組代碼 | 子模組名稱 | 核心業務職責與特性 | 主要 API 端點 / 關鍵標註 | 專屬設計文檔 |
+| :---: | :--- | :--- | :--- | :---: |
+| 🏗️ **`bom`** | **物料清單多階展開** | 製造業 BOM 樹狀結構遞迴展開、單階用量匯總、物料主檔對照表三合一 Excel 產製與成本卷算。 | `/api/v1/bom/excel`<br>`/api/v1/excel/material-bom` | [BOM 聚合設計](doc/design/material_bom_aggregate_design.md) |
+| ⚡ **`core`** | **雙引擎讀寫與物件映射** | FastExcel (StAX) 與 Apache POI (SXSSF) 雙引擎動態熱切換、百萬級串流讀寫、Record/POJO 宣告式雙向物件映射。 | `/api/v1/excel`<br>`/api/v1/excel/bean-mapping`<br>`@ExcelSheet`, `@ExcelColumn` | [串流讀寫設計](doc/design/streaming-processing.md)<br>[宣告式映射設計](doc/design/declarative-bean-mapping.md) |
+| 🚀 **`parallel`** | **平行管線與分片打包** | 模式 A 多執行緒 DB 查詢管線加速（`ArrayBlockingQueue` 背壓防護）＋模式 B 獨立活頁簿並行產製與 ZIP 串流壓縮打包（突破單表 104 萬列物理限制）。 | `/api/v1/excel/parallel/pipeline/stream`<br>`/api/v1/excel/parallel/partition/zip/stream` | [平行與執行緒安全](doc/design/thread-safety-and-concurrency.md)<br>[分片寫入器對比](doc/design/excel-writer-vs-partition-writer-comparison.md) |
+| 🎨 **`report`** | **企業報表裝飾與安全** | 通用裝飾策略工廠 SPI、合計列自動追加、動態 `=SUM(...)` 原生公式注入、跨欄合併、工作表密碼防護與列印頁首頁尾巨集。 | `/api/v1/excel/reports/{reportKey}/export`<br>`CellRange`, `@SheetProtectionConfig` | [報表裝飾與安全](doc/design/template-styles-and-security.md) |
+| ⏱️ **`task`** | **非同步長任務追蹤** | AOP 無感攔截底層讀寫、SpEL 動態參數解析、ThreadLocal 跨方法進度累計、`REQUIRES_NEW` 獨立交易進度持久化與檔案下載。 | `/api/v1/excel/tasks/{taskId}/progress`<br>`/api/v1/excel/tasks/{taskId}/download`<br>`@TrackExcelTask` | [長任務追蹤設計](doc/design/annotation-driven-task-tracking.md) |
+| 📑 **`template`** | **JXLS 範本渲染與維護** | JXLS 3.x 所見即所得 (WYSIWYG) 標籤渲染、JEXL 嚴格沙箱權限防護 (CVE 免疫)、動態公式平移與 Template 實體 DB-First CRUD 動態管理。 | `/api/v1/excel/templates`<br>`/api/v1/excel/templates/{templateKey}/stream`<br>`jx:area`, `jx:each` | [JXLS 範本總覽](doc/design/jxls-template-export.md)<br>[範本 CRUD 維護](doc/design/jxls-template-export/06-excel-template-management-crud.md) |
+| 🛡️ **`validation`** | **規則檢核與錯誤回標** | EasyRules 宣告式規則管線、非短路全量錯誤累積、雙向資料合規校驗、自動產製視覺化「錯誤回標檔」（紅底黑字＋錯誤原因說明欄）。 | `/api/v1/excel/validation/import-and-validate`<br>`@ValidateExcel` | [客製檢核與錯誤回標](doc/design/custom-validation-and-error-feedback.md) |
+
+#### 📦 子模組對稱 Package 結構矩陣 (Symmetrical Package Matrix)
+
+```text
+com.example.demo
+├── presentation/
+│   ├── controller/               # REST 控制器 (bom, core, parallel, report, task, template, validation)
+│   ├── assembler/                # 防腐層 Resource/Command 組裝器
+│   └── resource/                 # 表現層資料載體 (in/ 與 out/)
+├── application/
+│   ├── port/in/                  # Inbound Ports / UseCases (各子模組專屬業務合約)
+│   ├── port/out/                 # Outbound Ports (各子模組基礎設施依賴介面)
+│   ├── service/                  # Application Services (CQRS Command/Query 協調者)
+│   └── shared/                   # 不可變 Commands, Queries, DTOs 與共用策略 SPI
+├── infrastructure/
+│   ├── adapter/                  # Outbound Adapters (實作 application.port.out)
+│   ├── persistence/              # 持久化實體與 JPA Repositories (bom, task, template)
+│   ├── engine/                   # FastExcel / POI / JXLS 底層引擎適配
+│   ├── report/                   # 企業報表具體裝飾策略實現
+│   └── validation/               # EasyRules 具體業務檢核規則
+└── domain/                       # 核心領域層 (純 Java，零框架依賴，Aggregate Root 與 VO)
+    ├── bom/                      # BOM 樹狀聚合根與物料實體
+    └── task/                     # 長任務聚合根與狀態機
+```
 
 ---
 
@@ -84,9 +124,9 @@
 * 🛡️ **高純度架構規範 (Strict Clean Architecture)**：
   * 領域層（Domain Layer）維持純粹 Java（Pure Java），**嚴禁使用 Lombok**，聚合根以業務語意封裝不變條件。
   * 應用層（Application Layer）嚴守 CQRS、Command/Query/Result 物件隔離與防腐層機制（ACL）。
-* 📋 **完整測試資產 (Comprehensive Testing Assets - 249/249 Passed)**：
+* 📋 **完整測試資產 (Comprehensive Testing Assets - 278/278 Passed)**：
   * 內建 OpenAPI 3.0 (Swagger UI) 與 Postman 整合測試集合（含 `pm.test` 自動斷言腳本）。
-  * 249 項單元與整合測試全量綠燈通過（`BUILD SUCCESS`）。
+  * 278 項單元與整合測試全量綠燈通過（`BUILD SUCCESS`）。
 
 ---
 
@@ -681,6 +721,9 @@ gantt
 [INFO] Running ParallelPartitionExcelWriterAdapter 平行管線與分片適配器測試 (4 tests)
 [INFO] Running JxlsTemplateWriterAdapter JXLS 範本寫入適配器測試 (3 tests)
 [INFO] Running ClasspathExcelTemplateRegistryAdapter 範本註冊表適配器測試 (4 tests)
+[INFO] Running ExcelTemplateCommandService 範本命令服務業務調度單元測試 (8 tests)
+[INFO] Running ExcelTemplateQueryService 範本查詢服務業務調度單元測試 (5 tests)
+[INFO] Running ExcelTemplateRepositoryAdapter 範本持久化儲存庫適配器測試 (5 tests)
 [INFO] Running JxlsAggregateTemplateGeneratorTest JXLS 聚合範本生成與整合渲染驗證 (3 tests)
 [INFO] Running JxlsFieldMappingAdapter JXLS 欄位映射適配器測試 (1 test)
 [INFO] Running JxlsFieldMappingIntegrationTest JXLS 欄位動態映射與實體範本渲染整合測試 (1 test)
@@ -711,11 +754,11 @@ gantt
 [INFO] Running ExcelTaskController 非同步長任務 REST 控制器測試 (4 tests)
 [INFO] Running ExcelValidationController 客製檢核與回標控制器測試 (9 tests)
 [INFO] Running ExcelValidationIntegrationTest 宣告式檢核與錯誤回標整合測試 (端到端真實檔案上傳) (6 tests)
-[INFO] Running ExcelTemplateExportController 範本匯出 REST 控制器測試 (6 tests)
+[INFO] Running ExcelTemplateExportController 範本匯出與 CRUD 管理 REST 控制器測試 (11 tests)
 [INFO] Running MaterialBomExcelController 物料與 BOM 宣告式 Excel 控制器測試 (5 tests)
 [INFO] 
 [INFO] Results:
-[INFO] Tests run: 249, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 278, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------

@@ -22,3 +22,4 @@ public interface ListExcelTemplateUseCase {
      */
     List<ExcelTemplateGottenResult> listTemplates(ListExcelTemplateQuery query);
 }
+

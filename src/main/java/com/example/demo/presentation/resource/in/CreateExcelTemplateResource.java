@@ -51,3 +51,4 @@ public record CreateExcelTemplateResource(
         @Schema(description = "預設動態欄位映射定義 JSON 規格")
         String defaultMappingJson
 ) {}
+

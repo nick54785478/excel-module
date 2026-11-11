@@ -40,3 +40,4 @@ public record ExcelTemplateCreatedResource(
         @Schema(description = "建立時間戳記")
         Instant createdAt
 ) {}
+

@@ -23,3 +23,4 @@ public interface UpdateExcelTemplateUseCase {
      */
     ExcelTemplateGottenResult updateTemplate(UpdateExcelTemplateCommand command);
 }
+

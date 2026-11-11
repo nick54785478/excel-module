@@ -217,3 +217,4 @@ class ExcelTemplateRepositoryAdapterTest {
         verify(jpaRepository).delete(entity);
     }
 }
+

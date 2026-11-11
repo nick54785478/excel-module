@@ -18,3 +18,4 @@ public record GetExcelTemplateQuery(
         Objects.requireNonNull(templateKey, "templateKey 不得為空");
     }
 }
+

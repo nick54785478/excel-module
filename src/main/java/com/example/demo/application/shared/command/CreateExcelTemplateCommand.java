@@ -40,3 +40,4 @@ public record CreateExcelTemplateCommand(
         filePath = (filePath != null && !filePath.isBlank()) ? filePath : "templates/excel/" + templateKey.toLowerCase() + ".xlsx";
     }
 }
+

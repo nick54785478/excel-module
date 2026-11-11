@@ -22,3 +22,4 @@ public interface GetExcelTemplateUseCase {
      */
     ExcelTemplateGottenResult getTemplate(GetExcelTemplateQuery query);
 }
+

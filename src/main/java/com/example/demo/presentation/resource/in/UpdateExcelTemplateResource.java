@@ -47,3 +47,4 @@ public record UpdateExcelTemplateResource(
         @Schema(description = "是否啟用該範本", example = "true")
         Boolean active
 ) {}
+
