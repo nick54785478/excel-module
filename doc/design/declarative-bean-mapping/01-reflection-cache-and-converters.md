@@ -5,7 +5,8 @@
 > 
 > 🔗 **模組導讀與關聯文件**：  
 > • 模組入口主文件：👉 [維度一：宣告式物件映射架構總覽 (declarative-bean-mapping.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping.md)  
-> • UseCase 與 REST 端點：👉 [維度一 Part 2：應用層 UseCase、CQRS 服務調度與 REST 端點 (02-ports-usecases-and-rest-binding.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/02-ports-usecases-and-rest-binding.md)
+> • UseCase 與 REST 端點：👉 [維度一 Part 2：應用層 UseCase、CQRS 服務調度與 REST 端點 (02-ports-usecases-and-rest-binding.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/02-ports-usecases-and-rest-binding.md)  
+> • 模型註冊與別名路由：👉 [維度一 Part 3：宣告式模型自動探測、別名註冊表與動態工作表路由 (03-sheet-model-registry.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/03-sheet-model-registry.md)
 
 ---
 
@@ -13,19 +14,26 @@
 
 座落於 [`com.example.demo.application.annotation`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation)：
 
-### 1.1 `@ExcelSheet`：工作表層級設定
+### 1.1 `@ExcelSheet`：工作表層級設定與別名相容
 ```java
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ExcelSheet {
-    String value() default "Sheet1";
+    String value() default "";
     String name() default "";
+    String[] aliases() default {};
     int headerRowIndex() default 0;
     int dataStartRowIndex() default 1;
     String protectPassword() default "";
 }
 ```
+* `value` / `name`：主要工作表名稱 (Sheet Name)。若未指定則預設使用 Model 類別簡稱。
+* `aliases`：相容別名清單 (Sheet Name Aliases)。支援在活頁簿中自動搜尋與多個工作表別名進行宣告式匹配（例如 `aliases = {"物料主檔", "材料清單", "MaterialMaster"}`）。
+  - 由應用層輸出埠 [`ExcelSheetModelRegistryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelSheetModelRegistryPort.java) 與底層適配器自動建立倒排索引，實現 $O(1)$ 精確規格化匹配、模糊匹配與最長子字串包含比對。
+* `headerRowIndex`：標題列索引 (從 0 起算，預設為 0)。
+* `dataStartRowIndex`：資料起始列索引 (從 0 起算，預設為 1)。
+* `protectPassword`：工作表保護密碼 (選填)。
 
 ### 1.2 `@ExcelColumn`：欄位層級設定
 ```java

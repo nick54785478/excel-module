@@ -5,7 +5,8 @@
 > 
 > 🔗 **模組導讀與關聯文件**：  
 > • 模組入口主文件：👉 [維度一：宣告式物件映射架構總覽 (declarative-bean-mapping.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping.md)  
-> • 註解與反射快取：👉 [維度一 Part 1：宣告式註解、雙層反射快取與型別容錯轉換 (01-reflection-cache-and-converters.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/01-reflection-cache-and-converters.md)
+> • 註解與反射快取：👉 [維度一 Part 1：宣告式註解、雙層反射快取與型別容錯轉換 (01-reflection-cache-and-converters.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/01-reflection-cache-and-converters.md)  
+> • 模型註冊與別名路由：👉 [維度一 Part 3：宣告式模型自動探測、別名註冊表與動態工作表路由 (03-sheet-model-registry.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/03-sheet-model-registry.md)
 
 ---
 
@@ -29,6 +30,7 @@
 
 * [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java)：維持純粹 Command/I/O 技術契約，**嚴禁依賴任何 Assembler 實作**。
 * [`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelReaderPort.java)：維持純粹讀取與串流回呼契約。
+* [`ExcelSheetModelRegistryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelSheetModelRegistryPort.java)：宣告式模型與工作表名稱路由查詢輸出埠，純 Java 介面，依賴 `Class<?>`、`String`、`Optional` 與 `List`，嚴守零框架污染原則。詳見 [Part 3 專題文件](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/03-sheet-model-registry.md)。
 
 ---
 
@@ -50,4 +52,5 @@
 
 * [`ExcelBeanAssemblerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/assembler/ExcelBeanAssemblerTest.java)：驗證反射快取、POJO 與 Record 雙軌轉換、千分位容錯、公式與標題解析。
 * [`ExcelBeanMappingControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/core/ExcelBeanMappingControllerTest.java)：驗證 5 隻端點之 JSON 匯出、串流產製與 Multipart 上傳反序列化。
+* [`ExcelSheetModelRegistryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/core/ExcelSheetModelRegistryAdapterTest.java)：驗證模型註冊表之多別名比對、大小寫無感、空白正規化、模糊匹配與最長子字串包含路由。
 

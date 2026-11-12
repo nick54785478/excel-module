@@ -68,6 +68,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | 👉 **[Part 1：宣告式註解、雙層反射快取與型別容錯轉換 (01-reflection-cache-and-converters.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/01-reflection-cache-and-converters.md)** | **註解與組裝核心引擎**<br/>• `@ExcelSheet` / `@ExcelColumn` 參數<br/>• JavaBean 與 Record 雙軌建構<br/>• `ConcurrentHashMap` 反射快取<br/>• 容錯千分位逗號與日期轉換 | 架構師、底層工具庫開發者、效能調優人員 | `@ExcelSheet`<br/>`@ExcelColumn`<br/>`ExcelBeanAssembler`<br/>`OrderImportModel`<br/>`ProductRecordModel` |
 | 👉 **[Part 2：應用層 UseCase、CQRS 服務調度與 REST 端點 (02-ports-usecases-and-rest-binding.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/02-ports-usecases-and-rest-binding.md)** | **分層架構與 REST 整合**<br/>• Inbound UseCases 強型別泛型合約<br/>• CQRS Application Services 協調<br/>• Outbound Ports 純淨抽象隔離<br/>• REST 端點與 ResourceAssembler | 應用開發者、API 設計師、前後端串接者 | `ExportExcelUseCase`<br/>`ImportExcelUseCase`<br/>`ExcelExportApplicationService`<br/>`ExcelBeanMappingController`<br/>`ExcelWriterPort` |
+| 👉 **[Part 3：宣告式模型自動探測、別名註冊表與動態工作表路由 (03-sheet-model-registry.md)](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/design/declarative-bean-mapping/03-sheet-model-registry.md)** | **動態模型註冊與工作表路由**<br/>• `ExcelSheetModelRegistryPort` (純淨 Port)<br/>• `ExcelSheetModelRegistryAdapter` (三層高效比對)<br/>• `ExcelSheetModelConfiguration` (Spring ASM 掃描)<br/>• 表現層動態調度與零字串硬編碼 | 架構師、應用開發者、維運人員 | `ExcelSheetModelRegistryPort`<br/>`ExcelSheetModelRegistryAdapter`<br/>`ExcelSheetModelConfiguration`<br/>`MaterialBomExcelController` |
 
 ---
 
