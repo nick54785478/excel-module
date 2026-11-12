@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
+import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
@@ -80,6 +81,45 @@ public class MaterialBomResourceAssembler {
 	 */
 	public MaterialImportedResource toMaterialImportedResource(List<MaterialExcelModel> models, String sheetName) {
 		return toMaterialImportedResource(models, sheetName, Collections.emptyList(), null, Collections.emptyList(), null);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 物料主檔結果封裝為回應結構 {@link MaterialImportedResource}
+	 *
+	 * @param matResult 物料主檔工作表解析結果
+	 * @return 物料匯入回應資源
+	 */
+	public MaterialImportedResource toMaterialImportedResource(BeanSheetGottenResult<MaterialExcelModel> matResult) {
+		if (matResult == null) {
+			return toMaterialImportedResource(Collections.emptyList(), null);
+		}
+		return toMaterialImportedResource(matResult.items(), matResult.sheetName(), Collections.emptyList(), null, Collections.emptyList(), null);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 單階 BOM 結果封裝至 {@link MaterialImportedResource} 專屬單階工作表槽位
+	 *
+	 * @param singleResult 單階 BOM 工作表解析結果
+	 * @return 包含單階工作表槽位之物料回應資源
+	 */
+	public MaterialImportedResource toMaterialImportedResourceFromSingleBom(BeanSheetGottenResult<BomItemExcelModel> singleResult) {
+		if (singleResult == null) {
+			return toMaterialImportedResource(Collections.emptyList(), null);
+		}
+		return toMaterialImportedResource(Collections.emptyList(), null, singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 多階層 BOM 結果封裝至 {@link MaterialImportedResource} 專屬多階工作表槽位
+	 *
+	 * @param multiResult 多階層 BOM 工作表解析結果
+	 * @return 包含多階工作表槽位之物料回應資源
+	 */
+	public MaterialImportedResource toMaterialImportedResourceFromMultiBom(BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult) {
+		if (multiResult == null) {
+			return toMaterialImportedResource(Collections.emptyList(), null);
+		}
+		return toMaterialImportedResource(Collections.emptyList(), null, Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
 	}
 
 	/**
@@ -326,6 +366,45 @@ public class MaterialBomResourceAssembler {
 		SingleLevelBomSheetResource singleSheet = new SingleLevelBomSheetResource(
 				sheetName != null ? sheetName : "單階BOM清單", items.size(), items);
 		return new BomItemImportedResource(items.size(), sheetName != null ? sheetName : "單階BOM清單", items, null, singleSheet);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 單階 BOM 結果封裝為回應結構 {@link BomItemImportedResource}
+	 *
+	 * @param singleResult 單階 BOM 工作表解析結果
+	 * @return BOM 匯入回應資源
+	 */
+	public BomItemImportedResource toBomItemImportedResource(BeanSheetGottenResult<BomItemExcelModel> singleResult) {
+		if (singleResult == null) {
+			return toBomItemImportedResource(Collections.emptyList(), null);
+		}
+		return toBomItemImportedResource(singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null, Collections.emptyList(), null);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 多階層 BOM 結果封裝至 {@link BomItemImportedResource} 專屬多階工作表槽位
+	 *
+	 * @param multiResult 多階層 BOM 工作表解析結果
+	 * @return 包含多階工作表槽位之 BOM 回應資源
+	 */
+	public BomItemImportedResource toBomItemImportedResourceFromMultiBom(BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult) {
+		if (multiResult == null) {
+			return toBomItemImportedResource(Collections.emptyList(), null);
+		}
+		return toBomItemImportedResource(Collections.emptyList(), null, multiResult.items(), multiResult.sheetName(), Collections.emptyList(), null);
+	}
+
+	/**
+	 * 將 {@link BeanSheetGottenResult} 物料主檔結果封裝至 {@link BomItemImportedResource} 專屬物料工作表槽位
+	 *
+	 * @param matResult 物料主檔工作表解析結果
+	 * @return 包含物料主檔工作表槽位之 BOM 回應資源
+	 */
+	public BomItemImportedResource toBomItemImportedResourceFromMaterial(BeanSheetGottenResult<MaterialExcelModel> matResult) {
+		if (matResult == null) {
+			return toBomItemImportedResource(Collections.emptyList(), null);
+		}
+		return toBomItemImportedResource(Collections.emptyList(), null, Collections.emptyList(), null, matResult.items(), matResult.sheetName());
 	}
 
 	/**
