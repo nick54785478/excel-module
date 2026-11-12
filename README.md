@@ -5,7 +5,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-DDD%20%7C%20Clean%20%7C%20Hexagonal-blue.svg)](#1-架構設計與雙引擎模型-architecture--dual-engine)
 [![Engine](https://img.shields.io/badge/Engine-FastExcel%200.20.2%20%2B%20Apache%20POI%205.5.1-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
 [![Rule Engine](https://img.shields.io/badge/Rule%20Engine-EasyRules%204.1.0-red.svg)](https://github.com/j-easy/easy-rules)
-[![Tests](https://img.shields.io/badge/Tests-281%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
+[![Tests](https://img.shields.io/badge/Tests-306%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
 
 > 📌 本模組為企業級高性能試算表處理解決方案，原生結合製造業 **物料清單 (Bill of Materials, BOM)** 多階遞迴展開與匯出引擎。嚴格遵循 **領域驅動設計 (DDD)**、**Clean Architecture** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，實踐表現層、應用層、領域層與底層實作的完全解耦。
 
@@ -85,8 +85,9 @@ com.example.demo
   * 串流分批沖刷（`flush`）時透過 `ExcelTaskContextHolder` (`ThreadLocal`) 自動累計進度並即時更新至資料庫。
   * 任務持久化全面宣告獨立交易傳播（`@Transactional(propagation = Propagation.REQUIRES_NEW)`），解決在唯讀交易中寫入任務實體的阻斷問題。
   * 專職控制器 [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/task/ExcelTaskController.java) 支援前端即時輪詢進度 (`/progress`) 與產出檔案下載 (`/download`)。
-* 📝 **宣告式物件映射 (@ExcelSheet & @ExcelColumn / ExcelBeanAssembler)**：
+* 📝 **宣告式物件映射 (@ExcelSheet & @ExcelColumn / ExcelSheetModelRegistryPort)**：
   * 原生支援 Java 21 Record 與標準 JavaBean 雙軌映射，內建高並發元數據快取（`ConcurrentHashMap`）。
+  * **零配置自動探測與動態工作表路由 (Zero-Config Auto-Discovery)**：Spring 啟動時透過 ASM 位元組碼掃描全自動註冊 `@ExcelSheet` 模型，由純淨輸出埠 `ExcelSheetModelRegistryPort` 提供 $O(1)$ 精確、模糊與智慧子字串多別名解析，徹底消除 Controller 硬編碼字串比對。
   * 雙向寬鬆表頭/索引匹配、自動清除貨幣符號與千分位逗號、多元日期時間格式與枚舉安全解析。
 * 🛡️ **宣告式客製驗證與「錯誤回標檔」生成 (EasyRules & Error Feedback)**：
   * 原生支援多層次檢核管線，封裝輕量級規則引擎 **EasyRules**（支援條件與動作解耦、Priority 優先級排程與非短路全量錯誤事實累積）。

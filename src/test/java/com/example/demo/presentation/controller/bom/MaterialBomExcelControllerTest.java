@@ -462,5 +462,81 @@ class MaterialBomExcelControllerTest {
 		mockMvc.perform(multipart("/api/v1/excel/material-bom/materials/import").file(emptyFile))
 				.andExpect(status().isBadRequest());
 	}
+
+	/**
+	 * Feature: 宣告式模型註冊表 (ExcelSheetModelRegistryPort) 智慧路由分流
+	 * Scenario: 在 /bom-items/import 端點指定 sheetName 為多階層 BOM 工作表
+	 * Given: 活頁簿包含多階層工作表，Registry 自動識別並分派為 MultiLevelBomExcelModel
+	 * When: 發送 POST multipart 請求至 /bom-items/import 附帶 sheetName="多階層BOM展開清單"
+	 * Then: 成功委派 ImportExcelUseCase 以 MultiLevelBomExcelModel 解析並封裝回傳
+	 */
+	@Test
+	@DisplayName("場景：/bom-items/import 透過模型註冊表動態路由至 MultiLevelBomExcelModel")
+	void shouldRouteToMultiLevelBomModelViaRegistry() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"bom.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{1, 2, 3}
+		);
+
+		MultiLevelBomExcelModel parsedModel = new MultiLevelBomExcelModel(
+				1, "1.1", "MAT-FG-001", "MAT-SFG-001", "飛控主板電路模組總成",
+				"FC-PCB-ASSY-V3", "半成品", "PCS", new BigDecimal("1"), BigDecimal.ZERO,
+				new BigDecimal("1"), new BigDecimal("8500"), new BigDecimal("8500"), "FC-ASM", "核心飛控組裝件"
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(MultiLevelBomExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("多階層BOM展開清單", List.of(parsedModel)));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import")
+						.file(file)
+						.param("sheetName", "多階層BOM展開清單"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.totalCount").value(1))
+				.andExpect(jsonPath("$.sheetName").value("多階層BOM展開清單"))
+				.andExpect(jsonPath("$.multiLevelBom.items[0].childMaterialCode").value("MAT-SFG-001"));
+
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(MultiLevelBomExcelModel.class));
+	}
+
+	/**
+	 * Feature: 宣告式模型註冊表 (ExcelSheetModelRegistryPort) 智慧路由分流至物料主檔
+	 * Scenario: 在 /bom-items/import 端點指定 sheetName 為物料主檔工作表
+	 * Given: 活頁簿包含物料主檔工作表，Registry 自動識別並分派為 MaterialExcelModel
+	 * When: 發送 POST multipart 請求至 /bom-items/import 附帶 sheetName="物料主檔對照表"
+	 * Then: 成功委派 ImportExcelUseCase 以 MaterialExcelModel 解析並封裝回傳
+	 */
+	@Test
+	@DisplayName("場景：/bom-items/import 透過模型註冊表動態路由至 MaterialExcelModel")
+	void shouldRouteToMaterialModelViaRegistryOnBomImport() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"bom.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{1, 2, 3}
+		);
+
+		MaterialExcelModel parsedModel = new MaterialExcelModel(
+				"MAT-001", "高精度馬達", "2204-KV2300", "RAW_MATERIAL", "PCS", new BigDecimal("450.00"), "ACTIVE"
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("物料主檔對照表"), eq(MaterialExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("物料主檔對照表", List.of(parsedModel)));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import")
+						.file(file)
+						.param("sheetName", "物料主檔對照表"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.totalCount").value(1))
+				.andExpect(jsonPath("$.sheetName").value("物料主檔對照表"))
+				.andExpect(jsonPath("$.materialMaster.items[0].materialCode").value("MAT-001"));
+
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("物料主檔對照表"), eq(MaterialExcelModel.class));
+	}
 }
 

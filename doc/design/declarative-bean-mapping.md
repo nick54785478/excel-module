@@ -81,8 +81,9 @@ flowchart TD
 | **Application (Service)** | [`ExcelExportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/ExcelExportApplicationService.java)<br>[`ExcelImportApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/ExcelImportApplicationService.java) | 協調調度業務流程，委派組裝器與底層 Port | `*ApplicationService` (Rule 3-9) |
 | **Application (Assembler)**| [`ExcelBeanAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/assembler/ExcelBeanAssembler.java) | 核心組裝器，負責雙層反射快取、註解解析與雙軌實例建構 | Assembler |
 | **Application (Annotation)**| [`@ExcelSheet`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelSheet.java)<br>[`@ExcelColumn`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelColumn.java) | 工作表名稱、欄位索引、千分位格式化與公式宣告 | Annotation |
-| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java)<br>[`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelReaderPort.java) | 純粹向外 SPI 技術契約，嚴禁依賴任何 Assembler 實作 | `*Port` (Rule 3-8) |
-| **Infrastructure (Adapter)** | [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java)<br>[`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) | FastExcel 與 Apache POI 實體檔案寫入與解析適配器 | `*Adapter` (Rule 3-9) |
+| **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java)<br>[`ExcelReaderPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelReaderPort.java)<br>[`ExcelSheetModelRegistryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelSheetModelRegistryPort.java) | 純粹向外 SPI 技術契約（讀寫引擎與宣告式工作表模型路由查表） | `*Port` (Rule 3-8) |
+| **Infrastructure (Adapter)** | [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java)<br>[`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java)<br>[`ExcelSheetModelRegistryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/ExcelSheetModelRegistryAdapter.java) | FastExcel 與 Apache POI 實體檔案寫入/解析適配器，以及宣告式模型多別名高效路由適配器 | `*Adapter` (Rule 3-9) |
+| **Configuration (The Dirtiest Layer)** | [`ExcelSheetModelConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelSheetModelConfiguration.java) | 利用 Spring 位元組碼掃描器自動探測 `@ExcelSheet` 類別並動態裝配至註冊表 | Configuration (Rule 40-41) |
 
 ---
 
@@ -146,6 +147,10 @@ com.example.demo
 │   │   ├── StreamExportExcelUseCase.java            # streamExportBeans(...)
 │   │   ├── ImportExcelUseCase.java                  # importBeans(...)
 │   │   └── StreamImportExcelUseCase.java            # streamImportBeans(...)
+│   ├── port/out/core/                               # Outbound Ports (Rule 3-8)
+│   │   ├── ExcelWriterPort.java                     # 檔案寫入技術合約
+│   │   ├── ExcelReaderPort.java                     # 檔案讀取技術合約
+│   │   └── ExcelSheetModelRegistryPort.java         # 宣告式模型多別名路由查詢輸出埠 (Pure Java)
 │   ├── service/core/                                # 應用服務 (Rule 3-9)
 │   │   ├── ExcelCommandService.java                 # 呼叫 ExcelBeanAssembler 轉換後寫出
 │   │   └── ExcelQueryService.java                   # 讀取結構化字典後反序列化為 Bean
@@ -153,11 +158,15 @@ com.example.demo
 │       ├── OrderImportModel.java                    # 標準 JavaBean 範例
 │       └── ProductRecordModel.java                  # Java 21 Record 範例
 │
-└── infrastructure/adapter/core/                     # 基礎設施層 (Outbound Adapters)
-    ├── FastExcelWriterAdapter.java                  # 核心寫入適配器
-    ├── FastExcelReaderAdapter.java                  # 核心讀取適配器
-    ├── PoiSxssfWriterAdapter.java                   # POI 寫入適配器
-    └── PoiSaxReaderAdapter.java                     # POI 讀取適配器
+├── infrastructure/adapter/core/                     # 基礎設施層 (Outbound Adapters)
+│   ├── FastExcelWriterAdapter.java                  # 核心寫入適配器
+│   ├── FastExcelReaderAdapter.java                  # 核心讀取適配器
+│   ├── PoiSxssfWriterAdapter.java                   # POI 寫入適配器
+│   ├── PoiSaxReaderAdapter.java                     # POI 讀取適配器
+│   └── ExcelSheetModelRegistryAdapter.java          # 模型多別名與智慧包含路由適配器
+│
+└── config/                                          # 配置層 (The Dirtiest Layer - Rule 40-41)
+    └── ExcelSheetModelConfiguration.java            # Spring 位元組碼掃描器自動探測裝配
 ```
 
 ### 6.2 測試套件 Package 結構 (`src/test/java`)
@@ -169,5 +178,57 @@ com.example.demo
 ├── application/assembler/
 │   └── ExcelBeanAssemblerTest.java                  # 組裝器單元測試 (反射快取/型別轉換)
 └── infrastructure/adapter/core/
-    └── FastExcelWriterAdapterTest.java              # 底層適配器驗證
+    ├── FastExcelWriterAdapterTest.java              # 底層適配器驗證
+    └── ExcelSheetModelRegistryAdapterTest.java      # 宣告式模型註冊與別名路由單元測試
 ```
+
+---
+
+## 7. 宣告式模型全自動探測與智慧工作表路由 (Zero-Config Auto-Discovery & Dynamic Sheet Routing)
+
+### 7.1 痛點背景與重構演進
+在多工作表 Excel 匯入情境中，若表現層（Controller）使用硬編碼字串比對：
+```java
+// ❌ 壞味道：粗暴字串比對，高耦合且難以擴充維護
+if (sheetName.contains("物料") || sheetName.contains("主檔")) {
+    ...
+} else if (sheetName.contains("多階") || sheetName.contains("展開")) {
+    ...
+}
+```
+這種做法違反了開放封閉原則 (OCP)，每當新增業務模型或變更 Excel 範本工作表名稱時，皆必須侵入修改 Controller 程式碼。
+
+### 7.2 六角形架構解法：純淨輸出埠與自動探測適配器
+為貫徹 Clean Architecture 六角形架構與 `AGENTS.md` 規範（特別是規則 8、18 與 40-41），本模組採用三層協同模式：
+
+1. **應用層輸出埠 (`ExcelSheetModelRegistryPort`)**：
+   * 座落於 `application/port/out/core/`。
+   * 純 Java 介面，依賴 `Class<?>`、`String`、`Optional` 與 `List`，**100% 零技術框架污染**。
+   * 定義 `findModelClass(String sheetName)` 與 `supports(String sheetName)`。
+2. **基礎設施層適配器 (`ExcelSheetModelRegistryAdapter`)**：
+   * 座落於 `infrastructure/adapter/core/`。
+   * 維護執行緒安全的 `ConcurrentHashMap` 索引。
+   * 自動抽取 `@ExcelSheet.name()`、`@ExcelSheet.aliases()` 與類別簡單名稱建立查表：
+     * **第一層**：$O(1)$ 精確規格化匹配（自動去除前後空白與忽略大小寫）。
+     * **第二層**：寬鬆模糊比對（去除底線、破折號與括號等格式字元）。
+     * **第三層**：智慧子字串包含比對（依別名長度降冪優先匹配最長最精確別名，如自動識別 `"2026年多階層BOM展開清單(最新)"`）。
+3. **全域配置層 (`ExcelSheetModelConfiguration`)**：
+   * 座落於 `config/`（The Dirtiest Layer，集中管理所有 Spring 框架技術）。
+   * 利用 Spring 底層的 `ClassPathScanningCandidateComponentProvider` 搭配 `AnnotationTypeFilter(ExcelSheet.class)`，在應用程式啟動時基於 ASM 位元組碼掃描，**無需手動註冊或改動任何配置**，全自動探測並注入已標註 `@ExcelSheet` 的所有模型。
+
+### 7.3 表現層優雅路由效果
+在表現層（如 `MaterialBomExcelController`），控制器僅依賴純淨的 `ExcelSheetModelRegistryPort`：
+```java
+// ✅ 優雅重構：由元數據驅動，完全無字串寫死
+Class<?> targetModel = sheetModelRegistryPort.findModelClass(trimmedSheet)
+        .orElse(MaterialExcelModel.class);
+
+if (MultiLevelBomExcelModel.class.equals(targetModel)) {
+    // 調度多階層 BOM 解析案例與組裝
+} else if (BomItemExcelModel.class.equals(targetModel)) {
+    // 調度單階 BOM 配方解析案例與組裝
+} else {
+    // 調度物料主檔解析案例與組裝
+}
+```
+未來新增任何 Excel 業務模型，開發者僅需在模型上標註 `@ExcelSheet(name = "...", aliases = {...})`，系統即自動探測並納入路由索引，達到 **Zero-Config 開箱即用**。

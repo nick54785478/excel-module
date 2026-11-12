@@ -23,11 +23,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
+import com.example.demo.application.port.out.core.ExcelSheetModelRegistryPort;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
+import com.example.demo.config.ExcelSheetModelConfiguration;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource;
@@ -74,23 +76,42 @@ public class MaterialBomExcelController {
 	private final ExportMaterialBomUseCase exportMaterialBomUseCase;
 	private final ImportExcelUseCase importExcelUseCase;
 	private final MaterialBomResourceAssembler resourceAssembler;
+	private final ExcelSheetModelRegistryPort sheetModelRegistryPort;
 
 	/**
-	 * Spring 容器自動裝配建構子：注入領域專用匯出案例、通用匯入案例與表現層防腐組裝器
+	 * Spring 容器自動裝配建構子：注入領域專用匯出案例、通用匯入案例、表現層純資料組裝器與模型註冊表輸出埠
 	 *
 	 * @param exportMaterialBomUseCase 物料與 BOM 聚合匯出業務案例 (Application Inbound Port)
 	 * @param importExcelUseCase       試算表通用物件映射匯入業務案例 (Application Inbound Port)
 	 * @param resourceAssembler        表現層純資料組裝器 (Presentation Assembler)
+	 * @param sheetModelRegistryPort   宣告式 Excel 模型註冊表查詢輸出埠 (Application Outbound Port)
 	 */
 	@Autowired
 	public MaterialBomExcelController(
 			ExportMaterialBomUseCase exportMaterialBomUseCase,
 			ImportExcelUseCase importExcelUseCase,
-			MaterialBomResourceAssembler resourceAssembler
+			MaterialBomResourceAssembler resourceAssembler,
+			ExcelSheetModelRegistryPort sheetModelRegistryPort
 	) {
 		this.exportMaterialBomUseCase = Objects.requireNonNull(exportMaterialBomUseCase, "exportMaterialBomUseCase must not be null");
 		this.importExcelUseCase = Objects.requireNonNull(importExcelUseCase, "importExcelUseCase must not be null");
 		this.resourceAssembler = Objects.requireNonNull(resourceAssembler, "resourceAssembler must not be null");
+		this.sheetModelRegistryPort = Objects.requireNonNull(sheetModelRegistryPort, "sheetModelRegistryPort must not be null");
+	}
+
+	/**
+	 * 便捷建構子：相容既有 3 參數測試實例化調用 (維持向下相容，預設使用核心模型註冊表)
+	 *
+	 * @param exportMaterialBomUseCase 物料與 BOM 聚合匯出業務案例
+	 * @param importExcelUseCase       通用匯入業務案例
+	 * @param resourceAssembler        表現層純資料組裝器
+	 */
+	public MaterialBomExcelController(
+			ExportMaterialBomUseCase exportMaterialBomUseCase,
+			ImportExcelUseCase importExcelUseCase,
+			MaterialBomResourceAssembler resourceAssembler
+	) {
+		this(exportMaterialBomUseCase, importExcelUseCase, resourceAssembler, ExcelSheetModelConfiguration.createDefaultRegistry());
 	}
 
 	/**
@@ -107,7 +128,7 @@ public class MaterialBomExcelController {
 			ImportExcelUseCase importExcelUseCase,
 			MaterialBomResourceAssembler resourceAssembler
 	) {
-		this(exportMaterialBomUseCase, importExcelUseCase, resourceAssembler);
+		this(exportMaterialBomUseCase, importExcelUseCase, resourceAssembler, ExcelSheetModelConfiguration.createDefaultRegistry());
 	}
 
 	// =========================================================================
@@ -199,13 +220,16 @@ public class MaterialBomExcelController {
 		// 情境 1：若呼叫端明確指定特定工作表名稱
 		if (sheetName != null && !sheetName.isBlank()) {
 			String trimmedSheet = sheetName.trim();
-			if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+			Class<?> targetModel = sheetModelRegistryPort.findModelClass(trimmedSheet)
+					.orElse(MaterialExcelModel.class);
+
+			if (MultiLevelBomExcelModel.class.equals(targetModel)) {
 				BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 				MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
 						Collections.emptyList(), null, Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
 				return ResponseEntity.ok(response);
-			} else if (trimmedSheet.contains("單階") || (trimmedSheet.contains("BOM") && !trimmedSheet.contains("物料"))) {
+			} else if (BomItemExcelModel.class.equals(targetModel)) {
 				BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
 				MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
@@ -330,13 +354,16 @@ public class MaterialBomExcelController {
 		// ---------------------------------------------------------------------
 		byte[] fileBytes = file.getBytes();
 		String trimmedSheet = sheetName.trim();
-		if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+		Class<?> targetModel = sheetModelRegistryPort.findModelClass(trimmedSheet)
+				.orElse(MaterialExcelModel.class);
+
+		if (MultiLevelBomExcelModel.class.equals(targetModel)) {
 			BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 			MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
 					Collections.emptyList(), null, Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
 			return ResponseEntity.ok(response);
-		} else if (trimmedSheet.contains("單階") || (trimmedSheet.contains("BOM") && !trimmedSheet.contains("物料"))) {
+		} else if (BomItemExcelModel.class.equals(targetModel)) {
 			BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
 			MaterialImportedResource response = resourceAssembler.toMaterialImportedResource(
@@ -440,13 +467,16 @@ public class MaterialBomExcelController {
 		// 情境 1：若呼叫端明確指定特定工作表名稱
 		if (sheetName != null && !sheetName.isBlank()) {
 			String trimmedSheet = sheetName.trim();
-			if (trimmedSheet.contains("物料") || trimmedSheet.contains("主檔") || trimmedSheet.contains("對照") || trimmedSheet.contains("材料") || trimmedSheet.equalsIgnoreCase("materials")) {
+			Class<?> targetModel = sheetModelRegistryPort.findModelClass(trimmedSheet)
+					.orElse(BomItemExcelModel.class);
+
+			if (MaterialExcelModel.class.equals(targetModel)) {
 				BeanSheetGottenResult<MaterialExcelModel> matResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, MaterialExcelModel.class);
 				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
 						Collections.emptyList(), null, Collections.emptyList(), null, matResult.items(), matResult.sheetName());
 				return ResponseEntity.ok(response);
-			} else if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+			} else if (MultiLevelBomExcelModel.class.equals(targetModel)) {
 				BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
@@ -568,13 +598,16 @@ public class MaterialBomExcelController {
 
 		byte[] fileBytes = file.getBytes();
 		String trimmedSheet = sheetName.trim();
-		if (trimmedSheet.contains("物料") || trimmedSheet.contains("主檔") || trimmedSheet.contains("對照") || trimmedSheet.contains("材料") || trimmedSheet.equalsIgnoreCase("materials")) {
+		Class<?> targetModel = sheetModelRegistryPort.findModelClass(trimmedSheet)
+				.orElse(BomItemExcelModel.class);
+
+		if (MaterialExcelModel.class.equals(targetModel)) {
 			BeanSheetGottenResult<MaterialExcelModel> matResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, MaterialExcelModel.class);
 			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
 					Collections.emptyList(), null, Collections.emptyList(), null, matResult.items(), matResult.sheetName());
 			return ResponseEntity.ok(response);
-		} else if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+		} else if (MultiLevelBomExcelModel.class.equals(targetModel)) {
 			BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
