@@ -79,25 +79,143 @@ public class MaterialBomResourceAssembler {
 	 * @return 物料匯入回應資源
 	 */
 	public MaterialImportedResource toMaterialImportedResource(List<MaterialExcelModel> models, String sheetName) {
-		if (models == null || models.isEmpty()) {
-			return new MaterialImportedResource(0, sheetName != null ? sheetName : "物料主檔清單", Collections.emptyList());
+		return toMaterialImportedResource(models, sheetName, Collections.emptyList(), null, Collections.emptyList(), null);
+	}
+
+	/**
+	 * 同時整合物料主檔對照表、多階層展開 BOM 與單階 BOM 之全量結構化回應資源組裝
+	 * <p>
+	 * 確保未填 sheetName 時所有相符工作表資料 (物料主檔、單階與多階) 完整印出，且各自歸屬於獨立專屬 Model。
+	 * </p>
+	 *
+	 * @param materialModels    物料主檔模型清單
+	 * @param materialSheetName 物料主檔工作表名稱
+	 * @param singleModels      單階 BOM 模型清單
+	 * @param singleSheetName   單階 BOM 工作表名稱
+	 * @param multiModels       多階層 BOM 模型清單
+	 * @param multiSheetName    多階層 BOM 工作表名稱
+	 * @return 包含三工作表結構化資訊之物料回應資源
+	 */
+	public MaterialImportedResource toMaterialImportedResource(
+			List<MaterialExcelModel> materialModels,
+			String materialSheetName,
+			List<BomItemExcelModel> singleModels,
+			String singleSheetName,
+			List<MultiLevelBomExcelModel> multiModels,
+			String multiSheetName
+	) {
+		MaterialMasterSheetResource materialSheet = null;
+		List<MaterialRetrievedResource> matItems = new ArrayList<>();
+		if (materialModels != null && !materialModels.isEmpty()) {
+			for (MaterialExcelModel m : materialModels) {
+				if (m != null) {
+					matItems.add(new MaterialRetrievedResource(
+							m.getMaterialCode(),
+							m.getMaterialName(),
+							m.getSpecification(),
+							m.getCategory(),
+							m.getUnit(),
+							m.getStandardCost(),
+							m.getStatus()
+					));
+				}
+			}
+			materialSheet = new MaterialMasterSheetResource(
+					materialSheetName != null ? materialSheetName : "物料主檔對照表",
+					matItems.size(),
+					matItems
+			);
 		}
 
-		List<MaterialRetrievedResource> items = new ArrayList<>(models.size());
-		for (MaterialExcelModel m : models) {
-			if (m != null) {
-				items.add(new MaterialRetrievedResource(
-						m.getMaterialCode(),
-						m.getMaterialName(),
-						m.getSpecification(),
-						m.getCategory(),
-						m.getUnit(),
-						m.getStandardCost(),
-						m.getStatus()
+		SingleLevelBomSheetResource singleSheet = null;
+		List<BomItemRetrievedResource> singleItems = new ArrayList<>();
+		if (singleModels != null && !singleModels.isEmpty()) {
+			for (BomItemExcelModel m : singleModels) {
+				if (m != null) {
+					singleItems.add(new BomItemRetrievedResource(
+							m.getParentMaterialCode(),
+							m.getBomVersion(),
+							m.getItemSequence(),
+							m.getChildMaterialCode(),
+							m.getChildMaterialName(),
+							m.getQuantity(),
+							m.getUnit(),
+							m.getScrapRate(),
+							m.getPositionCode(),
+							m.getRemark()
+					));
+				}
+			}
+			singleSheet = new SingleLevelBomSheetResource(
+					singleSheetName != null ? singleSheetName : "單階BOM匯入清單",
+					singleItems.size(),
+					singleItems
+			);
+		}
+
+		MultiLevelBomSheetResource multiSheet = null;
+		List<MultiLevelBomRetrievedResource> multiItems = new ArrayList<>();
+		if (multiModels != null && !multiModels.isEmpty()) {
+			for (MultiLevelBomExcelModel m : multiModels) {
+				if (m != null) {
+					multiItems.add(toMultiLevelBomRetrievedResource(m));
+				}
+			}
+			multiSheet = new MultiLevelBomSheetResource(
+					multiSheetName != null ? multiSheetName : "多階層BOM展開清單",
+					multiItems.size(),
+					multiItems
+			);
+		}
+
+		int matCount = materialSheet != null ? materialSheet.totalCount() : 0;
+		int singleCount = singleSheet != null ? singleSheet.totalCount() : 0;
+		int multiCount = multiSheet != null ? multiSheet.totalCount() : 0;
+		int total = matCount + singleCount + multiCount;
+
+		// 向下相容 items：優先提供物料主檔項目，若無物料主檔但有多階項目則轉換多階的料件資訊
+		List<MaterialRetrievedResource> fallbackItems = !matItems.isEmpty() ? matItems : new ArrayList<>();
+		if (fallbackItems.isEmpty() && !multiItems.isEmpty()) {
+			for (MultiLevelBomRetrievedResource mi : multiItems) {
+				fallbackItems.add(new MaterialRetrievedResource(
+						mi.childMaterialCode(),
+						mi.childMaterialName(),
+						mi.specification(),
+						mi.category(),
+						mi.unit(),
+						mi.standardPrice(),
+						"ACTIVE"
 				));
 			}
 		}
-		return new MaterialImportedResource(items.size(), sheetName != null ? sheetName : "物料主檔清單", items);
+
+		List<String> sheetSummaries = new ArrayList<>();
+		if (multiSheet != null) {
+			sheetSummaries.add(multiSheet.sheetName() + ": " + multiCount + "筆");
+		}
+		if (singleSheet != null) {
+			sheetSummaries.add(singleSheet.sheetName() + ": " + singleCount + "筆");
+		}
+		if (materialSheet != null) {
+			sheetSummaries.add(materialSheet.sheetName() + ": " + matCount + "筆");
+		}
+
+		String displaySheetName;
+		if (sheetSummaries.size() > 1) {
+			displaySheetName = "全部工作表 (" + String.join(", ", sheetSummaries) + ")";
+		} else if (!sheetSummaries.isEmpty()) {
+			if (materialSheet != null) {
+				displaySheetName = materialSheet.sheetName();
+			} else if (multiSheet != null) {
+				displaySheetName = multiSheet.sheetName();
+			} else {
+				displaySheetName = singleSheet.sheetName();
+			}
+		} else {
+			displaySheetName = "無相符工作表";
+		}
+
+		return new MaterialImportedResource(total, displaySheetName, fallbackItems, materialSheet, multiSheet, singleSheet);
 	}
 
 	/**
