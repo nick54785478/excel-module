@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
-import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.port.out.core.ExcelSheetModelRegistryPort;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
@@ -29,7 +28,6 @@ import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
-import com.example.demo.config.ExcelSheetModelConfiguration;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource;
@@ -97,38 +95,6 @@ public class MaterialBomExcelController {
 		this.importExcelUseCase = Objects.requireNonNull(importExcelUseCase, "importExcelUseCase must not be null");
 		this.resourceAssembler = Objects.requireNonNull(resourceAssembler, "resourceAssembler must not be null");
 		this.sheetModelRegistryPort = Objects.requireNonNull(sheetModelRegistryPort, "sheetModelRegistryPort must not be null");
-	}
-
-	/**
-	 * 便捷建構子：相容既有 3 參數測試實例化調用 (維持向下相容，預設使用核心模型註冊表)
-	 *
-	 * @param exportMaterialBomUseCase 物料與 BOM 聚合匯出業務案例
-	 * @param importExcelUseCase       通用匯入業務案例
-	 * @param resourceAssembler        表現層純資料組裝器
-	 */
-	public MaterialBomExcelController(
-			ExportMaterialBomUseCase exportMaterialBomUseCase,
-			ImportExcelUseCase importExcelUseCase,
-			MaterialBomResourceAssembler resourceAssembler
-	) {
-		this(exportMaterialBomUseCase, importExcelUseCase, resourceAssembler, ExcelSheetModelConfiguration.createDefaultRegistry());
-	}
-
-	/**
-	 * 便捷建構子：相容既有 4 參數測試實例化調用 (維持向下相容)
-	 *
-	 * @param exportMaterialBomUseCase 物料與 BOM 匯出業務案例
-	 * @param exportExcelUseCase       通用匯出業務案例 (可為空)
-	 * @param importExcelUseCase       通用匯入業務案例
-	 * @param resourceAssembler        表現層純資料組裝器
-	 */
-	public MaterialBomExcelController(
-			ExportMaterialBomUseCase exportMaterialBomUseCase,
-			ExportExcelUseCase exportExcelUseCase,
-			ImportExcelUseCase importExcelUseCase,
-			MaterialBomResourceAssembler resourceAssembler
-	) {
-		this(exportMaterialBomUseCase, importExcelUseCase, resourceAssembler, ExcelSheetModelConfiguration.createDefaultRegistry());
 	}
 
 	// =========================================================================

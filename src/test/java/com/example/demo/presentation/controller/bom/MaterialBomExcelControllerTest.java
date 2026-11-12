@@ -26,13 +26,14 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
+import com.example.demo.application.port.out.core.ExcelSheetModelRegistryPort;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
 import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
+import com.example.demo.config.ExcelSheetModelConfiguration;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.exception.GlobalExceptionHandler;
 
@@ -47,21 +48,20 @@ class MaterialBomExcelControllerTest {
 
 	private MockMvc mockMvc;
 	private ExportMaterialBomUseCase exportMaterialBomUseCase;
-	private ExportExcelUseCase exportExcelUseCase;
 	private ImportExcelUseCase importExcelUseCase;
 
 	@BeforeEach
 	void setUp() {
 		exportMaterialBomUseCase = mock(ExportMaterialBomUseCase.class);
-		exportExcelUseCase = mock(ExportExcelUseCase.class);
 		importExcelUseCase = mock(ImportExcelUseCase.class);
 		MaterialBomResourceAssembler resourceAssembler = new MaterialBomResourceAssembler();
+		ExcelSheetModelRegistryPort registryPort = ExcelSheetModelConfiguration.createDefaultRegistry();
 
 		MaterialBomExcelController controller = new MaterialBomExcelController(
 				exportMaterialBomUseCase,
-				exportExcelUseCase,
 				importExcelUseCase,
-				resourceAssembler
+				resourceAssembler,
+				registryPort
 		);
 
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
