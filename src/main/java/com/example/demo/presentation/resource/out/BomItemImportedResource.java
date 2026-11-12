@@ -10,21 +10,22 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * <p>
  * 遵循 {@code N + Ved + Resource} 命名規範 (3-2 規範)。
  * 作為純資料載體，嚴禁於內部實作任何轉換邏輯。
- * 同時支援單階配方模型與多階層展開模型之結構化資料輸出，確保未指定工作表時所有相符工作表資料完整印出。
+ * 同時支援單階配方模型、多階層展開模型與物料主檔對照表之結構化資料輸出，確保未指定工作表時所有相符工作表資料完整印出。
  * </p>
  *
- * @param totalCount    匯入解析成功的 BOM 項目總筆數 (包含多階與單階)
- * @param sheetName     工作表名稱 (或多工作表綜合摘要)
- * @param items         單階 BOM 子項明細清單 (維持向下相容)
- * @param multiLevelBom 多階層 BOM 展開清單專屬結構 (包含階層、階層序號、規格型號、有效用量、標準單價與成本小計)
+ * @param totalCount     匯入解析成功的項目總筆數 (包含多階、單階與物料主檔)
+ * @param sheetName      工作表名稱 (或多工作表綜合摘要)
+ * @param items          單階 BOM 子項明細清單 (維持向下相容)
+ * @param multiLevelBom  多階層 BOM 展開清單專屬結構 (包含階層、階層序號、規格型號、有效用量、標準單價與成本小計)
  * @param singleLevelBom 單階 BOM 配方清單專屬結構 (包含母件料號、版本號、項次、組裝用量與損耗率)
+ * @param materialMaster 物料主檔對照表專屬結構 (包含物料料號、品名、規格型號、物料類別、單位與標準單價)
  */
-@Schema(description = "BOM 配方匯入解析完成回應結構 (支援單階與多階層專屬模型)")
+@Schema(description = "BOM 配方匯入解析完成回應結構 (支援單階、多階層與物料主檔專屬模型)")
 public record BomItemImportedResource(
-		@Schema(description = "匯入成功筆數 (所有解析項目總和)", example = "43")
+		@Schema(description = "匯入成功筆數 (所有解析項目總和)", example = "62")
 		int totalCount,
 
-		@Schema(description = "工作表名稱 (或多工作表匯總名稱)", example = "全部工作表 (多階層BOM展開清單: 27筆, 單階BOM匯入清單: 16筆)")
+		@Schema(description = "工作表名稱 (或多工作表匯總名稱)", example = "全部工作表 (多階層BOM展開清單: 27筆, 單階BOM匯入清單: 16筆, 物料主檔對照表: 19筆)")
 		String sheetName,
 
 		@Schema(description = "單階 BOM 子項清單 (維持向下相容)")
@@ -34,7 +35,10 @@ public record BomItemImportedResource(
 		MultiLevelBomSheetResource multiLevelBom,
 
 		@Schema(description = "單階 BOM 配方清單專屬結構")
-		SingleLevelBomSheetResource singleLevelBom
+		SingleLevelBomSheetResource singleLevelBom,
+
+		@Schema(description = "物料主檔對照表專屬結構")
+		MaterialMasterSheetResource materialMaster
 ) {
 
 	/**
@@ -45,7 +49,46 @@ public record BomItemImportedResource(
 	 * @param items      子項清單
 	 */
 	public BomItemImportedResource(int totalCount, String sheetName, List<BomItemRetrievedResource> items) {
-		this(totalCount, sheetName, items, null, null);
+		this(totalCount, sheetName, items, null, null, null);
+	}
+
+	/**
+	 * 便捷建構子：向下相容既有 5 參數呼叫
+	 *
+	 * @param totalCount     總筆數
+	 * @param sheetName      工作表名稱
+	 * @param items          子項清單
+	 * @param multiLevelBom  多階層結構
+	 * @param singleLevelBom 單階結構
+	 */
+	public BomItemImportedResource(
+			int totalCount,
+			String sheetName,
+			List<BomItemRetrievedResource> items,
+			MultiLevelBomSheetResource multiLevelBom,
+			SingleLevelBomSheetResource singleLevelBom
+	) {
+		this(totalCount, sheetName, items, multiLevelBom, singleLevelBom, null);
+	}
+
+	/**
+	 * 物料主檔對照表工作表結構
+	 *
+	 * @param sheetName  工作表真實名稱
+	 * @param totalCount 資料筆數
+	 * @param items      物料主檔項目清單
+	 */
+	@Schema(description = "物料主檔對照表工作表資料封裝")
+	public record MaterialMasterSheetResource(
+			@Schema(description = "工作表名稱", example = "物料主檔對照表")
+			String sheetName,
+
+			@Schema(description = "工作表資料筆數", example = "19")
+			int totalCount,
+
+			@Schema(description = "物料主檔項目清單")
+			List<MaterialImportedResource.MaterialRetrievedResource> items
+	) {
 	}
 
 	/**

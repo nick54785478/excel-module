@@ -368,17 +368,23 @@ public class MaterialBomExcelController {
 		// 情境 1：若呼叫端明確指定特定工作表名稱
 		if (sheetName != null && !sheetName.isBlank()) {
 			String trimmedSheet = sheetName.trim();
-			if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+			if (trimmedSheet.contains("物料") || trimmedSheet.contains("主檔") || trimmedSheet.contains("對照") || trimmedSheet.contains("材料") || trimmedSheet.equalsIgnoreCase("materials")) {
+				BeanSheetGottenResult<MaterialExcelModel> matResult = importExcelUseCase.importBeanSheet(
+						new ByteArrayInputStream(fileBytes), trimmedSheet, MaterialExcelModel.class);
+				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+						Collections.emptyList(), null, Collections.emptyList(), null, matResult.items(), matResult.sheetName());
+				return ResponseEntity.ok(response);
+			} else if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
 				BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-						Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
+						Collections.emptyList(), null, multiResult.items(), multiResult.sheetName(), Collections.emptyList(), null);
 				return ResponseEntity.ok(response);
 			} else {
 				BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
 						new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
 				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-						singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null);
+						singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null, Collections.emptyList(), null);
 				return ResponseEntity.ok(response);
 			}
 		}
@@ -408,15 +414,27 @@ public class MaterialBomExcelController {
 		} catch (Exception ignored) {
 		}
 
-		if (singleModels.isEmpty() && multiModels.isEmpty()) {
-			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到任何符合單階或多階層 BOM 之工作表或資料為空");
+		List<MaterialExcelModel> materialModels = Collections.emptyList();
+		String materialSheetName = null;
+		try {
+			BeanSheetGottenResult<MaterialExcelModel> matResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), null, MaterialExcelModel.class);
+			if (matResult != null && matResult.items() != null) {
+				materialModels = matResult.items();
+				materialSheetName = matResult.sheetName();
+			}
+		} catch (Exception ignored) {
+		}
+
+		if (singleModels.isEmpty() && multiModels.isEmpty() && materialModels.isEmpty()) {
+			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到任何符合單階 BOM、多階層 BOM 或物料主檔之工作表或資料為空");
 		}
 
 		// ---------------------------------------------------------------------
 		// 步驟 3：防腐層 (ACL) 結構化封裝
 		// ---------------------------------------------------------------------
 		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-				singleModels, singleSheetName, multiModels, multiSheetName);
+				singleModels, singleSheetName, multiModels, multiSheetName, materialModels, materialSheetName);
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應
@@ -478,17 +496,23 @@ public class MaterialBomExcelController {
 
 		byte[] fileBytes = file.getBytes();
 		String trimmedSheet = sheetName.trim();
-		if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+		if (trimmedSheet.contains("物料") || trimmedSheet.contains("主檔") || trimmedSheet.contains("對照") || trimmedSheet.contains("材料") || trimmedSheet.equalsIgnoreCase("materials")) {
+			BeanSheetGottenResult<MaterialExcelModel> matResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), trimmedSheet, MaterialExcelModel.class);
+			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+					Collections.emptyList(), null, Collections.emptyList(), null, matResult.items(), matResult.sheetName());
+			return ResponseEntity.ok(response);
+		} else if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
 			BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
 			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-					Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
+					Collections.emptyList(), null, multiResult.items(), multiResult.sheetName(), Collections.emptyList(), null);
 			return ResponseEntity.ok(response);
 		} else {
 			BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
 					new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
 			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-					singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null);
+					singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null, Collections.emptyList(), null);
 			return ResponseEntity.ok(response);
 		}
 	}

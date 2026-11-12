@@ -31,6 +31,9 @@ public class RealBomImportTest {
     @Autowired
     private ImportExcelUseCase importExcelUseCase;
 
+    @Autowired
+    private MaterialBomExcelController materialBomExcelController;
+
     /**
      * Feature: 多階層 BOM 工作表宣告式匯入解析
      * Scenario: 上傳真實 BOM_IMPORT.xlsx 並指定讀取「多階層BOM展開清單」工作表
@@ -209,5 +212,57 @@ public class RealBomImportTest {
             assertThat(result.totalCount()).isEqualTo(19);
             assertThat(result.items()).hasSize(19);
         }
+    }
+
+    /**
+     * Feature: 未指定 sheetName 時全量讀取活頁簿所有相符工作表 (單階、多階與物料主檔)
+     * Scenario: 呼叫 importBomItems 未指定 sheetName 上傳真實 BOM_IMPORT.xlsx
+     * Given: 包含多階展開 (27筆)、單階匯入 (16筆) 與物料主檔對照表 (19筆) 的真實活頁簿
+     * When: 調用 materialBomExcelController.importBomItems 未指定 sheetName
+     * Then: 成功回傳包含 62 筆之結構，且 singleLevelBom (16)、multiLevelBom (27) 與 materialMaster (19) 皆完整印出
+     */
+    @Test
+    @DisplayName("場景：Controller 匯入未填 sheetName 時三張工作表全數完整印出")
+    void testControllerImportAllThreeSheets() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        byte[] bytes = Files.readAllBytes(path);
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "BOM_IMPORT.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+
+        var response = materialBomExcelController.importBomItems(file, null);
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        var body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.totalCount()).isEqualTo(62); // 16 + 27 + 19
+        assertThat(body.singleLevelBom()).isNotNull();
+        assertThat(body.singleLevelBom().totalCount()).isEqualTo(16);
+        assertThat(body.multiLevelBom()).isNotNull();
+        assertThat(body.multiLevelBom().totalCount()).isEqualTo(27);
+        assertThat(body.materialMaster()).isNotNull();
+        assertThat(body.materialMaster().totalCount()).isEqualTo(19);
+    }
+
+    /**
+     * Feature: Controller 匯入時指定 sheetName 為物料主檔對照表
+     * Scenario: 呼叫 importBomItems 指定 sheetName="物料主檔對照表"
+     * Given: 包含物料主檔對照表 (19筆) 之真實活頁簿
+     * When: 調用 materialBomExcelController.importBomItems 指定 sheetName="物料主檔對照表"
+     * Then: 成功回傳包含 19 筆之 materialMaster 結構
+     */
+    @Test
+    @DisplayName("場景：Controller 匯入時指定 sheetName 為物料主檔對照表成功解析")
+    void testControllerImportMaterialMasterBySheet() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        byte[] bytes = Files.readAllBytes(path);
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "BOM_IMPORT.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+
+        var response = materialBomExcelController.importBomItems(file, "物料主檔對照表");
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        var body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.totalCount()).isEqualTo(19);
+        assertThat(body.materialMaster()).isNotNull();
+        assertThat(body.materialMaster().totalCount()).isEqualTo(19);
     }
 }
