@@ -1,7 +1,6 @@
 package com.example.demo.presentation.controller.bom;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -58,6 +57,14 @@ public class BomController {
 	private final StreamExportBomUseCase streamExportBomUseCase;
 	private final BomResourceAssembler bomResourceAssembler;
 
+	/**
+	 * Spring 容器自動裝配建構子：注入查詢端業務案例、命令端匯出案例、大數據串流匯出案例與表現層資源組裝器
+	 *
+	 * @param queryBomUseCase        物料清單查詢業務使用案例 (Application Inbound Port - Query Side)
+	 * @param exportBomUseCase       物料清單匯出業務使用案例 (Application Inbound Port - Command Side)
+	 * @param streamExportBomUseCase 物料清單大數據串流匯出使用案例 (Application Inbound Port - Stream Command Side)
+	 * @param bomResourceAssembler   表現層資源與業務命令組裝器 (Presentation Assembler)
+	 */
 	@Autowired
 	public BomController(
 			QueryBomUseCase queryBomUseCase,
@@ -69,39 +76,6 @@ public class BomController {
 		this.exportBomUseCase = Objects.requireNonNull(exportBomUseCase, "exportBomUseCase must not be null");
 		this.streamExportBomUseCase = streamExportBomUseCase;
 		this.bomResourceAssembler = Objects.requireNonNull(bomResourceAssembler, "bomResourceAssembler must not be null");
-	}
-
-	public BomController(
-			ExportBomUseCase exportBomUseCase,
-			StreamExportBomUseCase streamExportBomUseCase,
-			BomResourceAssembler bomResourceAssembler
-	) {
-		this(
-				new QueryBomUseCase() {
-					@Override
-					public BomExcelGottenResult queryBom(ExportBomCommand command) {
-						return exportBomUseCase.exportBom(command);
-					}
-
-					@Override
-					public void streamQueryBom(OutputStream outputStream, ExportBomCommand command) {
-						if (streamExportBomUseCase != null) {
-							streamExportBomUseCase.streamExportBom(outputStream, command);
-						}
-					}
-				},
-				exportBomUseCase,
-				streamExportBomUseCase,
-				bomResourceAssembler
-		);
-	}
-
-	public BomController(ExportBomUseCase exportBomUseCase, BomResourceAssembler bomResourceAssembler) {
-		this(
-				exportBomUseCase,
-				exportBomUseCase instanceof StreamExportBomUseCase s ? s : null,
-				bomResourceAssembler
-		);
 	}
 
 	/**
@@ -148,16 +122,12 @@ public class BomController {
 	public ResponseEntity<byte[]> downloadBomExcel(
 			@Parameter(description = "母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單)", example = "MAT-FG-001")
 			@RequestParam(required = false) String parentMaterialCode,
-
 			@Parameter(description = "BOM 版本號 (選填，如 1.0)", example = "1.0")
 			@RequestParam(required = false) String version,
-
 			@Parameter(description = "是否包含多階層 BOM 展開工作表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeMultiLevel,
-
 			@Parameter(description = "是否包含單階 BOM 匯入格式工作表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeSingleLevel,
-
 			@Parameter(description = "是否包含物料主檔對照表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeMaterialMaster
 	) {
@@ -257,22 +227,16 @@ public class BomController {
 	public void streamDownloadBomExcel(
 			@Parameter(description = "母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單)", example = "MAT-FG-001")
 			@RequestParam(required = false) String parentMaterialCode,
-
 			@Parameter(description = "BOM 版本號 (選填，如 1.0)", example = "1.0")
 			@RequestParam(required = false) String version,
-
 			@Parameter(description = "是否包含多階層 BOM 展開工作表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeMultiLevel,
-
 			@Parameter(description = "是否包含單階 BOM 匯入格式工作表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeSingleLevel,
-
 			@Parameter(description = "是否包含物料主檔對照表", example = "true")
 			@RequestParam(required = false, defaultValue = "true") Boolean includeMaterialMaster,
-
 			@Parameter(description = "串流分批沖刷筆數間隔 (預設 1000)", example = "1000")
 			@RequestParam(required = false, defaultValue = "1000") Integer flushInterval,
-
 			HttpServletResponse response
 	) throws IOException {
 		ExportBomCommand command = bomResourceAssembler.toExportCommand(
