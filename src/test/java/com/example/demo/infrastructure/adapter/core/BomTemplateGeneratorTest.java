@@ -2,6 +2,7 @@ package com.example.demo.infrastructure.adapter.core;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -301,10 +302,14 @@ class BomTemplateGeneratorTest {
 		Path templateCopy = Paths.get("src/main/resources/templates/BOM_TEMPLATE.xlsx");
 		Files.write(templateCopy, excelBytes);
 
-		// 另外複製一份至 doc/template/BOM_IMPORT.xlsx
+		// 另外複製一份至 doc/template/BOM_IMPORT.xlsx (若被外部程式如 Excel 開啟鎖定則安全容錯)
 		Path docTemplateDir = Paths.get("doc/template");
 		Files.createDirectories(docTemplateDir);
-		Files.write(docTemplateDir.resolve("BOM_IMPORT.xlsx"), excelBytes);
+		try {
+			Files.write(docTemplateDir.resolve("BOM_IMPORT.xlsx"), excelBytes);
+		} catch (IOException e) {
+			System.err.println("提示：doc/template/BOM_IMPORT.xlsx 檔案被外部軟體開啟鎖定，略過文件目錄複製: " + e.getMessage());
+		}
 
 		// Then - 讀回驗證三個工作表完整性
 		ExcelGottenResult readResult = excelReaderPort.read(excelBytes);

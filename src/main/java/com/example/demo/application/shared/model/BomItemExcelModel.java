@@ -15,7 +15,7 @@ import com.example.demo.application.annotation.mapping.ExcelSheet;
  */
 @ExcelSheet(
 		name = "單階BOM清單",
-		aliases = {"單階BOM匯入清單", "多階層BOM展開清單", "BOM清單", "BOM配方", "單階BOM", "BOM"},
+		aliases = {"單階BOM匯入清單", "BOM清單", "BOM配方", "單階BOM", "BOM"},
 		headerRowIndex = 0,
 		dataRowStartIndex = 1
 )

@@ -431,6 +431,22 @@ public final class ExcelBeanAssembler {
 		ModelMetadata metadata = getMetadata(modelClass);
 		String sheetName = sheet.sheetName() != null ? sheet.sheetName().trim() : "";
 
+		// 階層層級互斥檢查：單階模型不可匹配多階工作表，多階模型亦不可匹配單階工作表
+		boolean isModelSingleLevel = (metadata.sheetName() != null && metadata.sheetName().contains("單階"))
+				|| modelClass.getSimpleName().toLowerCase().contains("single");
+		boolean isModelMultiLevel = (metadata.sheetName() != null && (metadata.sheetName().contains("多階") || metadata.sheetName().contains("階層")))
+				|| modelClass.getSimpleName().toLowerCase().contains("multilevel");
+
+		boolean isSheetSingleLevel = sheetName.contains("單階");
+		boolean isSheetMultiLevel = sheetName.contains("多階") || sheetName.contains("階層");
+
+		if (isModelSingleLevel && isSheetMultiLevel) {
+			return false;
+		}
+		if (isModelMultiLevel && isSheetSingleLevel) {
+			return false;
+		}
+
 		// 1. 工作表名稱精確比對 (@ExcelSheet name 與 aliases)
 		if (!sheetName.isEmpty()) {
 			if (metadata.sheetName() != null && metadata.sheetName().equalsIgnoreCase(sheetName)) {

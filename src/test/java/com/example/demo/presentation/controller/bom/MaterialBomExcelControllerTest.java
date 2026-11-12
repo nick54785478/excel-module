@@ -32,6 +32,7 @@ import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.exception.GlobalExceptionHandler;
 
@@ -336,7 +337,7 @@ class MaterialBomExcelControllerTest {
 
 	/**
 	 * Feature: 單階 BOM 配方指定工作表 Excel 上傳解析 (SheetName 模式)
-	 * Scenario: 上傳 BOM Excel 檔案並指定 sheetName="多階層BOM展開清單"
+	 * Scenario: 上傳 BOM Excel 檔案並指定 sheetName="單階BOM匯入清單"
 	 * Given: 模擬上傳 Excel 檔案並指定工作表名稱
 	 * When: 發送 POST multipart 請求至 /bom-items/import/by-sheet
 	 * Then: 回應 200 OK 且包含指定工作表名稱與資料
@@ -356,20 +357,20 @@ class MaterialBomExcelControllerTest {
 				"MAT-FG-001", "1.0", 1, "MAT-SFG-001", "飛控主板電路模組總成",
 				new BigDecimal("1"), "PCS", BigDecimal.ZERO, "FC-ASM", "核心飛控組裝件"
 		);
-		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(BomItemExcelModel.class)))
-				.thenReturn(new BeanSheetGottenResult<>("多階層BOM展開清單", List.of(parsedModel)));
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), eq("單階BOM匯入清單"), eq(BomItemExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("單階BOM匯入清單", List.of(parsedModel)));
 
 		// When & Then
 		mockMvc.perform(multipart("/api/v1/excel/material-bom/bom-items/import/by-sheet")
 						.file(file)
-						.param("sheetName", "多階層BOM展開清單"))
+						.param("sheetName", "單階BOM匯入清單"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.totalCount").value(1))
-				.andExpect(jsonPath("$.sheetName").value("多階層BOM展開清單"))
+				.andExpect(jsonPath("$.sheetName").value("單階BOM匯入清單"))
 				.andExpect(jsonPath("$.items[0].childMaterialName").value("飛控主板電路模組總成"));
 
-		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("多階層BOM展開清單"), eq(BomItemExcelModel.class));
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), eq("單階BOM匯入清單"), eq(BomItemExcelModel.class));
 	}
 
 	/**
@@ -397,6 +398,46 @@ class MaterialBomExcelControllerTest {
 						.file(file)
 						.param("sheetName", "不存在的BOM表"))
 				.andExpect(status().isBadRequest());
+	}
+
+	/**
+	 * Feature: 多階層 BOM 展開清單 Excel 上傳解析
+	 * Scenario: 上傳 BOM Excel 檔案至 /multi-level-bom/import 解析為多階層展開專屬模型
+	 * Given: 模擬上傳包含多階層資料之 Excel 檔案
+	 * When: 發送 POST multipart 請求至 /multi-level-bom/import
+	 * Then: 回應 200 OK 且正確解析出 MultiLevelBomImportedResource 結構
+	 */
+	@Test
+	@DisplayName("場景：POST /multi-level-bom/import 解析多階層展開清單")
+	void shouldImportMultiLevelBomSuccessfully() throws Exception {
+		// Given
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"bom_multilevel.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				new byte[]{7, 8, 9}
+		);
+
+		MultiLevelBomExcelModel parsedModel = new MultiLevelBomExcelModel(
+				1, "1.1", "MAT-FG-001", "MAT-SFG-001", "飛控主板電路模組總成",
+				"FC-PCB-ASSY-V3", "半成品", "PCS", new BigDecimal("1"), BigDecimal.ZERO,
+				new BigDecimal("1"), new BigDecimal("8500"), new BigDecimal("8500"), "FC-ASM", "核心飛控組裝件"
+		);
+		when(importExcelUseCase.importBeanSheet(any(InputStream.class), isNull(), eq(MultiLevelBomExcelModel.class)))
+				.thenReturn(new BeanSheetGottenResult<>("多階層BOM展開清單", List.of(parsedModel)));
+
+		// When & Then
+		mockMvc.perform(multipart("/api/v1/excel/material-bom/multi-level-bom/import").file(file))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.totalCount").value(1))
+				.andExpect(jsonPath("$.sheetName").value("多階層BOM展開清單"))
+				.andExpect(jsonPath("$.items[0].level").value(1))
+				.andExpect(jsonPath("$.items[0].levelSequence").value("1.1"))
+				.andExpect(jsonPath("$.items[0].specification").value("FC-PCB-ASSY-V3"))
+				.andExpect(jsonPath("$.items[0].standardPrice").value(8500));
+
+		verify(importExcelUseCase).importBeanSheet(any(InputStream.class), isNull(), eq(MultiLevelBomExcelModel.class));
 	}
 
 	/**

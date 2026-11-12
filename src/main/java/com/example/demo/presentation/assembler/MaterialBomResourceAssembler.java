@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.domain.bom.aggregate.entity.BomItem;
 import com.example.demo.domain.bom.aggregate.root.Bom;
 import com.example.demo.domain.material.aggregate.root.Material;
@@ -20,8 +21,12 @@ import com.example.demo.presentation.resource.in.ExportMaterialResource;
 import com.example.demo.presentation.resource.in.ExportMaterialResource.MaterialItemResource;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
 import com.example.demo.presentation.resource.out.BomItemImportedResource.BomItemRetrievedResource;
+import com.example.demo.presentation.resource.out.BomItemImportedResource.MultiLevelBomRetrievedResource;
+import com.example.demo.presentation.resource.out.BomItemImportedResource.MultiLevelBomSheetResource;
+import com.example.demo.presentation.resource.out.BomItemImportedResource.SingleLevelBomSheetResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource.MaterialRetrievedResource;
+import com.example.demo.presentation.resource.out.MultiLevelBomImportedResource;
 
 /**
  * 物料與 BOM 表現層資源組裝器 (Material & BOM Presentation Resource Assembler)
@@ -199,7 +204,150 @@ public class MaterialBomResourceAssembler {
 				));
 			}
 		}
-		return new BomItemImportedResource(items.size(), sheetName != null ? sheetName : "單階BOM清單", items);
+		SingleLevelBomSheetResource singleSheet = new SingleLevelBomSheetResource(
+				sheetName != null ? sheetName : "單階BOM清單", items.size(), items);
+		return new BomItemImportedResource(items.size(), sheetName != null ? sheetName : "單階BOM清單", items, null, singleSheet);
+	}
+
+	/**
+	 * 將單階 BOM 與多階層 BOM 模型清單結構化組合封裝為回應結構 {@link BomItemImportedResource}。
+	 * <p>
+	 * 確保未填 sheetName 時所有相符工作表資料完整印出，且各自歸屬於獨立專屬 Model，避免欄位錯位與重複加總。
+	 * </p>
+	 *
+	 * @param singleModels    單階 BOM 模型清單
+	 * @param singleSheetName 單階 BOM 工作表名稱
+	 * @param multiModels     多階層 BOM 模型清單
+	 * @param multiSheetName  多階層 BOM 工作表名稱
+	 * @return 包含雙工作表結構化資訊之回應資源
+	 */
+	public BomItemImportedResource toBomItemImportedResource(
+			List<BomItemExcelModel> singleModels,
+			String singleSheetName,
+			List<MultiLevelBomExcelModel> multiModels,
+			String multiSheetName
+	) {
+		SingleLevelBomSheetResource singleSheet = null;
+		List<BomItemRetrievedResource> singleItems = new ArrayList<>();
+		if (singleModels != null && !singleModels.isEmpty()) {
+			for (BomItemExcelModel m : singleModels) {
+				if (m != null) {
+					singleItems.add(new BomItemRetrievedResource(
+							m.getParentMaterialCode(),
+							m.getBomVersion(),
+							m.getItemSequence(),
+							m.getChildMaterialCode(),
+							m.getChildMaterialName(),
+							m.getQuantity(),
+							m.getUnit(),
+							m.getScrapRate(),
+							m.getPositionCode(),
+							m.getRemark()
+					));
+				}
+			}
+			singleSheet = new SingleLevelBomSheetResource(
+					singleSheetName != null ? singleSheetName : "單階BOM匯入清單",
+					singleItems.size(),
+					singleItems
+			);
+		}
+
+		MultiLevelBomSheetResource multiSheet = null;
+		List<MultiLevelBomRetrievedResource> multiItems = new ArrayList<>();
+		if (multiModels != null && !multiModels.isEmpty()) {
+			for (MultiLevelBomExcelModel m : multiModels) {
+				if (m != null) {
+					multiItems.add(toMultiLevelBomRetrievedResource(m));
+				}
+			}
+			multiSheet = new MultiLevelBomSheetResource(
+					multiSheetName != null ? multiSheetName : "多階層BOM展開清單",
+					multiItems.size(),
+					multiItems
+			);
+		}
+
+		int singleCount = singleSheet != null ? singleSheet.totalCount() : 0;
+		int multiCount = multiSheet != null ? multiSheet.totalCount() : 0;
+		int total = singleCount + multiCount;
+
+		// 向下相容 items：若有單階資料優先提供單階，否則將多階資料轉換為相容子項
+		List<BomItemRetrievedResource> fallbackItems = !singleItems.isEmpty() ? singleItems : new ArrayList<>();
+		if (fallbackItems.isEmpty() && !multiItems.isEmpty()) {
+			for (MultiLevelBomRetrievedResource mi : multiItems) {
+				fallbackItems.add(new BomItemRetrievedResource(
+						mi.parentMaterialCode(),
+						"1.0",
+						null,
+						mi.childMaterialCode(),
+						mi.childMaterialName(),
+						mi.quantity(),
+						mi.unit(),
+						mi.scrapRate(),
+						mi.positionCode(),
+						mi.remark()
+				));
+			}
+		}
+
+		String displaySheetName;
+		if (singleSheet != null && multiSheet != null) {
+			displaySheetName = "全部工作表 (" + multiSheet.sheetName() + ": " + multiCount + "筆, "
+					+ singleSheet.sheetName() + ": " + singleCount + "筆)";
+		} else if (singleSheet != null) {
+			displaySheetName = singleSheet.sheetName();
+		} else if (multiSheet != null) {
+			displaySheetName = multiSheet.sheetName();
+		} else {
+			displaySheetName = "無相符工作表";
+		}
+
+		return new BomItemImportedResource(total, displaySheetName, fallbackItems, multiSheet, singleSheet);
+	}
+
+	/**
+	 * 將多階層 BOM 模型清單封裝為專屬回應結構 {@link MultiLevelBomImportedResource}
+	 *
+	 * @param models    多階層 BOM 模型清單
+	 * @param sheetName 工作表名稱
+	 * @return 多階層 BOM 匯入回應資源
+	 */
+	public MultiLevelBomImportedResource toMultiLevelBomImportedResource(
+			List<MultiLevelBomExcelModel> models,
+			String sheetName
+	) {
+		if (models == null || models.isEmpty()) {
+			return new MultiLevelBomImportedResource(0, sheetName != null ? sheetName : "多階層BOM展開清單", Collections.emptyList());
+		}
+
+		List<MultiLevelBomRetrievedResource> items = new ArrayList<>(models.size());
+		for (MultiLevelBomExcelModel m : models) {
+			if (m != null) {
+				items.add(toMultiLevelBomRetrievedResource(m));
+			}
+		}
+		return new MultiLevelBomImportedResource(items.size(), sheetName != null ? sheetName : "多階層BOM展開清單", items);
+	}
+
+	private MultiLevelBomRetrievedResource toMultiLevelBomRetrievedResource(MultiLevelBomExcelModel m) {
+		return new MultiLevelBomRetrievedResource(
+				m.getLevel(),
+				m.getLevelSequence(),
+				m.getParentMaterialCode(),
+				m.getChildMaterialCode(),
+				m.getChildMaterialName(),
+				m.getSpecification(),
+				m.getCategory(),
+				m.getUnit(),
+				m.getQuantity(),
+				m.getScrapRate(),
+				m.getEffectiveQuantity(),
+				m.getStandardPrice(),
+				m.getSubtotalCost(),
+				m.getPositionCode(),
+				m.getRemark()
+		);
 	}
 
 	/**

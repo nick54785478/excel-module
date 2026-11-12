@@ -15,6 +15,7 @@ import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,14 +94,14 @@ public class RealBomImportTest {
     }
 
     /**
-     * Feature: 未填 sheetName 時宣告式全量解析所有相符工作表 (All-Sheets Mode)
+     * Feature: 未填 sheetName 時宣告式全量解析相符之單階 BOM 工作表
      * Scenario: 調用 importBeanSheet(in, BomItemExcelModel.class) 未指定工作表名稱
-     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案 (內含多階層與單階兩張相符之 BOM 表)
-     * When: 未傳入 sheetName 執行宣告式匯入
-     * Then: 自動走訪並將「多階層BOM展開清單」(27筆) 與「單階BOM匯入清單」(16筆) 全數讀出合併，總計 43 筆
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案 (內含單階BOM匯入清單)
+     * When: 未傳入 sheetName 執行單階 BOM 宣告式匯入
+     * Then: 正確解析「單階BOM匯入清單」，總計 16 筆乾淨的單階配方項目 (具備項次序號 10~80)
      */
     @Test
-    @DisplayName("場景：未填 sheetName 時自動將所有相符之 BOM 工作表全量讀出")
+    @DisplayName("場景：未填 sheetName 時單階 BOM 模型精準解析單階BOM匯入清單")
     void testImportBeanSheetAnnotationMode() throws Exception {
         Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
         try (InputStream in = Files.newInputStream(path)) {
@@ -108,28 +109,57 @@ public class RealBomImportTest {
                     in,
                     BomItemExcelModel.class
             );
-            assertThat(result.sheetName()).contains("多階層BOM展開清單").contains("單階BOM匯入清單");
-            assertThat(result.totalCount()).isEqualTo(43);
-            assertThat(result.items()).hasSize(43);
+            assertThat(result.sheetName()).isEqualTo("單階BOM匯入清單");
+            assertThat(result.totalCount()).isEqualTo(16);
+            assertThat(result.items()).hasSize(16);
+            assertThat(result.items().get(0).getItemSequence()).isEqualTo(10);
+            assertThat(result.items().get(0).getBomVersion()).isEqualTo("V1.0");
         }
     }
 
     /**
-     * Feature: 指定工作表名稱解析並獲取工作表名稱與資料 (SheetName-Driven)
-     * Scenario: 調用 importBeanSheet(in, "多階層BOM展開清單", BomItemExcelModel.class)
-     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
-     * When: 指定讀取「多階層BOM展開清單」
-     * Then: 正確解析出「多階層BOM展開清單」為工作表名稱，且解析 27 筆資料
+     * Feature: 多階層 BOM 模型宣告式全量解析多階層工作表
+     * Scenario: 調用 importBeanSheet(in, MultiLevelBomExcelModel.class) 未指定工作表名稱
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案 (內含多階層BOM展開清單)
+     * When: 未傳入 sheetName 執行多階層 BOM 宣告式匯入
+     * Then: 正確解析「多階層BOM展開清單」，總計 27 筆具備階層 (0~2)、WBS 序號、規格、有效用量與單價之完整項目
      */
     @Test
-    @DisplayName("場景：SheetName 模式指定工作表精確解析")
+    @DisplayName("場景：多階層 BOM 模型精準解析多階層BOM展開清單")
+    void testImportMultiLevelBeanSheetAnnotationMode() throws Exception {
+        Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
+        try (InputStream in = Files.newInputStream(path)) {
+            BeanSheetGottenResult<MultiLevelBomExcelModel> result = importExcelUseCase.importBeanSheet(
+                    in,
+                    MultiLevelBomExcelModel.class
+            );
+            assertThat(result.sheetName()).isEqualTo("多階層BOM展開清單");
+            assertThat(result.totalCount()).isEqualTo(27);
+            assertThat(result.items()).hasSize(27);
+            assertThat(result.items().get(0).getLevel()).isEqualTo(0);
+            assertThat(result.items().get(0).getLevelSequence()).isEqualTo("1");
+            assertThat(result.items().get(1).getLevel()).isEqualTo(1);
+            assertThat(result.items().get(1).getLevelSequence()).isEqualTo("1.1");
+            assertThat(result.items().get(1).getEffectiveQuantity()).isNotNull();
+        }
+    }
+
+    /**
+     * Feature: 指定工作表名稱精確解析多階層 BOM
+     * Scenario: 調用 importBeanSheet(in, "多階層BOM展開清單", MultiLevelBomExcelModel.class)
+     * Given: 磁碟上的真實 BOM_IMPORT.xlsx 範本檔案
+     * When: 指定讀取「多階層BOM展開清單」
+     * Then: 正確解析出「多階層BOM展開清單」為工作表名稱，且解析 27 筆多階層資料
+     */
+    @Test
+    @DisplayName("場景：SheetName 模式指定多階層工作表精確解析")
     void testImportBeanSheetSheetNameMode() throws Exception {
         Path path = Paths.get("src/main/resources/templates/BOM_IMPORT.xlsx");
         try (InputStream in = Files.newInputStream(path)) {
-            BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
+            BeanSheetGottenResult<MultiLevelBomExcelModel> result = importExcelUseCase.importBeanSheet(
                     in,
                     "多階層BOM展開清單",
-                    BomItemExcelModel.class
+                    MultiLevelBomExcelModel.class
             );
             assertThat(result.sheetName()).isEqualTo("多階層BOM展開清單");
             assertThat(result.totalCount()).isEqualTo(27);

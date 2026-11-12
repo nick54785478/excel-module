@@ -1,8 +1,10 @@
 package com.example.demo.presentation.controller.bom;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -18,16 +20,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.bom.ExportMaterialBomUseCase;
+import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.model.BomItemExcelModel;
 import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 import com.example.demo.presentation.assembler.MaterialBomResourceAssembler;
 import com.example.demo.presentation.resource.out.BomItemImportedResource;
 import com.example.demo.presentation.resource.out.MaterialImportedResource;
+import com.example.demo.presentation.resource.out.MultiLevelBomImportedResource;
 import com.example.demo.presentation.resource.out.ValidationFailedResource;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -356,17 +360,63 @@ public class MaterialBomExcelController {
 			throw new IllegalArgumentException("上傳之 Excel 檔案不能為空");
 		}
 
-		// ---------------------------------------------------------------------
-		// 步驟 2：調度應用層工作表解析案例 (Inbound Port)
-		// ---------------------------------------------------------------------
-		BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
-				file.getInputStream(), sheetName, BomItemExcelModel.class);
+		byte[] fileBytes = file.getBytes();
 
 		// ---------------------------------------------------------------------
-		// 步驟 3：防腐層 (ACL) 轉換
+		// 步驟 2：判斷是否指定特定工作表名稱 (SheetName-Driven vs All-Sheets Mode)
+		// ---------------------------------------------------------------------
+		// 情境 1：若呼叫端明確指定特定工作表名稱
+		if (sheetName != null && !sheetName.isBlank()) {
+			String trimmedSheet = sheetName.trim();
+			if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+				BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
+						new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
+				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+						Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
+				return ResponseEntity.ok(response);
+			} else {
+				BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
+						new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
+				BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+						singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null);
+				return ResponseEntity.ok(response);
+			}
+		}
+
+		// 情境 2：未填 sheetName (全量讀出所有相符工作表資料，並在專屬 Model 中完整印出)
+		List<BomItemExcelModel> singleModels = Collections.emptyList();
+		String singleSheetName = null;
+		try {
+			BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), null, BomItemExcelModel.class);
+			if (singleResult != null && singleResult.items() != null) {
+				singleModels = singleResult.items();
+				singleSheetName = singleResult.sheetName();
+			}
+		} catch (Exception ignored) {
+		}
+
+		List<MultiLevelBomExcelModel> multiModels = Collections.emptyList();
+		String multiSheetName = null;
+		try {
+			BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), null, MultiLevelBomExcelModel.class);
+			if (multiResult != null && multiResult.items() != null) {
+				multiModels = multiResult.items();
+				multiSheetName = multiResult.sheetName();
+			}
+		} catch (Exception ignored) {
+		}
+
+		if (singleModels.isEmpty() && multiModels.isEmpty()) {
+			throw new IllegalArgumentException("無法在 Excel 活頁簿中找到任何符合單階或多階層 BOM 之工作表或資料為空");
+		}
+
+		// ---------------------------------------------------------------------
+		// 步驟 3：防腐層 (ACL) 結構化封裝
 		// ---------------------------------------------------------------------
 		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
-				result.items(), result.sheetName());
+				singleModels, singleSheetName, multiModels, multiSheetName);
 
 		// ---------------------------------------------------------------------
 		// 步驟 4：回傳 HTTP 200 OK 結構化回應
@@ -426,21 +476,79 @@ public class MaterialBomExcelController {
 			throw new IllegalArgumentException("指定讀取之工作表名稱 (sheetName) 不能為空");
 		}
 
-		// ---------------------------------------------------------------------
-		// 步驟 2：調度應用層指定工作表精確解析案例 (Inbound Port)
-		// ---------------------------------------------------------------------
-		BeanSheetGottenResult<BomItemExcelModel> result = importExcelUseCase.importBeanSheet(
-				file.getInputStream(), sheetName.trim(), BomItemExcelModel.class);
+		byte[] fileBytes = file.getBytes();
+		String trimmedSheet = sheetName.trim();
+		if (trimmedSheet.contains("多階") || trimmedSheet.contains("階層") || trimmedSheet.contains("展開")) {
+			BeanSheetGottenResult<MultiLevelBomExcelModel> multiResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), trimmedSheet, MultiLevelBomExcelModel.class);
+			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+					Collections.emptyList(), null, multiResult.items(), multiResult.sheetName());
+			return ResponseEntity.ok(response);
+		} else {
+			BeanSheetGottenResult<BomItemExcelModel> singleResult = importExcelUseCase.importBeanSheet(
+					new ByteArrayInputStream(fileBytes), trimmedSheet, BomItemExcelModel.class);
+			BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+					singleResult.items(), singleResult.sheetName(), Collections.emptyList(), null);
+			return ResponseEntity.ok(response);
+		}
+	}
 
-		// ---------------------------------------------------------------------
-		// 步驟 3：防腐層 (ACL) 轉換
-		// ---------------------------------------------------------------------
-		BomItemImportedResource response = resourceAssembler.toBomItemImportedResource(
+	// =========================================================================
+	// 3. Multi-Level BOM (多階層 BOM 展開清單) 宣告式匯入
+	// =========================================================================
+
+	/**
+	 * API 5: 上傳 Excel 檔案並宣告式解析為多階層 BOM 展開模型清單 (Multi-Level BOM 專屬模型)
+	 * <p>
+	 * 上傳 BOM Excel 檔案。若指定 {@code sheetName} 則精確讀取該工作表 (找不到時拋出例外)；
+	 * 若未指定 {@code sheetName}，則自動走訪活頁簿中所有符合 {@link MultiLevelBomExcelModel} 之工作表並全部讀出。
+	 * </p>
+	 *
+	 * @param file      欲上傳解析之多階層 BOM Excel 檔案 (.xlsx)
+	 * @param sheetName 指定讀取之工作表名稱 (選填，未填則全數讀出)
+	 * @return HTTP 200 與解析完成之 {@link MultiLevelBomImportedResource} 結構化資料
+	 * @throws IOException 當讀取檔案輸入串流失敗時拋出
+	 */
+	@Operation(
+			summary = "檔案上傳並宣告式解析為 MultiLevelBomExcelModel 清單 (多階層展開專屬模型)",
+			description = "上傳 BOM Excel 檔案並解析為包含階層 (Level)、階層序號 (WBS)、規格型號、有效用量、標準單價與成本小計之多階層展開清單，回傳 JSON。"
+	)
+	@ApiResponses({
+			@ApiResponse(
+					responseCode = "200",
+					description = "成功解析多階層 BOM Excel 內容",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = MultiLevelBomImportedResource.class)
+					)
+			),
+			@ApiResponse(
+					responseCode = "400",
+					description = "檔案為空、工作表不存在或解析失敗",
+					content = @Content(
+							mediaType = MediaType.APPLICATION_JSON_VALUE,
+							schema = @Schema(implementation = ValidationFailedResource.class)
+					)
+			)
+	})
+	@PostMapping(value = "/multi-level-bom/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<MultiLevelBomImportedResource> importMultiLevelBom(
+			@Parameter(description = "欲上傳解析之多階層 BOM Excel 檔案 (.xlsx)", required = true)
+			@RequestParam("file") MultipartFile file,
+			@Parameter(description = "指定讀取之工作表名稱 (選填，若未填寫則讀取活頁簿中全部相符工作表)", required = false)
+			@RequestParam(value = "sheetName", required = false) String sheetName
+	) throws IOException {
+
+		if (file == null || file.isEmpty()) {
+			throw new IllegalArgumentException("上傳之 Excel 檔案不能為空");
+		}
+
+		BeanSheetGottenResult<MultiLevelBomExcelModel> result = importExcelUseCase.importBeanSheet(
+				file.getInputStream(), sheetName, MultiLevelBomExcelModel.class);
+
+		MultiLevelBomImportedResource response = resourceAssembler.toMultiLevelBomImportedResource(
 				result.items(), result.sheetName());
 
-		// ---------------------------------------------------------------------
-		// 步驟 4：回傳 HTTP 200 OK 結構化回應
-		// ---------------------------------------------------------------------
 		return ResponseEntity.ok(response);
 	}
 
