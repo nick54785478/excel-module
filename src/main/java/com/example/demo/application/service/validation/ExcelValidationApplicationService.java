@@ -18,8 +18,8 @@ import com.example.demo.application.port.out.validation.ExcelSheetValidatorPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.ExcelValidationContext;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.context.ExcelValidationContext;
 
 /**
  * Excel 宣告式資料檢核應用層服務 (Excel Validation Application Service - Inbound Adapter)

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.example.demo.application.shared.model.ExcelRowError;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
 
 /**
  * Apache POI Excel 錯誤標註適配器測試 (PoiExcelErrorMarkerAdapter Test)

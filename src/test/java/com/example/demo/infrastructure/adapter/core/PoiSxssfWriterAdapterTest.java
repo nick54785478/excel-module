@@ -27,9 +27,9 @@ import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.vo.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 
 /**
  * PoiSxssfWriterAdapter 單元與整合測試 (Unit & Integration Tests)

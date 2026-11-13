@@ -1,7 +1,7 @@
 package com.example.demo.application.shared.strategy;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 
 /**
  * 企業級報表裝飾策略介面 (Excel Report Decorator Strategy)

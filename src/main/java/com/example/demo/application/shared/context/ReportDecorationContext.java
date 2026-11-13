@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.context;
 
 import java.util.Collections;
 import java.util.List;

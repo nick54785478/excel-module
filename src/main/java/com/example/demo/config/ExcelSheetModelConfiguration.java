@@ -15,13 +15,13 @@ import org.springframework.util.ClassUtils;
 
 import com.example.demo.application.annotation.mapping.ExcelSheet;
 import com.example.demo.application.port.out.core.ExcelSheetModelRegistryPort;
-import com.example.demo.application.shared.model.BomCostAnalysisReportModel;
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProcurementAnalysisReportModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.report.BomCostAnalysisReportModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
+import com.example.demo.application.shared.model.bom.MultiLevelBomExcelModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.report.ProcurementAnalysisReportModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.infrastructure.adapter.core.ExcelSheetModelRegistryAdapter;
 
 /**

@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
 
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.model.demo.OrderModel;
 
 /**
  * 訂單金額合法性檢核規則 (Order Amount Validation Rule)

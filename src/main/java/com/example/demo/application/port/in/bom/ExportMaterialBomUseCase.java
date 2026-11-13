@@ -2,8 +2,8 @@ package com.example.demo.application.port.in.bom;
 
 import com.example.demo.application.annotation.mapping.ExcelColumn;
 import com.example.demo.application.annotation.mapping.ExcelSheet;
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
 import com.example.demo.domain.bom.aggregate.root.Bom;
 import com.example.demo.domain.material.aggregate.root.Material;
 

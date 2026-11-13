@@ -26,8 +26,8 @@ import com.example.demo.application.annotation.validation.ValidatedExcelData;
 import com.example.demo.application.port.in.validation.ValidateExcelUseCase;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
 import com.example.demo.application.shared.exception.ExcelValidationFailedException;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.model.demo.OrderModel;
 
 /**
  * Excel 宣告式資料檢核切面單元測試 (ExcelValidationAspect Test)

@@ -16,8 +16,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.port.out.validation.ExcelRowValidatorPort;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.ExcelValidationContext;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.context.ExcelValidationContext;
 
 /**
  * 基於 EasyRules 之行級客製驗證適配器 (EasyRules Excel Validator Adapter - Outbound

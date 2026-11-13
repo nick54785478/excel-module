@@ -3,6 +3,7 @@ package com.example.demo.infrastructure.adapter.template;
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.shared.mapping.TemplateMappingDefinition;
 import com.example.demo.infrastructure.template.mapping.engine.JxlsFieldMappingEngine;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -19,10 +20,9 @@ import java.util.Objects;
  * Value Object 開箱、格式轉換策略與 JXLS 上下文組裝。
  * </p>
  */
+@Slf4j
 @Component
 public class JxlsFieldMappingAdapter implements ExcelTemplateFieldMapperPort {
-
-    private static final Logger log = LoggerFactory.getLogger(JxlsFieldMappingAdapter.class);
 
     private final JxlsFieldMappingEngine fieldMappingEngine;
 

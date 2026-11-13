@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
-import com.example.demo.application.shared.model.ExcelRowError;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
 
 /**
  * Excel 錯誤標註器輸出埠 (Excel Error Marker Port - Outbound Port)

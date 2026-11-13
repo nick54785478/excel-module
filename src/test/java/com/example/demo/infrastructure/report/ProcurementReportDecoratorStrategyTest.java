@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.assembler.ExcelBeanAssembler;
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.ProcurementAnalysisReportModel;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.model.report.ProcurementAnalysisReportModel;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 
 /**
  * 物料採購損益月報裝飾策略測試 (ProcurementReportDecoratorStrategy Test)

@@ -1,7 +1,7 @@
 package com.example.demo.infrastructure.report;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.application.shared.strategy.ExcelReportStrategyKeys;
 

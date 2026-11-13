@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-import com.example.demo.application.shared.model.ExcelRowError;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
 
 /**
  * Excel 資料檢核結果資料載體 (Excel Validation Gotten Result DTO)

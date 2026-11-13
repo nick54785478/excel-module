@@ -2,6 +2,7 @@ package com.example.demo.infrastructure.adapter.template;
 
 import com.example.demo.application.port.out.template.ExcelTemplateWriterPort;
 import com.example.demo.application.shared.exception.ExcelWriteException;
+import lombok.extern.slf4j.Slf4j;
 import org.jxls.builder.JxlsOutput;
 import org.jxls.expression.ExpressionEvaluatorFactory;
 import org.jxls.expression.ExpressionEvaluatorFactoryJexlImpl;
@@ -25,10 +26,9 @@ import java.util.*;
  * 內建智慧欄位別名正規化機制 (Smart Alias Normalization)，自動相容 itemCode/materialCode、quantity/requiredQuantity 等常見命名變體。
  * </p>
  */
+@Slf4j
 @Component
 public class JxlsTemplateWriterAdapter implements ExcelTemplateWriterPort {
-
-    private static final Logger log = LoggerFactory.getLogger(JxlsTemplateWriterAdapter.class);
 
     private final ExpressionEvaluatorFactory expressionEvaluatorFactory;
 

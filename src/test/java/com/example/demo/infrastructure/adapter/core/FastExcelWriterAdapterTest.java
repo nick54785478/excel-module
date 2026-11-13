@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import com.example.demo.application.port.out.core.ExcelWriterPort;
 import com.example.demo.application.shared.command.WriteExcelCommand;
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;

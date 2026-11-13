@@ -6,8 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.presentation.resource.in.ExportOrderResource;
 import com.example.demo.presentation.resource.in.ExportOrderResource.OrderItemResource;
 import com.example.demo.presentation.resource.in.ExportProductResource;

@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.example.demo.application.shared.model.CellRange;
+import com.example.demo.application.shared.vo.CellRange;
 
 /**
  * 匯出自訂樣式與防護報表命令 (Export Custom Report Command)

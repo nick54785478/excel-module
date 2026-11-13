@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.infrastructure.report.DefaultNoOpDecoratorStrategy;
 import com.example.demo.infrastructure.report.ProcurementReportDecoratorStrategy;

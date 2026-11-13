@@ -22,9 +22,9 @@ import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
 import com.example.demo.application.shared.exception.ExcelWriteException;
-import com.example.demo.application.shared.model.CellCoordinate;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.vo.CellCoordinate;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 import com.example.demo.infrastructure.engine.ExcelStreamWriterEngine;
 import com.example.demo.infrastructure.engine.fastexcel.FastExcelStreamWriterEngine;
 

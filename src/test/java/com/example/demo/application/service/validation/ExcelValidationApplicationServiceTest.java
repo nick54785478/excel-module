@@ -28,8 +28,8 @@ import com.example.demo.application.port.out.validation.ExcelSheetValidatorPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.model.demo.OrderModel;
 
 /**
  * Excel 資料檢核應用服務業務案例測試 (ExcelValidationApplicationService Test)

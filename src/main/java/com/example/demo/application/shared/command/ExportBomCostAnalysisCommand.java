@@ -2,7 +2,7 @@ package com.example.demo.application.shared.command;
 
 import java.util.List;
 
-import com.example.demo.application.shared.model.BomCostAnalysisReportModel;
+import com.example.demo.application.shared.model.report.BomCostAnalysisReportModel;
 
 /**
  * 產品結構配方與標準成本卷算分析報表匯出命令 (Export BOM Cost Analysis Command)

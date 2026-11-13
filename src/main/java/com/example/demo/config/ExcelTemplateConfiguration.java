@@ -9,10 +9,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.infrastructure.template.ExcelTemplateCustomizer;
 import com.example.demo.infrastructure.template.ExcelTemplateRegistry;
 

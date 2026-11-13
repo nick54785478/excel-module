@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 工作表安全防護與鎖定配置 (Sheet Protection Configuration)

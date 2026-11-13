@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 試算表列印頁首頁尾與合規中繼設定 (Sheet Header & Footer Configuration)

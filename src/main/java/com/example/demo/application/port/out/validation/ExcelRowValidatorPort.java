@@ -2,8 +2,8 @@ package com.example.demo.application.port.out.validation;
 
 import java.util.List;
 
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.ExcelValidationContext;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.context.ExcelValidationContext;
 
 /**
  * Excel 資料列級別客製驗證輸出埠 (Excel Row Validator Port)

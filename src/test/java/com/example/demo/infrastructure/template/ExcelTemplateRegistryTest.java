@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.annotation.mapping.ExcelColumn;
 import com.example.demo.application.annotation.mapping.ExcelSheet;
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.config.ExcelTemplateConfiguration;
 
 /**

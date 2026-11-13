@@ -11,9 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.port.out.core.ExcelSheetModelRegistryPort;
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
+import com.example.demo.application.shared.model.bom.MultiLevelBomExcelModel;
 import com.example.demo.config.ExcelSheetModelConfiguration;
 
 /**

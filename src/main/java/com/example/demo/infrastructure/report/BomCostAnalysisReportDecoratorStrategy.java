@@ -10,10 +10,10 @@ import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.ReportDecorationContext;
-import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.context.ReportDecorationContext;
+import com.example.demo.application.shared.vo.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.application.shared.strategy.ExcelReportStrategyKeys;
 

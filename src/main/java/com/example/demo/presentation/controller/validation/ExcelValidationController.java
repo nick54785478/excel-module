@@ -7,7 +7,7 @@ import com.example.demo.application.port.out.core.ExcelReaderPort;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
 import com.example.demo.config.ExcelTemplateConfiguration;
 import com.example.demo.infrastructure.template.ExcelTemplateRegistry;
 import com.example.demo.infrastructure.template.ExcelTemplateRegistry.TemplateDescriptor;

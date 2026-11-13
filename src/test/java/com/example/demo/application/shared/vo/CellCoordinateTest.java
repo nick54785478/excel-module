@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

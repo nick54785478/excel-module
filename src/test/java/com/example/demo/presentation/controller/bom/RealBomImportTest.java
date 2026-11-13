@@ -13,9 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
-import com.example.demo.application.shared.model.MultiLevelBomExcelModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
+import com.example.demo.application.shared.model.bom.MultiLevelBomExcelModel;
 import com.example.demo.application.shared.query.ReadExcelQuery;
 
 import static org.assertj.core.api.Assertions.assertThat;

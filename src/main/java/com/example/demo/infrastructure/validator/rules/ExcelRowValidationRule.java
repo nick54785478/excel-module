@@ -1,7 +1,7 @@
 package com.example.demo.infrastructure.validator.rules;
 
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.ExcelValidationContext;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.context.ExcelValidationContext;
 
 /**
  * Excel 行級自訂檢核規則合約介面 (Excel Row Validation Rule Contract)

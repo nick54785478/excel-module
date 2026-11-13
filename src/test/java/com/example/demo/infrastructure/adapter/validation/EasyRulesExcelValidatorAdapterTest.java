@@ -12,10 +12,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.ExcelValidationContext;
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.context.ExcelValidationContext;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.infrastructure.validator.rules.OrderAmountValidationRule;
 import com.example.demo.infrastructure.validator.rules.OrderQuantityValidationRule;
 import com.example.demo.infrastructure.validator.rules.ProductPriceValidationRule;

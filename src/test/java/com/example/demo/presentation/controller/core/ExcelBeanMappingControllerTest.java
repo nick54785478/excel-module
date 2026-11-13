@@ -29,8 +29,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.example.demo.application.port.in.core.ExportExcelUseCase;
 import com.example.demo.application.port.in.core.ImportExcelUseCase;
 import com.example.demo.application.port.in.core.StreamExportExcelUseCase;
-import com.example.demo.application.shared.model.OrderModel;
-import com.example.demo.application.shared.model.ProductRecordModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.demo.ProductRecordModel;
 import com.example.demo.presentation.assembler.ExcelBeanMappingResourceAssembler;
 import com.example.demo.presentation.exception.GlobalExceptionHandler;
 

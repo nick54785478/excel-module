@@ -32,10 +32,10 @@ import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.dto.BeanSheetGottenResult;
 import com.example.demo.application.shared.dto.ExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelSheetGottenResult;
-import com.example.demo.application.shared.model.CellCoordinate;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.vo.CellCoordinate;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.vo.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 
 /**
  * Excel 宣告式物件與純資料載體組裝器 (Excel Declarative Bean & Record Assembler)

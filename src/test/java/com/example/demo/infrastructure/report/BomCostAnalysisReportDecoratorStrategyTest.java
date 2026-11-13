@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.assembler.ExcelBeanAssembler;
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.BomCostAnalysisReportModel;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.model.report.BomCostAnalysisReportModel;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 
 /**
  * 產品結構配方與標準成本分析裝飾策略測試 (BomCostAnalysisReportDecoratorStrategy Test)

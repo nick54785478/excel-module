@@ -3,8 +3,8 @@ package com.example.demo.infrastructure.validator.rules;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
 
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
+import com.example.demo.application.shared.model.demo.OrderModel;
 
 /**
  * 訂單購買數量合法性檢核規則 (Order Quantity Validation Rule)

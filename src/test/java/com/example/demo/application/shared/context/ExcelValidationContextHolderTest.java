@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
 
 /**
  * Excel 資料檢核執行緒上下文保持器單元測試 (ExcelValidationContextHolder Test)

@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

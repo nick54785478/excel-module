@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 儲存格合併區間純資料物件 (Cell Range Value Object)

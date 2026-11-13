@@ -1,4 +1,4 @@
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.model.material;
 
 import java.math.BigDecimal;
 import java.util.Objects;

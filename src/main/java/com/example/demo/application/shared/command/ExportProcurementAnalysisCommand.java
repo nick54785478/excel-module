@@ -2,7 +2,7 @@ package com.example.demo.application.shared.command;
 
 import java.util.List;
 
-import com.example.demo.application.shared.model.ProcurementAnalysisReportModel;
+import com.example.demo.application.shared.model.report.ProcurementAnalysisReportModel;
 
 /**
  * 物料採購損益分析報表匯出命令 (Export Procurement Analysis Command)

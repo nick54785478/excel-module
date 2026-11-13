@@ -9,8 +9,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.shared.command.ExportBomCommand;
-import com.example.demo.application.shared.model.BomItemExcelModel;
-import com.example.demo.application.shared.model.MaterialExcelModel;
+import com.example.demo.application.shared.model.bom.BomItemExcelModel;
+import com.example.demo.application.shared.model.material.MaterialExcelModel;
 import com.example.demo.domain.bom.aggregate.root.Bom;
 import com.example.demo.domain.bom.aggregate.vo.BomVersion;
 import com.example.demo.domain.bom.aggregate.vo.Quantity;

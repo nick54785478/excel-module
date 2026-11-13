@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.dto.ExcelValidationGottenResult;
-import com.example.demo.application.shared.model.ExcelRowError;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
 import com.example.demo.presentation.resource.out.ExcelRowErrorResource;
 import com.example.demo.presentation.resource.out.ExcelValidatedResource;
 
