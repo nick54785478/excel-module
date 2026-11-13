@@ -23,17 +23,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.application.port.in.template.CreateExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.DeleteExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.ExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.in.template.GetExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.ListExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.PreviewTemplateMappingUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.in.template.UpdateExcelTemplateUseCase;
-import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.service.template.ExcelTemplateCommandService;
+import com.example.demo.application.service.template.ExcelTemplateQueryService;
 import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
 import com.example.demo.application.shared.command.DeleteExcelTemplateCommand;
 import com.example.demo.application.shared.command.ExportTemplateExcelCommand;
@@ -85,113 +76,33 @@ public class ExcelTemplateExportController {
 
     private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    // =========================================================================
-    // 1. 範本匯出核心用例與輸出埠依賴 (Core Export UseCases & Outbound Ports)
-    // =========================================================================
-    private final ExportTemplateExcelUseCase exportTemplateExcelUseCase;
-    private final StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
-    private final ExcelTemplateRegistryPort templateRegistryPort;
+    private final ExcelTemplateCommandService templateCommandService;
+    private final ExcelTemplateQueryService templateQueryService;
     private final ExcelTemplateResourceAssembler resourceAssembler;
 
-    // =========================================================================
-    // 2. 欄位動態映射與預覽用例依賴 (Field Mapping & Preview UseCases)
-    // =========================================================================
-    private final ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase;
-    private final StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase;
-    private final PreviewTemplateMappingUseCase previewTemplateMappingUseCase;
-
-    // =========================================================================
-    // 3. 範本規格 CRUD 管理用例依賴 (Template Specification CRUD UseCases)
-    // =========================================================================
-    private final CreateExcelTemplateUseCase createExcelTemplateUseCase;
-    private final UpdateExcelTemplateUseCase updateExcelTemplateUseCase;
-    private final DeleteExcelTemplateUseCase deleteExcelTemplateUseCase;
-    private final GetExcelTemplateUseCase getExcelTemplateUseCase;
-    private final ListExcelTemplateUseCase listExcelTemplateUseCase;
-
     /**
-     * 輕量相容建構函式：僅注入基礎匯出用例與儲存庫。
+     * 建立 Excel 宣告式範本管理與匯出 REST API 控制器。
+     * <p>
+     * 依據 CQRS 架構職責收斂依賴注入元件：
+     * <ul>
+     *   <li>{@link ExcelTemplateCommandService}：負責範本匯出、串流直通、動態欄位映射與範本規格之新增/修改/刪除</li>
+     *   <li>{@link ExcelTemplateQueryService}：負責範本清單檢索與單一規格查詢</li>
+     *   <li>{@link ExcelTemplateResourceAssembler}：負責表現層 Resource 與應用層 Command/Query/Dto 相互轉換</li>
+     * </ul>
+     * </p>
      *
-     * @param exportTemplateExcelUseCase       標準緩衝匯出用例
-     * @param streamExportTemplateExcelUseCase 標準串流匯出用例
-     * @param templateRegistryPort             範本儲存庫輸出埠
-     * @param resourceAssembler                表現層資料轉換組裝器
-     */
-    public ExcelTemplateExportController(
-            ExportTemplateExcelUseCase exportTemplateExcelUseCase,
-            StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
-            ExcelTemplateRegistryPort templateRegistryPort,
-            ExcelTemplateResourceAssembler resourceAssembler) {
-        this(exportTemplateExcelUseCase, streamExportTemplateExcelUseCase, templateRegistryPort, resourceAssembler,
-             null, null, null, null, null, null, null, null);
-    }
-
-    /**
-     * 中階相容建構函式：支援自訂欄位映射與預覽用例。
-     *
-     * @param exportTemplateExcelUseCase                  標準緩衝匯出用例
-     * @param streamExportTemplateExcelUseCase            標準串流匯出用例
-     * @param templateRegistryPort                        範本儲存庫輸出埠
-     * @param resourceAssembler                           表現層資料轉換組裝器
-     * @param exportTemplateWithMappingUseCase            動態映射緩衝匯出用例
-     * @param streamExportTemplateWithMappingUseCase      動態映射串流匯出用例
-     * @param previewTemplateMappingUseCase               動態映射預覽用例
-     */
-    public ExcelTemplateExportController(
-            ExportTemplateExcelUseCase exportTemplateExcelUseCase,
-            StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
-            ExcelTemplateRegistryPort templateRegistryPort,
-            ExcelTemplateResourceAssembler resourceAssembler,
-            ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase,
-            StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase,
-            PreviewTemplateMappingUseCase previewTemplateMappingUseCase) {
-        this(exportTemplateExcelUseCase, streamExportTemplateExcelUseCase, templateRegistryPort, resourceAssembler,
-             exportTemplateWithMappingUseCase, streamExportTemplateWithMappingUseCase, previewTemplateMappingUseCase,
-             null, null, null, null, null);
-    }
-
-    /**
-     * 完整功能依賴注入建構函式：支援全功能範本規格 CRUD 維護用例與動態欄位映射引擎。
-     *
-     * @param exportTemplateExcelUseCase                  標準緩衝匯出用例 (必填)
-     * @param streamExportTemplateExcelUseCase            標準串流匯出用例 (必填)
-     * @param templateRegistryPort                        範本儲存庫輸出埠 (必填)
-     * @param resourceAssembler                           表現層資料轉換組裝器 (必填)
-     * @param exportTemplateWithMappingUseCase            動態映射緩衝匯出用例 (選填)
-     * @param streamExportTemplateWithMappingUseCase      動態映射串流匯出用例 (選填)
-     * @param previewTemplateMappingUseCase               動態映射預覽用例 (選填)
-     * @param createExcelTemplateUseCase                  範本規格建立用例 (選填)
-     * @param updateExcelTemplateUseCase                  範本規格更新用例 (選填)
-     * @param deleteExcelTemplateUseCase                  範本規格刪除用例 (選填)
-     * @param getExcelTemplateUseCase                     單一範本查詢用例 (選填)
-     * @param listExcelTemplateUseCase                    範本清單查詢用例 (選填)
+     * @param templateCommandService 範本命令應用層服務 (CQRS Command Service)
+     * @param templateQueryService   範本查詢應用層服務 (CQRS Query Service)
+     * @param resourceAssembler      表現層資料轉換組裝器
      */
     @Autowired
     public ExcelTemplateExportController(
-            ExportTemplateExcelUseCase exportTemplateExcelUseCase,
-            StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
-            ExcelTemplateRegistryPort templateRegistryPort,
-            ExcelTemplateResourceAssembler resourceAssembler,
-            @Autowired(required = false) ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase,
-            @Autowired(required = false) StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase,
-            @Autowired(required = false) PreviewTemplateMappingUseCase previewTemplateMappingUseCase,
-            @Autowired(required = false) CreateExcelTemplateUseCase createExcelTemplateUseCase,
-            @Autowired(required = false) UpdateExcelTemplateUseCase updateExcelTemplateUseCase,
-            @Autowired(required = false) DeleteExcelTemplateUseCase deleteExcelTemplateUseCase,
-            @Autowired(required = false) GetExcelTemplateUseCase getExcelTemplateUseCase,
-            @Autowired(required = false) ListExcelTemplateUseCase listExcelTemplateUseCase) {
-        this.exportTemplateExcelUseCase = Objects.requireNonNull(exportTemplateExcelUseCase, "exportTemplateExcelUseCase 不得為空");
-        this.streamExportTemplateExcelUseCase = Objects.requireNonNull(streamExportTemplateExcelUseCase, "streamExportTemplateExcelUseCase 不得為空");
-        this.templateRegistryPort = Objects.requireNonNull(templateRegistryPort, "templateRegistryPort 不得為空");
+            ExcelTemplateCommandService templateCommandService,
+            ExcelTemplateQueryService templateQueryService,
+            ExcelTemplateResourceAssembler resourceAssembler) {
+        this.templateCommandService = Objects.requireNonNull(templateCommandService, "templateCommandService 不得為空");
+        this.templateQueryService = Objects.requireNonNull(templateQueryService, "templateQueryService 不得為空");
         this.resourceAssembler = Objects.requireNonNull(resourceAssembler, "resourceAssembler 不得為空");
-        this.exportTemplateWithMappingUseCase = exportTemplateWithMappingUseCase;
-        this.streamExportTemplateWithMappingUseCase = streamExportTemplateWithMappingUseCase;
-        this.previewTemplateMappingUseCase = previewTemplateMappingUseCase;
-        this.createExcelTemplateUseCase = createExcelTemplateUseCase;
-        this.updateExcelTemplateUseCase = updateExcelTemplateUseCase;
-        this.deleteExcelTemplateUseCase = deleteExcelTemplateUseCase;
-        this.getExcelTemplateUseCase = getExcelTemplateUseCase;
-        this.listExcelTemplateUseCase = listExcelTemplateUseCase;
     }
 
     /**
@@ -208,11 +119,8 @@ public class ExcelTemplateExportController {
     @PostMapping
     public ResponseEntity<ExcelTemplateCreatedResource> createTemplate(
             @Valid @RequestBody CreateExcelTemplateResource resource) {
-        if (createExcelTemplateUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 CreateExcelTemplateUseCase 實作");
-        }
         CreateExcelTemplateCommand command = resourceAssembler.toCommand(resource);
-        ExcelTemplateGottenResult result = createExcelTemplateUseCase.createTemplate(command);
+        ExcelTemplateGottenResult result = templateCommandService.createTemplate(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(resourceAssembler.toCreatedResource(result));
     }
 
@@ -233,11 +141,8 @@ public class ExcelTemplateExportController {
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
             @PathVariable String templateKey,
             @Valid @RequestBody UpdateExcelTemplateResource resource) {
-        if (updateExcelTemplateUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 UpdateExcelTemplateUseCase 實作");
-        }
         UpdateExcelTemplateCommand command = resourceAssembler.toCommand(templateKey, resource);
-        ExcelTemplateGottenResult result = updateExcelTemplateUseCase.updateTemplate(command);
+        ExcelTemplateGottenResult result = templateCommandService.updateTemplate(command);
         return ResponseEntity.ok(resourceAssembler.toUpdatedResource(result));
     }
 
@@ -256,11 +161,8 @@ public class ExcelTemplateExportController {
     public ResponseEntity<Void> deleteTemplate(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
             @PathVariable String templateKey) {
-        if (deleteExcelTemplateUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 DeleteExcelTemplateUseCase 實作");
-        }
         DeleteExcelTemplateCommand command = resourceAssembler.toDeleteCommand(templateKey);
-        deleteExcelTemplateUseCase.deleteTemplate(command);
+        templateCommandService.deleteTemplate(command);
         return ResponseEntity.noContent().build();
     }
 
@@ -279,12 +181,8 @@ public class ExcelTemplateExportController {
             @RequestParam(required = false) String category,
             @Parameter(description = "是否僅查詢啟用中範本")
             @RequestParam(required = false, defaultValue = "true") Boolean activeOnly) {
-        List<ExcelTemplateGottenResult> dtos;
-        if (listExcelTemplateUseCase != null) {
-            dtos = listExcelTemplateUseCase.listTemplates(resourceAssembler.toListQuery(category, activeOnly));
-        } else {
-            dtos = templateRegistryPort.listTemplates();
-        }
+        List<ExcelTemplateGottenResult> dtos = templateQueryService.listTemplates(
+                resourceAssembler.toListQuery(category, activeOnly));
         List<ExcelTemplateRetrievedResource> list = dtos.stream()
             .map(resourceAssembler::toResource)
             .toList();
@@ -306,18 +204,12 @@ public class ExcelTemplateExportController {
     public ResponseEntity<ExcelTemplateRetrievedResource> getTemplateInfo(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
             @PathVariable String templateKey) {
-        if (getExcelTemplateUseCase != null) {
-            try {
-                ExcelTemplateGottenResult dto = getExcelTemplateUseCase.getTemplate(resourceAssembler.toQuery(templateKey));
-                return ResponseEntity.ok(resourceAssembler.toResource(dto));
-            } catch (ExcelTemplateNotFoundException e) {
-                return ResponseEntity.notFound().build();
-            }
+        try {
+            ExcelTemplateGottenResult dto = templateQueryService.getTemplate(resourceAssembler.toQuery(templateKey));
+            return ResponseEntity.ok(resourceAssembler.toResource(dto));
+        } catch (ExcelTemplateNotFoundException e) {
+            return ResponseEntity.notFound().build();
         }
-        return templateRegistryPort.findTemplateInfo(templateKey)
-            .map(resourceAssembler::toResource)
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
@@ -369,7 +261,7 @@ public class ExcelTemplateExportController {
             @Valid @RequestBody ExportTemplateExcelResource resource) {
 
         ExportTemplateExcelCommand command = resourceAssembler.toCommand(templateKey, resource);
-        byte[] excelBytes = exportTemplateExcelUseCase.exportFromTemplate(command);
+        byte[] excelBytes = templateCommandService.exportFromTemplate(command);
 
         return createAttachmentResponse(excelBytes, command.outputFileName());
     }
@@ -394,23 +286,23 @@ public class ExcelTemplateExportController {
                             examples = {
                                     @ExampleObject(
                                             name = "採購詢價比價單範例 (PROCUREMENT_COMPARISON)",
-                                            summary = "符合 templateKey 為 PROCUREMENT_COMPARISON 之完整資料模型範例",
-                                            value = PROCUREMENT_COMPARISON_EXAMPLE_JSON
-                                    ),
-                                    @ExampleObject(
-                                            name = "物料主檔清單範例 (MATERIAL_MASTER)",
-                                            summary = "符合 templateKey 為 MATERIAL_MASTER 之完整資料模型範例",
-                                            value = MATERIAL_MASTER_EXAMPLE_JSON
-                                    ),
-                                    @ExampleObject(
-                                            name = "產品結構成本分析範例 (BOM_COST_ANALYSIS)",
-                                            summary = "符合 templateKey 為 BOM_COST_ANALYSIS 之完整資料模型範例",
-                                            value = BOM_COST_ANALYSIS_EXAMPLE_JSON
-                                    )
-                            }
-                    )
-            )
-    )
+                                             summary = "符合 templateKey 為 PROCUREMENT_COMPARISON 之完整資料模型範例",
+                                             value = PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                     ),
+                                     @ExampleObject(
+                                             name = "物料主檔清單範例 (MATERIAL_MASTER)",
+                                             summary = "符合 templateKey 為 MATERIAL_MASTER 之完整資料模型範例",
+                                             value = MATERIAL_MASTER_EXAMPLE_JSON
+                                     ),
+                                     @ExampleObject(
+                                             name = "產品結構成本分析範例 (BOM_COST_ANALYSIS)",
+                                             summary = "符合 templateKey 為 BOM_COST_ANALYSIS 之完整資料模型範例",
+                                             value = BOM_COST_ANALYSIS_EXAMPLE_JSON
+                                     )
+                             }
+                     )
+             )
+     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
         @ApiResponse(responseCode = "404", description = "指定範本不存在"),
@@ -429,7 +321,7 @@ public class ExcelTemplateExportController {
         String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName);
 
-        streamExportTemplateExcelUseCase.streamExportFromTemplate(response.getOutputStream(), command);
+        templateCommandService.streamExportFromTemplate(response.getOutputStream(), command);
         response.flushBuffer();
     }
 
@@ -480,11 +372,8 @@ public class ExcelTemplateExportController {
             @PathVariable String templateKey,
             @Valid @RequestBody ExportTemplateWithMappingResource resource) {
 
-        if (exportTemplateWithMappingUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 ExportTemplateWithMappingUseCase 實作");
-        }
         ExportTemplateWithMappingCommand command = resourceAssembler.toCommand(templateKey, resource);
-        byte[] excelBytes = exportTemplateWithMappingUseCase.exportFromTemplateWithMapping(command);
+        byte[] excelBytes = templateCommandService.exportFromTemplateWithMapping(command);
 
         return createAttachmentResponse(excelBytes, command.outputFileName());
     }
@@ -537,16 +426,13 @@ public class ExcelTemplateExportController {
             @Valid @RequestBody ExportTemplateWithMappingResource resource,
             HttpServletResponse response) throws IOException {
 
-        if (streamExportTemplateWithMappingUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 StreamExportTemplateWithMappingUseCase 實作");
-        }
         ExportTemplateWithMappingCommand command = resourceAssembler.toCommand(templateKey, resource);
 
         response.setContentType(EXCEL_MIME_TYPE);
         String encodedFileName = URLEncoder.encode(command.outputFileName(), StandardCharsets.UTF_8).replace("+", "%20");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName);
 
-        streamExportTemplateWithMappingUseCase.streamExportFromTemplateWithMapping(response.getOutputStream(), command);
+        templateCommandService.streamExportFromTemplateWithMapping(response.getOutputStream(), command);
         response.flushBuffer();
     }
 
@@ -593,14 +479,11 @@ public class ExcelTemplateExportController {
     public ResponseEntity<Map<String, Object>> previewMapping(
             @Valid @RequestBody ExportTemplateWithMappingResource resource) {
 
-        if (previewTemplateMappingUseCase == null) {
-            throw new UnsupportedOperationException("系統未配置 PreviewTemplateMappingUseCase 實作");
-        }
         String templateKey = (resource.mappingDefinition() != null && resource.mappingDefinition().templateKey() != null)
             ? resource.mappingDefinition().templateKey()
             : "DEFAULT_TEMPLATE";
         ExportTemplateWithMappingCommand command = resourceAssembler.toCommand(templateKey, resource);
-        Map<String, Object> previewMap = previewTemplateMappingUseCase.previewTemplateMapping(command);
+        Map<String, Object> previewMap = templateCommandService.previewTemplateMapping(command);
 
         return ResponseEntity.ok(previewMap);
     }

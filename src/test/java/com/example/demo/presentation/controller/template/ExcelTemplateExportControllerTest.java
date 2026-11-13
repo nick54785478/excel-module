@@ -1,16 +1,7 @@
 package com.example.demo.presentation.controller.template;
 
-import com.example.demo.application.port.in.template.CreateExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.DeleteExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.ExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.in.template.GetExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.ListExcelTemplateUseCase;
-import com.example.demo.application.port.in.template.PreviewTemplateMappingUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
-import com.example.demo.application.port.in.template.UpdateExcelTemplateUseCase;
-import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.service.template.ExcelTemplateCommandService;
+import com.example.demo.application.service.template.ExcelTemplateQueryService;
 import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
 import com.example.demo.application.shared.command.DeleteExcelTemplateCommand;
 import com.example.demo.application.shared.command.UpdateExcelTemplateCommand;
@@ -29,7 +20,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -50,54 +40,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ExcelTemplateExportControllerTest {
 
     private MockMvc mockMvc;
-    private ExportTemplateExcelUseCase exportTemplateExcelUseCase;
-    private StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
-    private ExcelTemplateRegistryPort templateRegistryPort;
-    private ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase;
-    private StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase;
-    private PreviewTemplateMappingUseCase previewTemplateMappingUseCase;
-    private CreateExcelTemplateUseCase createExcelTemplateUseCase;
-    private UpdateExcelTemplateUseCase updateExcelTemplateUseCase;
-    private DeleteExcelTemplateUseCase deleteExcelTemplateUseCase;
-    private GetExcelTemplateUseCase getExcelTemplateUseCase;
-    private ListExcelTemplateUseCase listExcelTemplateUseCase;
+    private ExcelTemplateCommandService templateCommandService;
+    private ExcelTemplateQueryService templateQueryService;
 
     @BeforeEach
     void setUp() {
-        exportTemplateExcelUseCase = mock(ExportTemplateExcelUseCase.class);
-        streamExportTemplateExcelUseCase = mock(StreamExportTemplateExcelUseCase.class);
-        templateRegistryPort = mock(ExcelTemplateRegistryPort.class);
-        exportTemplateWithMappingUseCase = mock(ExportTemplateWithMappingUseCase.class);
-        streamExportTemplateWithMappingUseCase = mock(StreamExportTemplateWithMappingUseCase.class);
-        previewTemplateMappingUseCase = mock(PreviewTemplateMappingUseCase.class);
-        createExcelTemplateUseCase = mock(CreateExcelTemplateUseCase.class);
-        updateExcelTemplateUseCase = mock(UpdateExcelTemplateUseCase.class);
-        deleteExcelTemplateUseCase = mock(DeleteExcelTemplateUseCase.class);
-        getExcelTemplateUseCase = mock(GetExcelTemplateUseCase.class);
-        listExcelTemplateUseCase = mock(ListExcelTemplateUseCase.class);
-
-        when(listExcelTemplateUseCase.listTemplates(any())).thenAnswer(inv -> templateRegistryPort.listTemplates());
-        when(getExcelTemplateUseCase.getTemplate(any())).thenAnswer(inv -> {
-            com.example.demo.application.shared.query.GetExcelTemplateQuery q = inv.getArgument(0);
-            return templateRegistryPort.findTemplateInfo(q.templateKey())
-                .orElseThrow(() -> new ExcelTemplateNotFoundException("查無範本: " + q.templateKey()));
-        });
+        templateCommandService = mock(ExcelTemplateCommandService.class);
+        templateQueryService = mock(ExcelTemplateQueryService.class);
 
         ExcelTemplateResourceAssembler resourceAssembler = new ExcelTemplateResourceAssembler();
 
         ExcelTemplateExportController controller = new ExcelTemplateExportController(
-            exportTemplateExcelUseCase,
-            streamExportTemplateExcelUseCase,
-            templateRegistryPort,
-            resourceAssembler,
-            exportTemplateWithMappingUseCase,
-            streamExportTemplateWithMappingUseCase,
-            previewTemplateMappingUseCase,
-            createExcelTemplateUseCase,
-            updateExcelTemplateUseCase,
-            deleteExcelTemplateUseCase,
-            getExcelTemplateUseCase,
-            listExcelTemplateUseCase
+            templateCommandService,
+            templateQueryService,
+            resourceAssembler
         );
 
         this.mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -115,7 +71,7 @@ class ExcelTemplateExportControllerTest {
     @Test
     @DisplayName("Gherkin: 查詢所有可用範本清單情境")
     void shouldListTemplatesSuccessfully() throws Exception {
-        when(templateRegistryPort.listTemplates()).thenReturn(List.of(
+        when(templateQueryService.listTemplates(any())).thenReturn(List.of(
             new ExcelTemplateGottenResult(
                 "PROCUREMENT_COMPARISON", "採購詢價比價單", "PROCUREMENT", "比價說明",
                 List.of("inquiryNo"), Instant.now()
@@ -140,11 +96,11 @@ class ExcelTemplateExportControllerTest {
     @DisplayName("Gherkin: 查詢單一範本規格情境")
     void shouldGetTemplateInfoSuccessfully() throws Exception {
         String key = "PROCUREMENT_COMPARISON";
-        when(templateRegistryPort.findTemplateInfo(key)).thenReturn(Optional.of(
+        when(templateQueryService.getTemplate(any())).thenReturn(
             new ExcelTemplateGottenResult(
                 key, "採購詢價比價單", "PROCUREMENT", "比價單說明", List.of("inquiryNo"), Instant.now()
             )
-        ));
+        );
 
         mockMvc.perform(get("/api/v1/excel/templates/{templateKey}", key))
             .andExpect(status().isOk())
@@ -158,7 +114,8 @@ class ExcelTemplateExportControllerTest {
     @Test
     @DisplayName("Gherkin: 查詢不存在範本規格回傳 404")
     void shouldReturn404WhenTemplateInfoNotFound() throws Exception {
-        when(templateRegistryPort.findTemplateInfo("NOT_EXIST")).thenReturn(Optional.empty());
+        when(templateQueryService.getTemplate(any()))
+            .thenThrow(new ExcelTemplateNotFoundException("指定的 Excel 範本不存在或未註冊: NOT_EXIST"));
 
         mockMvc.perform(get("/api/v1/excel/templates/NOT_EXIST"))
             .andExpect(status().isNotFound());
@@ -176,7 +133,7 @@ class ExcelTemplateExportControllerTest {
     void shouldExportFromTemplateViaPost() throws Exception {
         String key = "PROCUREMENT_COMPARISON";
         byte[] fakeExcel = new byte[]{0x50, 0x4B, 0x03, 0x04};
-        when(exportTemplateExcelUseCase.exportFromTemplate(any())).thenReturn(fakeExcel);
+        when(templateCommandService.exportFromTemplate(any())).thenReturn(fakeExcel);
 
         String jsonRequest = """
             {
@@ -195,7 +152,7 @@ class ExcelTemplateExportControllerTest {
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("rfq_download.xlsx")))
             .andExpect(content().bytes(fakeExcel));
 
-        verify(exportTemplateExcelUseCase).exportFromTemplate(any());
+        verify(templateCommandService).exportFromTemplate(any());
     }
 
     /**
@@ -224,20 +181,20 @@ class ExcelTemplateExportControllerTest {
             .andExpect(status().isOk())
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("rfq_stream.xlsx")));
 
-        verify(streamExportTemplateExcelUseCase).streamExportFromTemplate(any(), any());
+        verify(templateCommandService).streamExportFromTemplate(any(), any());
     }
 
     /**
      * Feature: 匯出不存在之範本時回傳 404 Not Found
      * Scenario: 傳入未註冊之範本鍵值，UseCase 拋出 ExcelTemplateNotFoundException
-     *   Given exportTemplateExcelUseCase 拋出 ExcelTemplateNotFoundException
+     *   Given templateCommandService 拋出 ExcelTemplateNotFoundException
      *   When 發送 POST 匯出請求
      *   Then 全域例外處理器攔截並回傳 404 Not Found 結構化錯誤
      */
     @Test
     @DisplayName("Gherkin: 匯出不存在範本回傳 404 情境")
     void shouldReturn404WhenExportingNonExistentTemplate() throws Exception {
-        when(exportTemplateExcelUseCase.exportFromTemplate(any()))
+        when(templateCommandService.exportFromTemplate(any()))
             .thenThrow(new ExcelTemplateNotFoundException("指定的 Excel 範本不存在或未註冊: UNKNOWN"));
 
         String jsonRequest = """
@@ -256,7 +213,7 @@ class ExcelTemplateExportControllerTest {
     /**
      * Feature: 依據自訂欄位映射規則匯出範本 Excel 檔案 (Buffered 模式)
      * Scenario: 發送 POST /api/v1/excel/templates/material_master/export-mapped 成功回傳二進位下載
-     *   Given exportTemplateWithMappingUseCase 成功回傳有效的 Excel 二進位陣列
+     *   Given templateCommandService 成功回傳有效的 Excel 二進位陣列
      *   When 發送 POST /export-mapped 帶入自訂欄位映射 JSON
      *   Then 回傳 200 OK 且包含 Content-Disposition attachment 下載標頭
      */
@@ -264,7 +221,7 @@ class ExcelTemplateExportControllerTest {
     @DisplayName("Gherkin: 自訂欄位映射 Buffered 匯出成功情境")
     void shouldExportFromTemplateWithMappingSuccessfully() throws Exception {
         byte[] fakeExcelBytes = new byte[]{0x50, 0x4B, 0x03, 0x04};
-        when(exportTemplateWithMappingUseCase.exportFromTemplateWithMapping(any())).thenReturn(fakeExcelBytes);
+        when(templateCommandService.exportFromTemplateWithMapping(any())).thenReturn(fakeExcelBytes);
 
         String jsonRequest = """
             {
@@ -288,20 +245,20 @@ class ExcelTemplateExportControllerTest {
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("my_materials.xlsx")))
             .andExpect(content().bytes(fakeExcelBytes));
 
-        verify(exportTemplateWithMappingUseCase).exportFromTemplateWithMapping(any());
+        verify(templateCommandService).exportFromTemplateWithMapping(any());
     }
 
     /**
      * Feature: 依據自訂欄位映射規則串流匯出範本 Excel 檔案 (Streaming 模式)
      * Scenario: 發送 POST /api/v1/excel/templates/material_master/stream-mapped 成功直通串流寫出
-     *   Given streamExportTemplateWithMappingUseCase 模擬成功串流寫入
+     *   Given templateCommandService 模擬成功串流寫入
      *   When 發送 POST /stream-mapped 請求
      *   Then 回傳 200 OK 且正確呼叫串流 UseCase
      */
     @Test
     @DisplayName("Gherkin: 自訂欄位映射 Streaming 串流匯出成功情境")
     void shouldStreamExportFromTemplateWithMappingSuccessfully() throws Exception {
-        doNothing().when(streamExportTemplateWithMappingUseCase).streamExportFromTemplateWithMapping(any(), any());
+        doNothing().when(templateCommandService).streamExportFromTemplateWithMapping(any(), any());
 
         String jsonRequest = """
             {
@@ -323,20 +280,20 @@ class ExcelTemplateExportControllerTest {
             .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("stream_materials.xlsx")));
 
-        verify(streamExportTemplateWithMappingUseCase).streamExportFromTemplateWithMapping(any(), any());
+        verify(templateCommandService).streamExportFromTemplateWithMapping(any(), any());
     }
 
     /**
      * Feature: 預覽欄位動態映射轉換後之 JXLS 上下文資料模型 (Dry-Run / Preview)
      * Scenario: 發送 POST /api/v1/excel/templates/mapping/preview 回傳 JSON Context Map
-     *   Given previewTemplateMappingUseCase 回傳組裝後之 Map 上下文
+     *   Given templateCommandService 回傳組裝後之 Map 上下文
      *   When 發送 POST /mapping/preview 帶入映射規格與來源資料
      *   Then 回傳 200 OK 且回傳求值後之 JSON 結構
      */
     @Test
     @DisplayName("Gherkin: 欄位映射預覽 Dry-Run 成功情境")
     void shouldPreviewTemplateMappingSuccessfully() throws Exception {
-        when(previewTemplateMappingUseCase.previewTemplateMapping(any())).thenReturn(
+        when(templateCommandService.previewTemplateMapping(any())).thenReturn(
             Map.of("materials", List.of(Map.of("materialCode", "MAT-001", "materialName", "無人機零件")))
         );
 
@@ -362,7 +319,7 @@ class ExcelTemplateExportControllerTest {
             .andExpect(jsonPath("$.materials[0].materialCode").value("MAT-001"))
             .andExpect(jsonPath("$.materials[0].materialName").value("無人機零件"));
 
-        verify(previewTemplateMappingUseCase).previewTemplateMapping(any());
+        verify(templateCommandService).previewTemplateMapping(any());
     }
 
     /**
@@ -378,7 +335,7 @@ class ExcelTemplateExportControllerTest {
         ExcelTemplateGottenResult result = new ExcelTemplateGottenResult(
             "EQUIPMENT_MAINTENANCE", "設備維護月報", "MAINTENANCE", "說明", List.of("equipments"), Instant.now()
         );
-        when(createExcelTemplateUseCase.createTemplate(any(CreateExcelTemplateCommand.class))).thenReturn(result);
+        when(templateCommandService.createTemplate(any(CreateExcelTemplateCommand.class))).thenReturn(result);
 
         String jsonRequest = """
             {
@@ -398,7 +355,7 @@ class ExcelTemplateExportControllerTest {
             .andExpect(jsonPath("$.templateName").value("設備維護月報"))
             .andExpect(jsonPath("$.category").value("MAINTENANCE"));
 
-        verify(createExcelTemplateUseCase).createTemplate(any(CreateExcelTemplateCommand.class));
+        verify(templateCommandService).createTemplate(any(CreateExcelTemplateCommand.class));
     }
 
     /**
@@ -414,7 +371,7 @@ class ExcelTemplateExportControllerTest {
         ExcelTemplateGottenResult result = new ExcelTemplateGottenResult(
             "EQUIPMENT_MAINTENANCE", "設備維護月報 (改版)", "OPERATIONS", "新說明", List.of("equipments", "items"), Instant.now()
         );
-        when(updateExcelTemplateUseCase.updateTemplate(any(UpdateExcelTemplateCommand.class))).thenReturn(result);
+        when(templateCommandService.updateTemplate(any(UpdateExcelTemplateCommand.class))).thenReturn(result);
 
         String jsonRequest = """
             {
@@ -434,7 +391,7 @@ class ExcelTemplateExportControllerTest {
             .andExpect(jsonPath("$.templateName").value("設備維護月報 (改版)"))
             .andExpect(jsonPath("$.category").value("OPERATIONS"));
 
-        verify(updateExcelTemplateUseCase).updateTemplate(any(UpdateExcelTemplateCommand.class));
+        verify(templateCommandService).updateTemplate(any(UpdateExcelTemplateCommand.class));
     }
 
     /**
@@ -450,7 +407,7 @@ class ExcelTemplateExportControllerTest {
         mockMvc.perform(delete("/api/v1/excel/templates/OBSOLETE_REPORT"))
             .andExpect(status().isNoContent());
 
-        verify(deleteExcelTemplateUseCase).deleteTemplate(any(DeleteExcelTemplateCommand.class));
+        verify(templateCommandService).deleteTemplate(any(DeleteExcelTemplateCommand.class));
     }
 }
 
