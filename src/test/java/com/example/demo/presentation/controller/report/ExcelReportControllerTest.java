@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.example.demo.application.port.in.report.ExportFinancialReportUseCase;
 import com.example.demo.application.shared.command.ExportBomCostAnalysisCommand;
 import com.example.demo.presentation.assembler.ExcelReportResourceAssembler;
+import com.example.demo.presentation.exception.GlobalExceptionHandler;
 
 /**
  * 企業級進階報表 REST 控制器測試 (ExcelReportController Test)
@@ -47,7 +48,9 @@ class ExcelReportControllerTest {
 				resourceAssembler
 		);
 
-		this.mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+		this.mockMvc = MockMvcBuilders.standaloneSetup(controller)
+				.setControllerAdvice(new GlobalExceptionHandler())
+				.build();
 	}
 
 	/**
@@ -191,6 +194,72 @@ class ExcelReportControllerTest {
 				.andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(
 						java.net.URLEncoder.encode("客製季度損益表", java.nio.charset.StandardCharsets.UTF_8))))
 				.andExpect(content().bytes(mockBytes));
+	}
+
+	/**
+	 * Feature: 自訂進階樣式報表匯出容錯防禦 (Swagger dummy 佔位符)
+	 * Scenario: 前端透過 Swagger UI 預設發送包含 "additionalProp1": "string" 佔位屬性的請求
+	 * Given: cellFormulas 包含 "additionalProp1": "string"
+	 * When: 發送 POST /api/v1/excel/reports/custom-styled
+	 * Then: 成功過濾佔位符並回應 200 OK
+	 */
+	@Test
+	@DisplayName("情境：Swagger UI 自動填入 additionalProp1 佔位屬性時自動容錯過濾並成功匯出")
+	void shouldExportCustomReportWhenSwaggerDummyAdditionalPropPassed() throws Exception {
+		// Given
+		byte[] mockBytes = new byte[]{0x50, 0x4B, 0x03, 0x04};
+		when(exportFinancialReportUseCase.exportCustomReport(any())).thenReturn(mockBytes);
+
+		String jsonPayload = """
+				{
+				  "sheetName": "Swagger測試表",
+				  "headers": ["物料名稱", "標準單價"],
+				  "rows": [
+				    ["馬達", 100]
+				  ],
+				  "cellFormulas": {
+				    "additionalProp1": "string",
+				    "additionalProp2": "string"
+				  }
+				}
+				""";
+
+		// When & Then
+		mockMvc.perform(post("/api/v1/excel/reports/custom-styled")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonPayload))
+				.andExpect(status().isOk())
+				.andExpect(content().bytes(mockBytes));
+	}
+
+	/**
+	 * Feature: 自訂進階樣式報表座標格式防禦
+	 * Scenario: 前端傳入格式不合法的儲存格座標 (非 Excel 標準座標)
+	 * Given: cellFormulas 包含 "INVALID_CELL_COORD"
+	 * When: 發送 POST /api/v1/excel/reports/custom-styled
+	 * Then: 回應 400 Bad Request
+	 */
+	@Test
+	@DisplayName("情境：傳入非法儲存格座標時拋出 400 錯誤")
+	void shouldRejectCustomReportWhenInvalidCellCoordinatePassed() throws Exception {
+		String jsonPayload = """
+				{
+				  "sheetName": "異常測試表",
+				  "headers": ["物料名稱", "標準單價"],
+				  "rows": [
+				    ["馬達", 100]
+				  ],
+				  "cellFormulas": {
+				    "INVALID_COORDINATE": "SUM(A1:A2)"
+				  }
+				}
+				""";
+
+		// When & Then
+		mockMvc.perform(post("/api/v1/excel/reports/custom-styled")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonPayload))
+				.andExpect(status().isBadRequest());
 	}
 
 	/**

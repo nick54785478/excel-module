@@ -47,11 +47,14 @@ class CellCoordinateTest {
 	}
 
 	/**
-	 * Feature: 儲存格座標無效格式防禦
-	 * Scenario: 傳入空值、負數或無效字母數字格式時拋出異常
+	 * Feature: 儲存格座標無效格式防禦與邊界檢驗
+	 * Scenario: 傳入空值、負數、過長字串 (如 Swagger dummy 佔位符 additionalProp1) 或超出 Excel 限制座標時拋出異常
+	 * Given: 無效或越界座標字串
+	 * When: 呼叫 CellCoordinate.parse 或 CellCoordinate.isValid
+	 * Then: parse 拋出 IllegalArgumentException，isValid 回傳 false
 	 */
 	@Test
-	@DisplayName("情境：CellCoordinate 防禦性檢驗")
+	@DisplayName("情境：CellCoordinate 防禦性檢驗與 isValid 驗證")
 	void shouldThrowExceptionOnInvalidCoordinates() {
 		assertThatThrownBy(() -> CellCoordinate.parse(null))
 				.isInstanceOf(IllegalArgumentException.class);
@@ -61,8 +64,27 @@ class CellCoordinateTest {
 				.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> CellCoordinate.parse("ABC"))
 				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> CellCoordinate.parse("additionalProp1"))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> CellCoordinate.parse("XFE1"))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> CellCoordinate.parse("A0"))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> CellCoordinate.parse("A1048577"))
+				.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new CellCoordinate(-1, 0))
 				.isInstanceOf(IllegalArgumentException.class);
+
+		// isValid 驗證
+		assertThat(CellCoordinate.isValid("A1")).isTrue();
+		assertThat(CellCoordinate.isValid("D4")).isTrue();
+		assertThat(CellCoordinate.isValid("XFD1048576")).isTrue();
+		assertThat(CellCoordinate.isValid("additionalProp1")).isFalse();
+		assertThat(CellCoordinate.isValid("")).isFalse();
+		assertThat(CellCoordinate.isValid(null)).isFalse();
+		assertThat(CellCoordinate.isValid("XFE1")).isFalse();
+		assertThat(CellCoordinate.isValid("A0")).isFalse();
+		assertThat(CellCoordinate.isValid("A1048577")).isFalse();
 	}
 
 	/**

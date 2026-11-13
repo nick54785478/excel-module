@@ -267,7 +267,7 @@ public class FastExcelWriterAdapter implements ExcelWriterPort {
 		// 5. 套用未被 rows 包含的額外儲存格公式 (如彙總列)
 		if (sheetCommand.cellFormulas() != null && !sheetCommand.cellFormulas().isEmpty()) {
 			sheetCommand.cellFormulas().forEach((cellRef, formula) -> {
-				if (cellRef != null && formula != null && !formula.isBlank()) {
+				if (cellRef != null && formula != null && !formula.isBlank() && CellCoordinate.isValid(cellRef)) {
 					CellCoordinate coord = CellCoordinate.parse(cellRef);
 					String cleanFormula = formula.startsWith("=") ? formula.substring(1).trim() : formula.trim();
 					worksheet.formula(coord.row(), coord.col(), cleanFormula);

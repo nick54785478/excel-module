@@ -1,7 +1,9 @@
 package com.example.demo.presentation.assembler;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
@@ -9,6 +11,7 @@ import com.example.demo.application.shared.command.ExportBomCostAnalysisCommand;
 import com.example.demo.application.shared.command.ExportCustomReportCommand;
 import com.example.demo.application.shared.command.ExportProcurementAnalysisCommand;
 import com.example.demo.application.shared.model.BomCostAnalysisReportModel;
+import com.example.demo.application.shared.model.CellCoordinate;
 import com.example.demo.application.shared.model.CellRange;
 import com.example.demo.application.shared.model.ProcurementAnalysisReportModel;
 import com.example.demo.presentation.resource.in.ExportBomCostAnalysisResource;
@@ -47,12 +50,33 @@ public class ExcelReportResourceAssembler {
 					.toList();
 		}
 
+		Map<String, String> sanitizedFormulas = Collections.emptyMap();
+		if (resource.cellFormulas() != null && !resource.cellFormulas().isEmpty()) {
+			sanitizedFormulas = new LinkedHashMap<>();
+			for (Map.Entry<String, String> entry : resource.cellFormulas().entrySet()) {
+				String cellRef = entry.getKey();
+				String formula = entry.getValue();
+				if (cellRef == null || cellRef.isBlank() || formula == null || formula.isBlank()) {
+					continue;
+				}
+				String trimmedRef = cellRef.trim();
+				// 略過 Swagger / OpenAPI 工具自動生成的 dummy 佔位屬性 (如 additionalProp1, additionalProp2)
+				if (trimmedRef.startsWith("additionalProp")) {
+					continue;
+				}
+				if (!CellCoordinate.isValid(trimmedRef)) {
+					throw new IllegalArgumentException("無效的 Excel 儲存格座標格式: '" + cellRef + "'，正確格式應為英文字母加列號 (如 A1, D4, AA10，最高支援至 XFD1048576)");
+				}
+				sanitizedFormulas.put(trimmedRef.toUpperCase(), formula.trim());
+			}
+		}
+
 		return ExportCustomReportCommand.builder()
 				.sheetName(resource.sheetName())
 				.headers(resource.headers())
 				.rows(resource.rows())
 				.mergedRegions(ranges)
-				.cellFormulas(resource.cellFormulas())
+				.cellFormulas(sanitizedFormulas)
 				.password(resource.password())
 				.reportTitle(resource.reportTitle())
 				.classification(resource.classification())

@@ -153,7 +153,7 @@ public class PoiSxssfStreamWriterEngine implements ExcelStreamWriterEngine {
 		// 5. 套用未被 rows 包含的額外儲存格公式 (如彙總列)
 		if (formulas != null && !formulas.isEmpty()) {
 			formulas.forEach((cellRef, form) -> {
-				if (cellRef != null && form != null && !form.isBlank()) {
+				if (cellRef != null && form != null && !form.isBlank() && CellCoordinate.isValid(cellRef)) {
 					CellCoordinate coord = CellCoordinate.parse(cellRef);
 					Row row = sheet.getRow(coord.row());
 					if (row == null) {
