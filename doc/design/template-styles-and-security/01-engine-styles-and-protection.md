@@ -84,15 +84,15 @@ flowchart TD
 
 ---
 
-## 3. 應用層純資料模型設計 (Pure Java 21 Records)
+## 3. 應用層純值物件設計 (Pure Java 21 Records - Value Objects)
 
-所有模型皆座落於 [`com.example.demo.application.shared.model`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model)，無任何 Spring、JPA、POI 或 FastExcel 依賴，符合 `AGENTS.md` 規範。
+所有值物件皆座落於 [`com.example.demo.application.shared.vo`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo)，無任何 Spring、JPA、POI 或 FastExcel 依賴，符合 `AGENTS.md` 規範。
 
 ### 3.1 儲存格合併區間 (`CellRange`)
 代表一個封閉的矩形合併區間，包含起始與結束列號/欄號（0-based）：
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 儲存格合併區間純資料物件 (Cell Range Value Object)
@@ -142,7 +142,7 @@ public record CellRange(int firstRow, int lastRow, int firstCol, int lastCol) {
 提供試算表標準字母數字座標（如 `"A1"`, `"D15"`）與二維陣列索引（`row=0, col=0`）之間的純 Java 快速轉換工具：
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * Excel 儲存格二維座標純資料物件 (Cell Coordinate Value Object)
@@ -202,7 +202,7 @@ public record CellCoordinate(int row, int col) {
 定義保護密碼、可選權限與鎖定開關：
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 工作表安全防護與鎖定配置 (Sheet Protection Configuration)
@@ -240,7 +240,7 @@ public record SheetProtectionConfig(
 * `&A`：工作表名稱 (Sheet Tab Name)
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.vo;
 
 /**
  * 試算表列印頁首頁尾與合規中繼設定 (Sheet Header & Footer Configuration)
@@ -541,7 +541,7 @@ Feature: 企業級報表樣式、動態公式與安全防護驗證 (Enterprise R
 ## 8. 演進里程碑與落地藍圖 (Roadmap)
 
 1. **Phase 1 (純模型與 Command 升級)**：
-   * 於 `application/shared/model/` 建立 `CellRange`、`CellCoordinate`、`SheetProtectionConfig`、`SheetHeaderFooterConfig`。
+   * 於 `application/shared/vo/` 建立 `CellRange`、`CellCoordinate`、`SheetProtectionConfig`、`SheetHeaderFooterConfig`。
    * 擴充 `WriteSheetCommand`。
 2. **Phase 2 (雙引擎適配實作)**：
    * 升級 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) 支援全功能。

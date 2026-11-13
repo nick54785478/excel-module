@@ -94,7 +94,7 @@ com.example.demo
   * 支援 Java 21 Record 與標準 POJO 雙軌驗證，搭配整表防重複比對 SPI（`ExcelSheetValidatorPort`）。
   * 檢核失敗時自動生成視覺化「錯誤回標檔」：出錯儲存格套用國際標準淡紅色背景（`#FFC7CE` / `ROSE`）＋深紅色文字（`#9C0006`），最右側動態追加「檢核結果與錯誤原因」欄位，供使用者直觀修正後直接重新上傳。
 * 🎨 **企業級報表樣式、動態公式與安全防護 (Template, Styles & Security)**：
-  * **純 Java 不可變模型**：應用層以純 Java 21 Record 定義 [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/CellRange.java)（跨欄跨列合併）、[`SheetProtectionConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetProtectionConfig.java)（密碼保護）與 [`SheetHeaderFooterConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetHeaderFooterConfig.java)（列印頁首頁尾機密標籤），100% 杜絕技術框架侵入。
+  * **純 Java 不可變模型**：應用層以純 Java 21 Record 定義 [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/CellRange.java)（跨欄跨列合併）、[`SheetProtectionConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/SheetProtectionConfig.java)（密碼保護）與 [`SheetHeaderFooterConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/SheetHeaderFooterConfig.java)（列印頁首頁尾機密標籤），100% 杜絕技術框架侵入。
   * **動態 SUM 公式注入**：支援在合計列注入 `=SUM(E2:E50)` 原生公式，微調數值時自動連動重算。
 * 🏭 **通用報表裝飾策略工廠模式 (Customizable Report Decorator Factory Pattern)**：
   * **微觀算術徹底抽離**：將合計列追加、SUM 公式計算與跨欄合併自 Application Service 抽離。

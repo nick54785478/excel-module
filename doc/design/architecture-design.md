@@ -199,7 +199,7 @@ flowchart TD
      * [`EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapter.java)：基於 EasyRules 4.1.0 宣告式規則引擎，無縫整合 Jakarta Bean Validation（如 `@NotBlank`, `@Min`, `@Pattern`）以及跨欄位複合商業校驗規則。
      * 支援列級別全量診斷，產出精確至列號、欄位名與具體錯誤訊息之清單。
   2. **錯誤資訊封裝模型 (Java 21 Record 純資料載體)**：
-     * [`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ExcelRowError.java)：封裝 `rowIndex`、`columnName`、`invalidValue` 與 `errorMessage`。
+     * [`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/validation/ExcelRowError.java)：封裝 `rowIndex`、`columnName`、`invalidValue` 與 `errorMessage`。
      * [`ExcelValidationGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelValidationGottenResult.java)：封裝驗證總結（`valid`、`totalRows`、`errorRows`、`errors` 清單與可選的 `errorMarkedFileBytes` 錯誤回標檔案二進位資料）。
   3. **錯誤回標檔適配器 ([`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelErrorMarkerPort.java))**：
      * [`PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapter.java)：利用 Apache POI 高傳真讀取原始上傳 Excel，在最右側動態追加「錯誤原因」標題欄位。

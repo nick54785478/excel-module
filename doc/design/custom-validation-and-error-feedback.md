@@ -87,7 +87,7 @@ flowchart TD
 | **Application (Service)** | [`ExcelValidationApplicationService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/validation/ExcelValidationApplicationService.java) | 應用流程調度中心，協調讀取、校驗與標註輸出 | `*ApplicationService` (Rule 3-9) |
 | **Application (Port Out)**| [`ExcelRowValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelRowValidatorPort.java)<br>[`ExcelSheetValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelSheetValidatorPort.java) | 行級業務校驗與整表統計約束 Outbound Port 契約 | `*Port` (Rule 3-8) |
 | **Application (Port Out)**| [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelErrorMarkerPort.java) | 錯誤回標檔案二進位生成 Outbound Port 契約 | `*Port` (Rule 3-8) |
-| **Application (Model)**   | [`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ExcelRowError.java)<br>[`ExcelValidationGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelValidationGottenResult.java) | 單一儲存格違規事實與檢核匯總純資料載體 | Java 21 Record |
+| **Application (Model)**   | [`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/validation/ExcelRowError.java)<br>[`ExcelValidationGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelValidationGottenResult.java) | 單一儲存格違規事實與檢核匯總純資料載體 | Java 21 Record |
 | **Infrastructure (Template)**| [`ExcelTemplateRegistry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateRegistry.java) | 集中管理各單據範本之元數據與驗證模型 (OCP 技術容器) | Registry |
 | **Configuration** | [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java) | 集中預載業務範本元數據並支援 `ExcelTemplateCustomizer` SPI 擴充 | Configuration |
 | **Infrastructure (Adapter)** | [`EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapter.java) | 基於 EasyRules 4.1.0 實作 `ExcelRowValidatorPort` | `*Adapter` (Rule 3-9) |
@@ -173,7 +173,7 @@ com.example.demo
 │   ├── service/validation/                          # 應用服務 (Rule 3-9)
 │   │   └── ExcelValidationApplicationService.java   # 協調驗證管線與回標生成
 │   └── shared/
-│       ├── model/                                   # 領域無關共享模型
+│       ├── model/validation/                        # 驗證模組專屬共享模型
 │       │   └── ExcelRowError.java                   # 違規列/儲存格錯誤事實
 │       └── dto/                                     # DTO 純資料載體
 │           └── ExcelValidationGottenResult.java     # 檢核結果完整報告

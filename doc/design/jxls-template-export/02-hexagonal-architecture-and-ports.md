@@ -627,6 +627,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import com.example.demo.application.service.template.ExcelTemplateCommandService;
+import com.example.demo.application.service.template.ExcelTemplateQueryService;
+import com.example.demo.presentation.assembler.ExcelTemplateResourceAssembler;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -637,23 +642,22 @@ import java.util.List;
 
 /**
  * 宣告式範本 Excel 匯出表現層 REST API 控制器。
+ * 遵循 CQRS 職責收斂，注入 CommandService、QueryService 與 ResourceAssembler。
  */
 @RestController
 @RequestMapping("/api/v1/excel/templates")
 public class ExcelTemplateExportController {
 
-    private final ExportTemplateExcelUseCase exportTemplateExcelUseCase;
-    private final StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
-    private final ExcelTemplateRegistryPort templateRegistryPort;
+    private final ExcelTemplateCommandService templateCommandService;
+    private final ExcelTemplateQueryService templateQueryService;
     private final ExcelTemplateResourceAssembler resourceAssembler;
 
-    public ExcelTemplateExportController(ExportTemplateExcelUseCase exportTemplateExcelUseCase,
-                                         StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase,
-                                         ExcelTemplateRegistryPort templateRegistryPort,
+    @Autowired
+    public ExcelTemplateExportController(ExcelTemplateCommandService templateCommandService,
+                                         ExcelTemplateQueryService templateQueryService,
                                          ExcelTemplateResourceAssembler resourceAssembler) {
-        this.exportTemplateExcelUseCase = exportTemplateExcelUseCase;
-        this.streamExportTemplateExcelUseCase = streamExportTemplateExcelUseCase;
-        this.templateRegistryPort = templateRegistryPort;
+        this.templateCommandService = templateCommandService;
+        this.templateQueryService = templateQueryService;
         this.resourceAssembler = resourceAssembler;
     }
 
@@ -662,7 +666,7 @@ public class ExcelTemplateExportController {
      */
     @GetMapping
     public ResponseEntity<List<ExcelTemplateRetrievedResource>> listTemplates() {
-        List<ExcelTemplateRetrievedResource> list = templateRegistryPort.listTemplates()
+        List<ExcelTemplateRetrievedResource> list = templateQueryService.listTemplates(ListExcelTemplateQuery.all())
             .stream()
             .map(resourceAssembler::toResource)
             .toList();

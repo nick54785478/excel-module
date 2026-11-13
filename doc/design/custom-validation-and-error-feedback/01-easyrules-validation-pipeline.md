@@ -29,7 +29,7 @@
 
 ### 2.1 儲存格錯誤詳細描述：`ExcelRowError`
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.model.validation;
 
 /**
  * 試算表單一儲存格錯誤事實純資料載體 (Excel Row Error Fact)

@@ -21,7 +21,7 @@
 ## 各範本欄位結構與測試詳情
 
 ### 1. `ORDER_IMPORT_SUCCESS.xlsx` (訂單合格匯入範本)
-* **對應模型**：[`OrderModel.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/OrderModel.java)
+* **對應模型**：[`OrderModel.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/OrderModel.java)
 * **欄位結構**：
   | 欄位索引 (0-based) | 欄位名稱 | 範例值 | 型別 | 說明 |
   | :---: | :--- | :--- | :--- | :--- |
@@ -63,7 +63,7 @@
 ---
 
 ### 3. `PRODUCT_IMPORT_SUCCESS.xlsx` (商品主檔合格範本)
-* **對應模型**：[`ProductRecordModel.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ProductRecordModel.java)
+* **對應模型**：[`ProductRecordModel.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/ProductRecordModel.java)
 * **欄位結構**：
   | 欄位索引 | 欄位名稱 | 範例值 | 型別 | 說明 |
   | :---: | :--- | :--- | :--- | :--- |

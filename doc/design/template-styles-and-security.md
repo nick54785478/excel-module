@@ -59,10 +59,10 @@ flowchart TD
 | **Application (Port Out)**| [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java) | 依 `reportKey` 動態獲取裝飾策略之工廠輸出通訊埠 | `*Port` (Rule 3-8) |
 | **Application (Port Out)**| [`ExcelWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/core/ExcelWriterPort.java) | 實體 Excel 二進位檔案寫入技術契約 | `*Port` (Rule 3-8) |
 | **Application (Strategy)**| [`ExcelReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java) | 應用層共用策略契約 SPI，由工廠管理與路由 | Strategy SPI |
-| **Application (Model)**   | [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java) | 包含標題、密碼、原始資料之不可變上下文 Record | Java 21 Record |
-| **Application (Model)**   | [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/CellRange.java) | 跨欄跨列矩形合併區間純數值物件 | Java 21 Record |
-| **Application (Model)**   | [`SheetProtectionConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetProtectionConfig.java) | 工作表防護密碼與限制設定純資料物件 | Java 21 Record |
-| **Application (Model)**   | [`SheetHeaderFooterConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/SheetHeaderFooterConfig.java) | 列印頁首頁尾與審計機密標籤純資料物件 | Java 21 Record |
+| **Application (Context)** | [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ReportDecorationContext.java) | 包含標題、密碼、原始資料之不可變上下文 Record | Java 21 Record |
+| **Application (VO)**      | [`CellRange`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/CellRange.java) | 跨欄跨列矩形合併區間純數值物件 | Java 21 Record |
+| **Application (VO)**      | [`SheetProtectionConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/SheetProtectionConfig.java) | 工作表防護密碼與限制設定純資料物件 | Java 21 Record |
+| **Application (VO)**      | [`SheetHeaderFooterConfig`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/vo/SheetHeaderFooterConfig.java) | 列印頁首頁尾與審計機密標籤純資料物件 | Java 21 Record |
 | **Infrastructure (Adapter)** | [`SpringReportDecoratorFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java) | 自動收集所有 Strategy Bean，提供 $O(1)$ 查找 | `*Adapter` (Rule 3-9) |
 | **Infrastructure (Strategy)**| [`ProcurementReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/ProcurementReportDecoratorStrategy.java) | 採購月報專屬排版：合計列、SUM 公式、A~D 跨欄合併 | Strategy Component |
 | **Infrastructure (Strategy)**| [`BomCostAnalysisReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/BomCostAnalysisReportDecoratorStrategy.java) | BOM 成本分析排版：A~K 跨欄合併、L 欄 SUM 公式、深海軍藍 (#1B365D) 配色與密碼防護 | Strategy Component |
@@ -151,8 +151,13 @@ com.example.demo
 │   │   └── ExcelReportApplicationService.java       # 流程協調與策略調度
 │   └── shared/
 │       ├── strategy/                                # 應用層策略契約 SPI
-│       │   ├── ExcelReportDecoratorStrategy.java    # 樣式裝飾策略介面
-│       │   └── ReportDecorationContext.java         # 裝飾執行上下文
+│       │   └── ExcelReportDecoratorStrategy.java    # 樣式裝飾策略介面
+│       ├── context/                                 # 裝飾執行上下文
+│       │   └── ReportDecorationContext.java
+│       ├── vo/                                      # 試算表樣式與防護純值物件
+│       │   ├── CellRange.java
+│       │   ├── SheetProtectionConfig.java
+│       │   └── SheetHeaderFooterConfig.java
 │       └── command/                                 # 寫入命令載體
 │           └── ExportFinancialReportCommand.java
 │

@@ -67,8 +67,8 @@ package com.example.demo.infrastructure.validator.rules;
 import java.math.BigDecimal;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
-import com.example.demo.application.shared.model.ExcelRowError;
-import com.example.demo.application.shared.model.OrderModel;
+import com.example.demo.application.shared.model.demo.OrderModel;
+import com.example.demo.application.shared.model.validation.ExcelRowError;
 
 /**
  * 訂單金額合法性檢核規則 (Order Amount Validation Rule)
@@ -117,7 +117,7 @@ public class OrderAmountValidationRule extends AbstractExcelRowValidationRule<Or
 
 ## 4. 錯誤事實模型與視覺化回標機制
 
-### 4.1 錯誤事實載體：[`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ExcelRowError.java)
+### 4.1 錯誤事實載體：[`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/validation/ExcelRowError.java)
 ```java
 public record ExcelRowError(
     int rowIndex,        // 1-based 列號 (對齊 Excel 實際行數)

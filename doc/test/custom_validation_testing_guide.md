@@ -50,8 +50,8 @@ flowchart TD
    * 嚴格禁止傳統「Fail-Fast」遇錯即斷行為。
    * 即使第 2 列出錯，系統仍須持續掃描至最後一列，並在同一列中同時觸發多項不同規則（例如金額負數且數量為零）。
 2. **雙軌反序列化支援**：
-   * 傳統 **JavaBean 模式**（如 [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/OrderModel.java)）。
-   * 現代 **Java 21 Record 模式**（如 [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ProductRecordModel.java)）。
+   * 傳統 **JavaBean 模式**（如 [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/OrderModel.java)）。
+   * 現代 **Java 21 Record 模式**（如 [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/ProductRecordModel.java)）。
 3. **高傳真視覺化錯誤回標檔**：
    * 保持原始上傳檔案之所有工作表、字體與排版樣式。
    * 違規儲存格精確套用淡紅底色（`#FFC7CE` / ROSE）與深紅文字（`#9C0006` / DARK_RED）。
@@ -82,10 +82,10 @@ flowchart TD
 
 | 測試範本檔案 | 對應模型 | 測試資料筆數 | 預期檢核結果 | 違規列號與原因分析 |
 | :--- | :--- | :---: | :---: | :--- |
-| [`ORDER_IMPORT_SUCCESS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/ORDER_IMPORT_SUCCESS.xlsx) | [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/OrderModel.java) | 3 | **100% 合格** | 全數通過，無任何違規錯誤。 |
-| [`ORDER_IMPORT_WITH_ERRORS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/ORDER_IMPORT_WITH_ERRORS.xlsx) | [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/OrderModel.java) | 4 | **4 處錯誤違規** | • **第 3 列 (ORD-ERR-002)**：金額 `-500.00` 違規<br>• **第 4 列 (ORD-ERR-003)**：數量 `0` 且金額 `0.00` (同時觸發兩項規則)<br>• **第 5 列 (ORD-ERR-004)**：數量 `-5` 違規 |
-| [`PRODUCT_IMPORT_SUCCESS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/PRODUCT_IMPORT_SUCCESS.xlsx) | [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ProductRecordModel.java) | 3 | **100% 合格** | Record 不可變模型宣告式映射全數合格。 |
-| [`PRODUCT_IMPORT_WITH_ERRORS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/PRODUCT_IMPORT_WITH_ERRORS.xlsx) | [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ProductRecordModel.java) | 4 | **3 處錯誤違規** | • **第 3 列 (PROD-E01)**：售價 `-120.00` 違規<br>• **第 4 列 (PROD-E02)**：售價 `0.00` 違規<br>• **第 5 列 (PROD-E03)**：庫存量 `-50` 違規 |
+| [`ORDER_IMPORT_SUCCESS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/ORDER_IMPORT_SUCCESS.xlsx) | [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/OrderModel.java) | 3 | **100% 合格** | 全數通過，無任何違規錯誤。 |
+| [`ORDER_IMPORT_WITH_ERRORS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/ORDER_IMPORT_WITH_ERRORS.xlsx) | [`OrderModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/OrderModel.java) | 4 | **4 處錯誤違規** | • **第 3 列 (ORD-ERR-002)**：金額 `-500.00` 違規<br>• **第 4 列 (ORD-ERR-003)**：數量 `0` 且金額 `0.00` (同時觸發兩項規則)<br>• **第 5 列 (ORD-ERR-004)**：數量 `-5` 違規 |
+| [`PRODUCT_IMPORT_SUCCESS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/PRODUCT_IMPORT_SUCCESS.xlsx) | [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/ProductRecordModel.java) | 3 | **100% 合格** | Record 不可變模型宣告式映射全數合格。 |
+| [`PRODUCT_IMPORT_WITH_ERRORS.xlsx`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/template/PRODUCT_IMPORT_WITH_ERRORS.xlsx) | [`ProductRecordModel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/demo/ProductRecordModel.java) | 4 | **3 處錯誤違規** | • **第 3 列 (PROD-E01)**：售價 `-120.00` 違規<br>• **第 4 列 (PROD-E02)**：售價 `0.00` 違規<br>• **第 5 列 (PROD-E03)**：庫存量 `-50` 違規 |
 
 ---
 

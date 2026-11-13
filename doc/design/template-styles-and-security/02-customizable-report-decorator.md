@@ -47,7 +47,7 @@ flowchart LR
    * 在 Application Layer 定義 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java)。
    * Application Service 只需依賴此工廠輸出埠，傳入 Key 即時取得對應策略，完全不知道底層有哪些具體排版類別。
 3. **不可變通用裝飾上下文 (Pure Immutable Context)**：
-   * 透過 Java 21 Record 定義 [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java)，安全傳遞標題、密碼、機密等級、原始資料清單與擴充參數。
+   * 透過 Java 21 Record 定義 [`ReportDecorationContext`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ReportDecorationContext.java)，安全傳遞標題、密碼、機密等級、原始資料清單與擴充參數。
 4. **自動化策略收錄 (Zero-Config Auto-Registration)**：
    * 在 Infrastructure Layer 的適配器 [`SpringReportDecoratorFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java) 中，利用 Spring 的 `List<ExcelReportDecoratorStrategy>` 自動注入特性，在容器啟動時自動掃描收錄所有策略 Bean，無需手動註冊。
 5. **與現有 `ExcelTemplateRegistry` 形成完整閉環**：
@@ -165,7 +165,7 @@ sequenceDiagram
 package com.example.demo.application.shared.strategy;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 
 /**
  * 企業級報表裝飾策略介面 (Excel Report Decorator Strategy SPI)
@@ -236,11 +236,11 @@ public interface ExcelReportDecoratorFactoryPort {
 
 ---
 
-### 4.3 通用裝飾上下文值物件：`ReportDecorationContext`
-座落於 `application/shared/model/`，純 Java 21 Record，零外部框架侵入。
+### 4.3 通用裝飾上下文物件：`ReportDecorationContext`
+座落於 `application/shared/context/`，純 Java 21 Record，零外部框架侵入。
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.context;
 
 import java.util.Collections;
 import java.util.List;
@@ -385,12 +385,12 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.ReportDecorationContext;
-import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.application.shared.strategy.ExcelReportStrategyKeys;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.vo.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 
 /**
  * 物料採購損益月報專屬裝飾策略 (Procurement Report Decorator Strategy)
@@ -467,12 +467,12 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.CellRange;
-import com.example.demo.application.shared.model.ReportDecorationContext;
-import com.example.demo.application.shared.model.SheetHeaderFooterConfig;
-import com.example.demo.application.shared.model.SheetProtectionConfig;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.application.shared.strategy.ExcelReportStrategyKeys;
+import com.example.demo.application.shared.vo.CellRange;
+import com.example.demo.application.shared.vo.SheetHeaderFooterConfig;
+import com.example.demo.application.shared.vo.SheetProtectionConfig;
 
 /**
  * 產品結構配方與標準成本分析專屬裝飾策略 (BOM Cost Analysis Report Decorator Strategy)
@@ -560,7 +560,7 @@ public class BomCostAnalysisReportDecoratorStrategy implements ExcelReportDecora
 package com.example.demo.infrastructure.report;
 
 import com.example.demo.application.shared.command.WriteSheetCommand;
-import com.example.demo.application.shared.model.ReportDecorationContext;
+import com.example.demo.application.shared.context.ReportDecorationContext;
 import com.example.demo.application.shared.strategy.ExcelReportDecoratorStrategy;
 import com.example.demo.application.shared.strategy.ExcelReportStrategyKeys;
 
@@ -655,7 +655,7 @@ public class ExcelReportApplicationService implements ExportFinancialReportUseCa
 
 * [x] **Step 1**：在 `application/shared/strategy/` 建立策略契約介面 [`ExcelReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java)（嚴守 Rule 3-8，避免非 Port 介面污染 `port/out/`）。
 * [x] **Step 2**：在 `application/port/out/` 建立工廠輸出埠 [`ExcelReportDecoratorFactoryPort.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java)。
-* [x] **Step 3**：在 `application/shared/model/` 建立通用上下文 [`ReportDecorationContext.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/ReportDecorationContext.java)。
+* [x] **Step 3**：在 `application/shared/context/` 建立通用上下文 [`ReportDecorationContext.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ReportDecorationContext.java)。
 * [x] **Step 4**：在 `infrastructure/adapter/report/` 實作工廠適配器 [`SpringReportDecoratorFactoryAdapter.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java)，並將具體裝飾策略與保底策略抽離至 `infrastructure/report/`（[`DefaultNoOpDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/DefaultNoOpDecoratorStrategy.java)）。
 * [x] **Step 5**：將既有採購裝飾器重構為具體策略並抽離出 adapter package：[`ProcurementReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategy.java)。
 * [x] **Step 6**：依據現有 `Bom` 與 `Material` 領域聚合根，建立自訂策略並置於 `infrastructure/report/`：[`BomCostAnalysisReportDecoratorStrategy.java`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/BomCostAnalysisReportDecoratorStrategy.java)（Key: `ExcelReportStrategyKeys.BOM_COST_ANALYSIS`）。

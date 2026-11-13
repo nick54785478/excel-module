@@ -60,7 +60,7 @@
 適用於既有業務實體或需要可變狀態（Setter）的場景：
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.model.demo;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -99,7 +99,7 @@ public class OrderModel {
 適用於純資料載體（Pure Data Carrier），具備線程安全與不可變特性：
 
 ```java
-package com.example.demo.application.shared.model;
+package com.example.demo.application.shared.model.demo;
 
 import java.math.BigDecimal;
 import com.example.demo.application.annotation.mapping.ExcelColumn;

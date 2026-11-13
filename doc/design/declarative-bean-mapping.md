@@ -155,8 +155,8 @@ com.example.demo
 │   ├── service/core/                                # 應用服務 (Rule 3-9)
 │   │   ├── ExcelCommandService.java                 # 呼叫 ExcelBeanAssembler 轉換後寫出
 │   │   └── ExcelQueryService.java                   # 讀取結構化字典後反序列化為 Bean
-│   └── shared/model/                                # 展示用模型 (JavaBean & Record)
-│       ├── OrderImportModel.java                    # 標準 JavaBean 範例
+│   └── shared/model/demo/                           # 展示用模型 (JavaBean & Record)
+│       ├── OrderModel.java                          # 標準 JavaBean 範例
 │       └── ProductRecordModel.java                  # Java 21 Record 範例
 │
 ├── infrastructure/adapter/core/                     # 基礎設施層 (Outbound Adapters)
