@@ -61,6 +61,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.BOM_COST_ANALYSIS_EXAMPLE_JSON;
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON;
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.MAPPED_MATERIAL_MASTER_EXAMPLE_JSON;
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON;
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.MATERIAL_MASTER_EXAMPLE_JSON;
+import static com.example.demo.presentation.controller.template.ExcelTemplateOpenApiExamples.PROCUREMENT_COMPARISON_EXAMPLE_JSON;
+
 /**
  * 宣告式範本 Excel 匯出與維護管理 REST API 控制器 (Presentation Layer - Inbound Adapter)。
  * <p>
@@ -78,270 +85,24 @@ public class ExcelTemplateExportController {
 
     private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    private static final String PROCUREMENT_COMPARISON_EXAMPLE_JSON = """
-            {
-              "outputFileName": "quotation_comparison.xlsx",
-              "dataModel": {
-                "inquiryNo": "INQ-202611-008",
-                "inquiryDate": "2026-11-10",
-                "vendorNames": "漢翔精密, 長榮航太, 神盾精密",
-                "quotationItems": [
-                  {
-                    "materialCode": "MAT-SFG-001",
-                    "materialName": "飛控主板電路總成",
-                    "specification": "FC-STM32H7",
-                    "requiredQuantity": 50,
-                    "vendorName": "漢翔精密",
-                    "quoteUnitPrice": 4520.00,
-                    "targetPrice": 4500.00,
-                    "vendorA_Price": 4800.00,
-                    "vendorB_Price": 4650.00,
-                    "vendorC_Price": 4520.00,
-                    "lowestPrice": 4520.00,
-                    "priceDiff": 20.00
-                  },
-                  {
-                    "materialCode": "MAT-SFG-002",
-                    "materialName": "2212 920KV 無刷動力馬達組",
-                    "specification": "920KV CW/CCW",
-                    "requiredQuantity": 200,
-                    "vendorName": "神盾精密",
-                    "quoteUnitPrice": 640.00,
-                    "targetPrice": 650.00,
-                    "vendorA_Price": 680.00,
-                    "vendorB_Price": 660.00,
-                    "vendorC_Price": 640.00,
-                    "lowestPrice": 640.00,
-                    "priceDiff": -10.00
-                  },
-                  {
-                    "materialCode": "MAT-RM-0076",
-                    "materialName": "航太級碳纖維十字機臂管件",
-                    "specification": "3K Carbon D16",
-                    "requiredQuantity": 100,
-                    "vendorName": "神盾精密",
-                    "quoteUnitPrice": 1190.00,
-                    "targetPrice": 1200.00,
-                    "vendorA_Price": 1250.00,
-                    "vendorB_Price": 1220.00,
-                    "vendorC_Price": 1190.00,
-                    "lowestPrice": 1190.00,
-                    "priceDiff": -10.00
-                  }
-                ]
-              }
-            }
-            """;
-
-    private static final String MATERIAL_MASTER_EXAMPLE_JSON = """
-            {
-              "outputFileName": "material_master_export.xlsx",
-              "dataModel": {
-                "companyName": "高準精密航太科技股份有限公司",
-                "exportDate": "2026-11-10",
-                "materials": [
-                  {
-                    "materialCode": "MAT-SFG-001",
-                    "materialName": "飛控主板電路總成",
-                    "specification": "FC-STM32H7",
-                    "category": "半成品",
-                    "unit": "套/組",
-                    "standardCost": 4800.00
-                  },
-                  {
-                    "materialCode": "MAT-SFG-002",
-                    "materialName": "2212 動力推進總成",
-                    "specification": "920KV 4-Pack",
-                    "category": "半成品",
-                    "unit": "套/組",
-                    "standardCost": 680.00
-                  }
-                ]
-              }
-            }
-            """;
-
-    private static final String BOM_COST_ANALYSIS_EXAMPLE_JSON = """
-            {
-              "outputFileName": "bom_cost_analysis_PRO4K.xlsx",
-              "dataModel": {
-                "parentMaterialCode": "MAT-FG-001",
-                "parentMaterialName": "4K 專業商用巡檢無人機旗艦裝配 (PRO-4K)",
-                "version": "V1.0",
-                "status": "APPROVED",
-                "baseQuantity": 1.00,
-                "currency": "TWD",
-                "items": [
-                  {
-                    "level": 1,
-                    "itemSequence": 10,
-                    "childMaterialCode": "MAT-SFG-001",
-                    "childMaterialName": "飛控主板電路總成",
-                    "specification": "FC-STM32H7",
-                    "category": "半成品",
-                    "unit": "套/組",
-                    "baseQuantity": 1.00,
-                    "scrapRate": 0.01,
-                    "standardCost": 4800.00,
-                    "positionCode": "FC-ASM",
-                    "remark": "高算力航行主控板"
-                  }
-                ]
-              }
-            }
-            """;
-
-    private static final String MAPPED_MATERIAL_MASTER_EXAMPLE_JSON = """
-            {
-              "outputFileName": "material_master_basic.xlsx",
-              "mappingDefinition": {
-                "templateKey": "MATERIAL_MASTER",
-                "rootCollectionVar": "materials",
-                "itemAlias": "m",
-                "globalMeta": {
-                  "companyName": "神盾航太科技股份有限公司",
-                  "exportDate": "2026-11-10"
-                },
-                "rules": [
-                  {
-                    "sourcePath": "code.value",
-                    "targetKey": "materialCode"
-                  },
-                  {
-                    "sourcePath": "name",
-                    "targetKey": "materialName"
-                  },
-                  {
-                    "sourcePath": "specification",
-                    "targetKey": "specification"
-                  },
-                  {
-                    "sourcePath": "category",
-                    "targetKey": "category",
-                    "converterKey": "ENUM_DICT"
-                  },
-                  {
-                    "sourcePath": "unit",
-                    "targetKey": "unit"
-                  },
-                  {
-                    "sourcePath": "standardCost",
-                    "targetKey": "standardCost",
-                    "converterKey": "CURRENCY",
-                    "formatPattern": "#,##0.00"
-                  }
-                ]
-              }
-            }
-            """;
-
-    private static final String MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON = """
-            {
-              "outputFileName": "custom_tenant_material_export.xlsx",
-              "sourceData": [
-                {
-                  "itemNo": "TENANT-A-01",
-                  "title": "航太專用鈦合金板材",
-                  "specDesc": "Ti-6Al-4V 2.0mm",
-                  "categoryLabel": "RAW_MATERIAL",
-                  "unitLabel": "KG",
-                  "costValue": 3500.00
-                },
-                {
-                  "itemNo": "TENANT-A-02",
-                  "title": "高強度航空鋁合金條",
-                  "specDesc": "Al-7075-T6 D20",
-                  "categoryLabel": "RAW_MATERIAL",
-                  "unitLabel": "M",
-                  "costValue": 1280.00
-                }
-              ],
-              "mappingDefinition": {
-                "templateKey": "MATERIAL_MASTER",
-                "rootCollectionVar": "materials",
-                "itemAlias": "m",
-                "globalMeta": {
-                  "companyName": "租戶 A (台灣航太精密加工)",
-                  "exportDate": "2026-11-10"
-                },
-                "rules": [
-                  {
-                    "sourcePath": "itemNo",
-                    "targetKey": "materialCode"
-                  },
-                  {
-                    "sourcePath": "title",
-                    "targetKey": "materialName"
-                  },
-                  {
-                    "sourcePath": "specDesc",
-                    "targetKey": "specification"
-                  },
-                  {
-                    "sourcePath": "categoryLabel",
-                    "targetKey": "category",
-                    "converterKey": "ENUM_DICT"
-                  },
-                  {
-                    "sourcePath": "unitLabel",
-                    "targetKey": "unit"
-                  },
-                  {
-                    "sourcePath": "costValue",
-                    "targetKey": "standardCost",
-                    "converterKey": "CURRENCY",
-                    "formatPattern": "#,##0.00"
-                  }
-                ]
-              }
-            }
-            """;
-
-    private static final String MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON = """
-            {
-              "outputFileName": "procurement_comparison_mapped.xlsx",
-              "mappingDefinition": {
-                "templateKey": "PROCUREMENT_COMPARISON",
-                "rootCollectionVar": "quotationItems",
-                "itemAlias": "item",
-                "globalMeta": {
-                  "inquiryNo": "INQ-202611-008",
-                  "inquiryDate": "2026-11-10",
-                  "vendorNames": "漢翔精密, 長榮航太, 神盾精密"
-                },
-                "rules": [
-                  {
-                    "sourcePath": "code.value",
-                    "targetKey": "materialCode"
-                  },
-                  {
-                    "sourcePath": "name",
-                    "targetKey": "materialName"
-                  },
-                  {
-                    "sourcePath": "specification",
-                    "targetKey": "specification"
-                  },
-                  {
-                    "sourcePath": "standardCost",
-                    "targetKey": "quoteUnitPrice",
-                    "converterKey": "CURRENCY",
-                    "formatPattern": "#,##0.00"
-                  }
-                ]
-              }
-            }
-            """;
-
+    // =========================================================================
+    // 1. 範本匯出核心用例與輸出埠依賴 (Core Export UseCases & Outbound Ports)
+    // =========================================================================
     private final ExportTemplateExcelUseCase exportTemplateExcelUseCase;
     private final StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
     private final ExcelTemplateRegistryPort templateRegistryPort;
     private final ExcelTemplateResourceAssembler resourceAssembler;
 
+    // =========================================================================
+    // 2. 欄位動態映射與預覽用例依賴 (Field Mapping & Preview UseCases)
+    // =========================================================================
     private final ExportTemplateWithMappingUseCase exportTemplateWithMappingUseCase;
     private final StreamExportTemplateWithMappingUseCase streamExportTemplateWithMappingUseCase;
     private final PreviewTemplateMappingUseCase previewTemplateMappingUseCase;
 
+    // =========================================================================
+    // 3. 範本規格 CRUD 管理用例依賴 (Template Specification CRUD UseCases)
+    // =========================================================================
     private final CreateExcelTemplateUseCase createExcelTemplateUseCase;
     private final UpdateExcelTemplateUseCase updateExcelTemplateUseCase;
     private final DeleteExcelTemplateUseCase deleteExcelTemplateUseCase;
@@ -349,7 +110,12 @@ public class ExcelTemplateExportController {
     private final ListExcelTemplateUseCase listExcelTemplateUseCase;
 
     /**
-     * 相容輕量建構函式。
+     * 輕量相容建構函式：僅注入基礎匯出用例與儲存庫。
+     *
+     * @param exportTemplateExcelUseCase       標準緩衝匯出用例
+     * @param streamExportTemplateExcelUseCase 標準串流匯出用例
+     * @param templateRegistryPort             範本儲存庫輸出埠
+     * @param resourceAssembler                表現層資料轉換組裝器
      */
     public ExcelTemplateExportController(
             ExportTemplateExcelUseCase exportTemplateExcelUseCase,
@@ -361,7 +127,15 @@ public class ExcelTemplateExportController {
     }
 
     /**
-     * 相容七參建構函式：支援自訂欄位映射與預覽用例。
+     * 中階相容建構函式：支援自訂欄位映射與預覽用例。
+     *
+     * @param exportTemplateExcelUseCase                  標準緩衝匯出用例
+     * @param streamExportTemplateExcelUseCase            標準串流匯出用例
+     * @param templateRegistryPort                        範本儲存庫輸出埠
+     * @param resourceAssembler                           表現層資料轉換組裝器
+     * @param exportTemplateWithMappingUseCase            動態映射緩衝匯出用例
+     * @param streamExportTemplateWithMappingUseCase      動態映射串流匯出用例
+     * @param previewTemplateMappingUseCase               動態映射預覽用例
      */
     public ExcelTemplateExportController(
             ExportTemplateExcelUseCase exportTemplateExcelUseCase,
@@ -377,7 +151,20 @@ public class ExcelTemplateExportController {
     }
 
     /**
-     * 完整功能建構函式：支援範本規格 CRUD 維護用例與動態欄位映射。
+     * 完整功能依賴注入建構函式：支援全功能範本規格 CRUD 維護用例與動態欄位映射引擎。
+     *
+     * @param exportTemplateExcelUseCase                  標準緩衝匯出用例 (必填)
+     * @param streamExportTemplateExcelUseCase            標準串流匯出用例 (必填)
+     * @param templateRegistryPort                        範本儲存庫輸出埠 (必填)
+     * @param resourceAssembler                           表現層資料轉換組裝器 (必填)
+     * @param exportTemplateWithMappingUseCase            動態映射緩衝匯出用例 (選填)
+     * @param streamExportTemplateWithMappingUseCase      動態映射串流匯出用例 (選填)
+     * @param previewTemplateMappingUseCase               動態映射預覽用例 (選填)
+     * @param createExcelTemplateUseCase                  範本規格建立用例 (選填)
+     * @param updateExcelTemplateUseCase                  範本規格更新用例 (選填)
+     * @param deleteExcelTemplateUseCase                  範本規格刪除用例 (選填)
+     * @param getExcelTemplateUseCase                     單一範本查詢用例 (選填)
+     * @param listExcelTemplateUseCase                    範本清單查詢用例 (選填)
      */
     @Autowired
     public ExcelTemplateExportController(
