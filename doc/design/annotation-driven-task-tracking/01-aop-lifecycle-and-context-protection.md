@@ -141,13 +141,19 @@ public final class ExcelTaskContextHolder {
 ### 巢狀防覆蓋與策略 B (顯式業務宣告模式)：
 本架構採納 **策略 B (顯式業務宣告模式 / Explicit Business Annotation Pattern)**：
 1. **底層適配器零開銷**：底層技術適配器 (`FastExcelWriterAdapter`, `PoiSxssfWriterAdapter`) 保持純粹的資料轉譯職責，不再預設標註 `@TrackExcelTask`。一般呼叫（如小量物料主檔匯出）不經過切面、不建立資料庫長任務記錄、不佔用磁碟暫存空間。
-2. **業務節點精準監控**：`@TrackExcelTask` 僅顯式標註於真正具有巨量資料或長時間執行特性的業務服務節點（例如 `BomCommandService` 與 `BomQueryService` 之批次與串流端點）。
-3. **上下文透明推進**：當標註之業務節點被切面攔截並呼叫 `ExcelTaskContextHolder.bind(...)` 後，底層引擎在每次分批 flush 時自動探測 `if (ExcelTaskContextHolder.isActive())` 並推進進度；未標註任務時則 `isActive() == false`，達成真正的零開銷。
-4. **防重入與防覆蓋保護**：若外部 UseCase 或排程已建立任務，切面直接放行：
+2. **全域開關控制 (Global Configuration Flag)**：透過 `application.properties` 提供 `excel.task.enabled` 開關（預設為 `true`）。
+   - 當 `excel.task.enabled=false` 時，Spring 條件裝配 `@ConditionalOnProperty` 直接不註冊切面 Bean，且切面內部具備 Fast-path 檢查 (`if (!taskTrackingEnabled) return joinPoint.proceed();`)，實現零 AOP 開銷與零資料庫寫入。
+3. **業務節點精準監控**：`@TrackExcelTask` 僅顯式標註於真正具有巨量資料或長時間執行特性的業務服務節點（例如 `BomCommandService` 與 `BomQueryService` 之批次與串流端點）。
+4. **上下文透明推進**：當標註之業務節點被切面攔截並呼叫 `ExcelTaskContextHolder.bind(...)` 後，底層引擎在每次分批 flush 時自動探測 `if (ExcelTaskContextHolder.isActive())` 並推進進度；未標註任務時則 `isActive() == false`，達成真正的零開銷。
+5. **防重入與防覆蓋保護**：若外部 UseCase 或排程已建立任務，切面直接放行：
 ```java
 @Around("@annotation(trackExcelTask)")
 public Object trackTask(ProceedingJoinPoint joinPoint, TrackExcelTask trackExcelTask) throws Throwable {
-    // 關鍵保護：若當前執行緒已有活躍任務，直接放行，避免重複建檔與覆蓋 ThreadLocal
+    // 0. 開關檢查：若未啟用長任務追蹤 (excel.task.enabled = false)，直接放行
+    if (!taskTrackingEnabled) {
+        return joinPoint.proceed();
+    }
+    // 1. 防重入檢查：若當前執行緒已有活躍任務，直接放行，避免重複建檔與覆蓋 ThreadLocal
     if (ExcelTaskContextHolder.isActive()) {
         return joinPoint.proceed();
     }

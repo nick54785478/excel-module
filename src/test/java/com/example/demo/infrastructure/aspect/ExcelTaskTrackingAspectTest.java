@@ -348,5 +348,39 @@ class ExcelTaskTrackingAspectTest {
 		verify(excelTaskRepositoryPort, never()).createTask(any(CreateExcelTaskCommand.class));
 		verify(excelTaskStoragePort, never()).wrapOutputStream(anyString(), anyString(), any(OutputStream.class));
 	}
+
+	/**
+	 * Feature: 長任務追蹤開關控制 (excel.task.enabled Flag)
+	 * Scenario: 當 taskTrackingEnabled 為 false 時，切面直接放行 (bypass)，不建立任務也不落盤
+	 * Given: 建立 taskTrackingEnabled = false 之 ExcelTaskTrackingAspect 代理
+	 * When: 呼叫標註 @TrackExcelTask 之方法
+	 * Then: 業務方法正常執行回傳結果，但未呼叫 excelTaskRepositoryPort 與 excelTaskStoragePort
+	 */
+	@Test
+	@DisplayName("場景：當 taskTrackingEnabled=false 時切面直接放行不建立任何任務記錄")
+	void shouldBypassTaskTrackingWhenFlagDisabled() {
+		// Given: 建立 taskTrackingEnabled = false 的切面
+		ExcelTaskTrackingAspect disabledAspect = new ExcelTaskTrackingAspect(
+				excelTaskRepositoryPort,
+				excelTaskStoragePort,
+				Runnable::run,
+				false
+		);
+		SampleService target = new SampleService();
+		AspectJProxyFactory factory = new AspectJProxyFactory(target);
+		factory.addAspect(disabledAspect);
+		SampleService disabledProxy = factory.getProxy();
+
+		// When: 呼叫標註 @TrackExcelTask 之方法
+		byte[] result = disabledProxy.exportSuccess("disabled.xlsx", 100L);
+
+		// Then: 結果正常回傳，但未建立任何任務
+		assertThat(result).containsExactly(1, 2, 3);
+		verify(excelTaskRepositoryPort, never()).createTask(any(CreateExcelTaskCommand.class));
+		verify(excelTaskRepositoryPort, never()).markProcessing(anyString());
+		verify(excelTaskRepositoryPort, never()).markCompleted(anyString(), anyString(), anyLong());
+		verify(excelTaskStoragePort, never()).store(anyString(), anyString(), any(byte[].class));
+		assertThat(ExcelTaskContextHolder.isActive()).isFalse();
+	}
 }
 

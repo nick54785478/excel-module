@@ -10,7 +10,10 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.expression.EvaluationContext;
@@ -62,6 +65,7 @@ import com.example.demo.application.shared.vo.ExcelTaskType;
  */
 @Aspect
 @Component
+@ConditionalOnProperty(prefix = "excel.task", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ExcelTaskTrackingAspect {
 
 	/**
@@ -80,6 +84,11 @@ public class ExcelTaskTrackingAspect {
 	private final Executor taskExecutor;
 
 	/**
+	 * 是否啟用長任務宣告式追蹤與資料庫記錄開關 (Flag: excel.task.enabled，預設 true)
+	 */
+	private final boolean taskTrackingEnabled;
+
+	/**
 	 * Spring SpEL 表達式解析器，負責動態求值註解宣告之字串表達式
 	 */
 	private final ExpressionParser expressionParser = new SpelExpressionParser();
@@ -90,7 +99,7 @@ public class ExcelTaskTrackingAspect {
 	private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
 	/**
-	 * 建構子依賴注入
+	 * 便捷建構子（預設啟用長任務追蹤）
 	 *
 	 * @param excelTaskRepositoryPort 長任務資料庫輸出埠，不可為空
 	 * @param excelTaskStoragePort    長任務產出檔案儲存庫輸出埠，不可為空
@@ -102,9 +111,29 @@ public class ExcelTaskTrackingAspect {
 			ExcelTaskStoragePort excelTaskStoragePort,
 			@Qualifier("excelTaskExecutor") Executor taskExecutor
 	) {
+		this(excelTaskRepositoryPort, excelTaskStoragePort, taskExecutor, true);
+	}
+
+	/**
+	 * 完整建構子依賴注入（支援外部配置開關）
+	 *
+	 * @param excelTaskRepositoryPort 長任務資料庫輸出埠，不可為空
+	 * @param excelTaskStoragePort    長任務產出檔案儲存庫輸出埠，不可為空
+	 * @param taskExecutor            Excel 專用非同步執行緒池 (Bean 名稱: {@code excelTaskExecutor})，不可為空
+	 * @param taskTrackingEnabled     是否啟用長任務追蹤與記錄 Flag (由配置檔 excel.task.enabled 注入，預設 true)
+	 * @throws NullPointerException 若任何依賴組件為 {@code null}
+	 */
+	@Autowired
+	public ExcelTaskTrackingAspect(
+			ExcelTaskRepositoryPort excelTaskRepositoryPort,
+			ExcelTaskStoragePort excelTaskStoragePort,
+			@Qualifier("excelTaskExecutor") Executor taskExecutor,
+			@Value("${excel.task.enabled:true}") boolean taskTrackingEnabled
+	) {
 		this.excelTaskRepositoryPort = Objects.requireNonNull(excelTaskRepositoryPort, "excelTaskRepositoryPort 不得為空");
 		this.excelTaskStoragePort = Objects.requireNonNull(excelTaskStoragePort, "excelTaskStoragePort 不得為空");
 		this.taskExecutor = Objects.requireNonNull(taskExecutor, "taskExecutor 不得為空");
+		this.taskTrackingEnabled = taskTrackingEnabled;
 	}
 
 	/**
@@ -120,6 +149,11 @@ public class ExcelTaskTrackingAspect {
 	 */
 	@Around("@annotation(trackExcelTask)")
 	public Object trackTask(ProceedingJoinPoint joinPoint, TrackExcelTask trackExcelTask) throws Throwable {
+		// 0. 開關檢查：若未啟用長任務追蹤 (excel.task.enabled = false)，則直接放行不進行任何任務記錄與檔案落盤
+		if (!taskTrackingEnabled) {
+			return joinPoint.proceed();
+		}
+
 		// 1. 防重入檢查：若當前執行緒上下文已有作用中的 Excel 任務 (例如外層 UseCase 或非同步排程已建立任務)，
 		// 則直接沿用現有任務上下文進行串流進度追蹤，避免重複建立任務實體與覆蓋上下文
 		if (ExcelTaskContextHolder.isActive()) {

@@ -420,7 +420,7 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
 
 | 測試類別名稱 | 涵蓋層級 | 驗證場景與 BDD 特性 (Feature & Scenario) |
 | :--- | :--- | :--- |
-| [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspectTest.java) | Infrastructure (AOP) | 1. 驗證標註 `@TrackExcelTask` 方法成功自動建檔、狀態維護並標記 `COMPLETED`<br>2. 驗證方法拋出例外時自動標記 `FAILED` 且釋放上下文<br>3. 驗證 `async = true` 時立即返回受理初值並於背景完成<br>4. 驗證上下文已有作用中任務時自動沿用（防重複建檔 Task Context Joining）<br>5. 驗證業務服務調用 `FastExcelWriterAdapter.writeStream` 串流寫入自動回報進度與落盤<br>6. 驗證業務服務調用 `PoiSxssfWriterAdapter.writeStream` 串流沖刷自動回報進度與落盤<br>7. 驗證策略 B 下未標註 `@TrackExcelTask` 時直接調用 Adapter 不會建立任務（零開銷保證） |
+| [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspectTest.java) | Infrastructure (AOP) | 1. 驗證標註 `@TrackExcelTask` 方法成功自動建檔、狀態維護並標記 `COMPLETED`<br>2. 驗證方法拋出例外時自動標記 `FAILED` 且釋放上下文<br>3. 驗證 `async = true` 時立即返回受理初值並於背景完成<br>4. 驗證上下文已有作用中任務時自動沿用（防重複建檔 Task Context Joining）<br>5. 驗證業務服務調用 `FastExcelWriterAdapter.writeStream` 串流寫入自動回報進度與落盤<br>6. 驗證業務服務調用 `PoiSxssfWriterAdapter.writeStream` 串流沖刷自動回報進度與落盤<br>7. 驗證策略 B 下未標註 `@TrackExcelTask` 時直接調用 Adapter 不會建立任務（零開銷保證）<br>8. 驗證長任務開關 `excel.task.enabled=false` 時切面直接放行 (Bypass) 不建檔不落盤 |
 | [`LocalDirectoryExcelTaskStorageAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/task/LocalDirectoryExcelTaskStorageAdapterTest.java) | Infrastructure (Adapter) | 驗證檔案寫入落盤、`TeeOutputStream` 雙向分流、檔案讀取、刪除與查無檔案空值防護 |
 | [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java) | Presentation (REST) | 1. 驗證雙路徑 `GET /{taskId}/progress` 與 `GET /{taskId}` 成功回傳 HTTP 200 OK 與進度結構<br>2. 驗證查詢不存在任務時由全域例外處理器轉譯為 HTTP 404 Not Found<br>3. 驗證 `GET /{taskId}/download` 成功下載已完成任務之 Excel 二進位檔案<br>4. 驗證檔案未就緒時安全回傳 HTTP 404 |
 | [`ExcelTaskRepositoryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapterTest.java) | Infrastructure (Adapter) | 驗證 JPA ORM 實體映射、進度更新、狀態變更持久化與百分比浮點數精準計算 |
@@ -447,4 +447,15 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
   }
   ```
   若外層已經建立了長任務上下文，內部呼叫會自動繼承現有任務，並直接將串流產生的筆數累積到既有任務中，確保任務實體全域唯一。
+
+### Q4：如何完全關閉長任務紀錄與落盤（例如效能基準測試環境）？
+* **配置方式**：在 `application.properties` 中加入：
+  ```properties
+  # 停用長任務宣告式追蹤與資料庫記錄 (預設為 true)
+  excel.task.enabled=false
+  ```
+* **運作機制**：
+  1. **Spring 容器層級**：透過 `@ConditionalOnProperty(prefix = "excel.task", name = "enabled", havingValue = "true", matchIfMissing = true)`，Spring 不會裝配 `ExcelTaskTrackingAspect` 切面 Bean，達成零 AOP 代理開銷。
+  2. **切面防護層級**：即使在非 Spring 託管或手動代理情境下，切面內部亦具備 fast-path 檢查 `if (!taskTrackingEnabled) return joinPoint.proceed();`，直接執行原生業務方法，不建立資料庫紀錄、不包裝 TeeOutputStream、不耗用磁碟空間。
+
 
