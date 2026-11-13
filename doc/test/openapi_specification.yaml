@@ -1158,11 +1158,36 @@ components:
         outputFileName:
           type: string
           description: 自訂輸出檔案名稱
-          example: custom_material_master.xlsx
+          example: material_master_basic.xlsx
         sourceData:
           description: 自訂來源業務資料清單或物件 (選填，若未填寫則系統依 templateKey 自動自領域儲存庫載入)
         mappingDefinition:
           $ref: '#/components/schemas/TemplateMappingDefinition'
+      example:
+        outputFileName: "material_master_basic.xlsx"
+        mappingDefinition:
+          templateKey: "MATERIAL_MASTER"
+          rootCollectionVar: "materials"
+          itemAlias: "m"
+          globalMeta:
+            companyName: "神盾航太科技股份有限公司"
+            exportDate: "2026-11-10"
+          rules:
+            - sourcePath: "code.value"
+              targetKey: "materialCode"
+            - sourcePath: "name"
+              targetKey: "materialName"
+            - sourcePath: "specification"
+              targetKey: "specification"
+            - sourcePath: "category"
+              targetKey: "category"
+              converterKey: "ENUM_DICT"
+            - sourcePath: "unit"
+              targetKey: "unit"
+            - sourcePath: "standardCost"
+              targetKey: "standardCost"
+              converterKey: "CURRENCY"
+              formatPattern: "#,##0.00"
 
     TemplateMappingDefinition:
       type: object

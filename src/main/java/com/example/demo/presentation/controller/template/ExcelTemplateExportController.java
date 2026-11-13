@@ -191,6 +191,148 @@ public class ExcelTemplateExportController {
             }
             """;
 
+    private static final String MAPPED_MATERIAL_MASTER_EXAMPLE_JSON = """
+            {
+              "outputFileName": "material_master_basic.xlsx",
+              "mappingDefinition": {
+                "templateKey": "MATERIAL_MASTER",
+                "rootCollectionVar": "materials",
+                "itemAlias": "m",
+                "globalMeta": {
+                  "companyName": "神盾航太科技股份有限公司",
+                  "exportDate": "2026-11-10"
+                },
+                "rules": [
+                  {
+                    "sourcePath": "code.value",
+                    "targetKey": "materialCode"
+                  },
+                  {
+                    "sourcePath": "name",
+                    "targetKey": "materialName"
+                  },
+                  {
+                    "sourcePath": "specification",
+                    "targetKey": "specification"
+                  },
+                  {
+                    "sourcePath": "category",
+                    "targetKey": "category",
+                    "converterKey": "ENUM_DICT"
+                  },
+                  {
+                    "sourcePath": "unit",
+                    "targetKey": "unit"
+                  },
+                  {
+                    "sourcePath": "standardCost",
+                    "targetKey": "standardCost",
+                    "converterKey": "CURRENCY",
+                    "formatPattern": "#,##0.00"
+                  }
+                ]
+              }
+            }
+            """;
+
+    private static final String MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON = """
+            {
+              "outputFileName": "custom_tenant_material_export.xlsx",
+              "sourceData": [
+                {
+                  "itemNo": "TENANT-A-01",
+                  "title": "航太專用鈦合金板材",
+                  "specDesc": "Ti-6Al-4V 2.0mm",
+                  "categoryLabel": "RAW_MATERIAL",
+                  "unitLabel": "KG",
+                  "costValue": 3500.00
+                },
+                {
+                  "itemNo": "TENANT-A-02",
+                  "title": "高強度航空鋁合金條",
+                  "specDesc": "Al-7075-T6 D20",
+                  "categoryLabel": "RAW_MATERIAL",
+                  "unitLabel": "M",
+                  "costValue": 1280.00
+                }
+              ],
+              "mappingDefinition": {
+                "templateKey": "MATERIAL_MASTER",
+                "rootCollectionVar": "materials",
+                "itemAlias": "m",
+                "globalMeta": {
+                  "companyName": "租戶 A (台灣航太精密加工)",
+                  "exportDate": "2026-11-10"
+                },
+                "rules": [
+                  {
+                    "sourcePath": "itemNo",
+                    "targetKey": "materialCode"
+                  },
+                  {
+                    "sourcePath": "title",
+                    "targetKey": "materialName"
+                  },
+                  {
+                    "sourcePath": "specDesc",
+                    "targetKey": "specification"
+                  },
+                  {
+                    "sourcePath": "categoryLabel",
+                    "targetKey": "category",
+                    "converterKey": "ENUM_DICT"
+                  },
+                  {
+                    "sourcePath": "unitLabel",
+                    "targetKey": "unit"
+                  },
+                  {
+                    "sourcePath": "costValue",
+                    "targetKey": "standardCost",
+                    "converterKey": "CURRENCY",
+                    "formatPattern": "#,##0.00"
+                  }
+                ]
+              }
+            }
+            """;
+
+    private static final String MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON = """
+            {
+              "outputFileName": "procurement_comparison_mapped.xlsx",
+              "mappingDefinition": {
+                "templateKey": "PROCUREMENT_COMPARISON",
+                "rootCollectionVar": "quotationItems",
+                "itemAlias": "item",
+                "globalMeta": {
+                  "inquiryNo": "INQ-202611-008",
+                  "inquiryDate": "2026-11-10",
+                  "vendorNames": "漢翔精密, 長榮航太, 神盾精密"
+                },
+                "rules": [
+                  {
+                    "sourcePath": "code.value",
+                    "targetKey": "materialCode"
+                  },
+                  {
+                    "sourcePath": "name",
+                    "targetKey": "materialName"
+                  },
+                  {
+                    "sourcePath": "specification",
+                    "targetKey": "specification"
+                  },
+                  {
+                    "sourcePath": "standardCost",
+                    "targetKey": "quoteUnitPrice",
+                    "converterKey": "CURRENCY",
+                    "formatPattern": "#,##0.00"
+                  }
+                ]
+              }
+            }
+            """;
+
     private final ExportTemplateExcelUseCase exportTemplateExcelUseCase;
     private final StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
     private final ExcelTemplateRegistryPort templateRegistryPort;
@@ -511,7 +653,35 @@ public class ExcelTemplateExportController {
      * @param resource    自訂映射請求本文
      * @return Excel (.xlsx) 二進位位元組附件下載
      */
-    @Operation(summary = "依據自訂欄位映射匯出 Excel 範本報表", description = "接收來源資料物件清單與宣告式欄位映射規格 (JSON)，動態適配轉換後執行 JXLS 渲染")
+    @Operation(
+            summary = "依據自訂欄位映射匯出 Excel 範本報表",
+            description = "接收來源資料物件清單與宣告式欄位映射規格 (JSON)，動態適配轉換後執行 JXLS 渲染",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "動態欄位映射匯出請求本文，包含 mappingDefinition 規則集合與自訂 sourceData (選填)",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ExportTemplateWithMappingResource.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "標準物料主檔領域開箱映射範例 (MATERIAL_MASTER)",
+                                            summary = "免傳 sourceData，自動開箱 Material 領域聚合根並執行千分位貨幣格式化與列舉字典轉譯",
+                                            value = MAPPED_MATERIAL_MASTER_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "自訂來源業務資料多租戶映射範例 (Custom Source Data)",
+                                            summary = "前端傳入自訂 sourceData 陣列與自訂欄位路徑動態適配",
+                                            value = MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "採購比價單欄位動態映射範例 (PROCUREMENT_COMPARISON)",
+                                            summary = "PROCUREMENT_COMPARISON 範本之欄位映射與全域中繼資料注入範例",
+                                            value = MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                    )
+                            }
+                    )
+            )
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功動態映射並產製檔案"),
         @ApiResponse(responseCode = "400", description = "映射規則無效或資料格式錯誤"),
@@ -540,7 +710,35 @@ public class ExcelTemplateExportController {
      * @param response    HTTP Servlet 回應物件
      * @throws IOException 串流寫入 I/O 異常
      */
-    @Operation(summary = "依據自訂欄位映射串流匯出 Excel (Zero-Copy 模式)", description = "接收來源資料與宣告式欄位映射規格，動態映射後以串流模式直接輸出至 HTTP 客戶端")
+    @Operation(
+            summary = "依據自訂欄位映射串流匯出 Excel (Zero-Copy 模式)",
+            description = "接收來源資料與宣告式欄位映射規格，動態映射後以串流模式直接輸出至 HTTP 客戶端",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "動態欄位映射串流匯出請求本文，包含 mappingDefinition 規則集合與自訂 sourceData (選填)",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ExportTemplateWithMappingResource.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "標準物料主檔領域開箱映射範例 (MATERIAL_MASTER)",
+                                            summary = "免傳 sourceData，自動開箱 Material 領域聚合根並執行千分位貨幣格式化與列舉字典轉譯",
+                                            value = MAPPED_MATERIAL_MASTER_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "自訂來源業務資料多租戶映射範例 (Custom Source Data)",
+                                            summary = "前端傳入自訂 sourceData 陣列與自訂欄位路徑動態適配",
+                                            value = MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "採購比價單欄位動態映射範例 (PROCUREMENT_COMPARISON)",
+                                            summary = "PROCUREMENT_COMPARISON 範本之欄位映射與全域中繼資料注入範例",
+                                            value = MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                    )
+                            }
+                    )
+            )
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
         @ApiResponse(responseCode = "404", description = "指定範本不存在")
@@ -571,7 +769,35 @@ public class ExcelTemplateExportController {
      * @param resource 自訂映射請求本文
      * @return 映射後的資料上下文 Map
      */
-    @Operation(summary = "預覽動態欄位映射轉換結果 (除錯與校驗用)", description = "不執行實體 Excel 檔案渲染，僅回傳資料模型經由 Field Mapping 引擎轉換後的結構化 JSON")
+    @Operation(
+            summary = "預覽動態欄位映射轉換結果 (除錯與校驗用)",
+            description = "不執行實體 Excel 檔案渲染，僅回傳資料模型經由 Field Mapping 引擎轉換後的結構化 JSON",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "動態欄位映射預覽請求本文，包含 mappingDefinition 規則集合與自訂 sourceData (選填)",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ExportTemplateWithMappingResource.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "標準物料主檔領域開箱映射範例 (MATERIAL_MASTER)",
+                                            summary = "免傳 sourceData，自動開箱 Material 領域聚合根並執行千分位貨幣格式化與列舉字典轉譯",
+                                            value = MAPPED_MATERIAL_MASTER_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "自訂來源業務資料多租戶映射範例 (Custom Source Data)",
+                                            summary = "前端傳入自訂 sourceData 陣列與自訂欄位路徑動態適配",
+                                            value = MAPPED_CUSTOM_SOURCE_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "採購比價單欄位動態映射範例 (PROCUREMENT_COMPARISON)",
+                                            summary = "PROCUREMENT_COMPARISON 範本之欄位映射與全域中繼資料注入範例",
+                                            value = MAPPED_PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                    )
+                            }
+                    )
+            )
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功預覽映射結果"),
         @ApiResponse(responseCode = "400", description = "映射規則無效")
