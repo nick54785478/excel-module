@@ -9,58 +9,69 @@
 ### 1.1 什麼是宣告式長任務監控？
 在經過 Clean Architecture 與 AOP 切面重構後，系統**不再需要**維護專門用來啟動非同步任務的樣板 Controller 端點（如傳統手動撰寫的 `POST /export/async`）。
 
-相反地，本模組採用**宣告式註解驅動機制 (Annotation-Driven)**：
-1. **業務端點即觸發點**：
-   * 當客戶端調用任何既有之大數據串流匯出 API（例如 [`BomController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/bom/BomController.java) 的 `POST /api/v1/bom/excel/stream` 或 `GET /api/v1/bom/excel/stream`）時，調度鏈底層會進入 `ExcelWriterPort.writeStream(...)`。
-   * 基礎設施層的 [`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java) 或 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) 的 `writeStream` 方法上方標註了 [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java)。
-2. **切面無感接管生命週期**：
-   * AOP 切面 [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspect.java) 自動攔截執行點，動態解析 SpEL 檔名與筆數，於資料庫表 `t_excel_task` 建立唯一 `taskId`（UUID）。
+相反地，本模組採用**策略 B 宣告式註解驅動機制 (Strategy B: Explicit Business Annotation-Driven)**：
+1. **業務服務節點顯式標註 (Strategy B)**：
+   * 在業務應用服務層（如 [`BomCommandService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/bom/BomCommandService.java) 與 [`BomQueryService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/bom/BomQueryService.java)）的匯出與大數據串流方法上方顯式標註 [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java)。
+   * 底層技術適配器（[`FastExcelWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/FastExcelWriterAdapter.java) 與 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java)）維持極簡純粹與零開銷，不預設標註追蹤，保證未標註的普通匯出（如物料主檔小量查詢）不產生多餘長任務或暫存檔。
+2. **切面無感接管生命週期與檔案落盤**：
+   * AOP 切面 [`ExcelTaskTrackingAspect`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspect.java) 自動攔截業務執行點，動態解析 SpEL 檔名與預估筆數，於資料庫表 `t_excel_task` 建立唯一 `taskId`（UUID）。
    * 將任務資訊綁定至當前執行緒上下文 [`ExcelTaskContextHolder`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/context/ExcelTaskContextHolder.java)。
+   * 同步串流匯出時，透過 `ExcelTaskStoragePort.wrapOutputStream` 自動以 `TeeOutputStream` 攔截二進位資料：一邊持續輸出至 HTTP Response，另一邊同時寫入本機目錄 (`temp/excel-tasks/{taskId}.xlsx`)。
 3. **串流自動分批回報進度**：
-   * 底層串流引擎每逢寫入滿 `flushInterval` 筆數時（如每 10 筆或每 1000 筆），自動向上下文累加已處理列數，並即時更新資料庫。
-4. **前端標準閉環**：
-   * 前端使用 [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/task/ExcelTaskController.java) 提供的 `GET /api/v1/excel/tasks/{taskId}/progress` 查詢百分比。
-   * 任務完成後由 `GET /api/v1/excel/tasks/{taskId}/download` 下載二進位 `.xlsx` 檔案。
+   * 底層串流引擎每逢寫入滿 `flushInterval` 筆數時（如每 10 筆或每 1000 筆），探測到 `ExcelTaskContextHolder.isActive()` 為 true，即自動向上下文累加已處理列數並更新資料庫。
+4. **前端雙路徑輪詢與二次下載閉環**：
+   * 前端使用 [`ExcelTaskController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/task/ExcelTaskController.java) 提供的 `GET /api/v1/excel/tasks/{taskId}/progress`（或 `GET /api/v1/excel/tasks/{taskId}`）查詢百分比。
+   * 任務完成後由 `GET /api/v1/excel/tasks/{taskId}/download` 隨時從本機暫存目錄下載產物檔案。
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Client as 前端 / 客戶端
-    participant BOM_Ctrl as BomController / 業務端點
+    participant BOM_Ctrl as BomController / 表現層
     participant Aspect as ExcelTaskTrackingAspect (@TrackExcelTask)
+    participant Storage as ExcelTaskStoragePort (Local Storage)
     participant Context as ExcelTaskContextHolder (ThreadLocal)
+    participant Service as BomCommandService / 業務服務
     participant Adapter as FastExcel / POI Adapter
     participant DB as t_excel_task (JPA DB)
     participant Task_Ctrl as ExcelTaskController
 
     rect rgb(240, 248, 255)
     Note over Client, DB: 階段一：觸發大數據串流長任務
-    Client->>BOM_Ctrl: POST /api/v1/bom/excel/stream (帶入篩選條件與 flushInterval)
-    BOM_Ctrl->>Adapter: 調用 writeStream(outputStream, command)
+    Client->>BOM_Ctrl: POST /api/v1/bom/excel/stream (帶入條件與 flushInterval)
+    BOM_Ctrl->>Service: streamExportBom(responseOut, command)
     Aspect->>Aspect: 攔截 @TrackExcelTask，解析 SpEL 檔名
     Aspect->>DB: 建立任務記錄 (taskId=UUID, status=PENDING/PROCESSING)
     Aspect->>Context: 綁定 Context (taskId, totalRows)
+    Aspect->>Storage: wrapOutputStream(taskId, fileName, responseOut)
+    Storage-->>Aspect: 返回 TeeOutputStream (雙向分流)
     end
 
     rect rgb(255, 250, 240)
-    Note over Adapter, DB: 階段二：串流寫入與自動推進進度
+    Note over Adapter, DB: 階段二：串流寫入、落盤與自動推進進度
+    Aspect->>Service: proceed(TeeOutputStream, command)
+    Service->>Adapter: writeStream(TeeOutputStream, streamCommand)
     loop 每一批次 (每達 flushInterval 筆數)
-        Adapter->>Adapter: 寫入 row 資料
-        Adapter->>Context: incrementProgress(flushCount)
+        Adapter->>Adapter: 寫入 row 資料至 TeeOutputStream (一邊出 Response，一邊寫入硬碟)
+        Adapter->>Context: if (isActive()) incrementProgress(flushCount)
         Context->>DB: 更新 processedRows 與 progressPercentage
     end
-    Adapter->>Aspect: 串流寫入結束 (finish)
-    Aspect->>DB: 標記 COMPLETED (fileUrl=/download/{taskId})
+    Adapter-->>Service: 串流寫入結束
+    Service-->>Aspect: 方法執行完畢
+    Aspect->>Storage: finishStream(taskId)
+    Aspect->>DB: 標記 COMPLETED (fileUrl=/api/v1/excel/tasks/{taskId}/download)
     Aspect->>Context: 清除 Context (unbind)
     BOM_Ctrl-->>Client: 200 OK (Excel 二進位串流傳輸完成)
     end
 
     rect rgb(245, 255, 245)
-    Note over Client, Task_Ctrl: 階段三：非同步輪詢進度與產物下載 (若為背景長任務)
-    Client->>Task_Ctrl: GET /api/v1/excel/tasks/{taskId}/progress
+    Note over Client, Task_Ctrl: 階段三：非同步輪詢進度與產物事後再次下載
+    Client->>Task_Ctrl: GET /api/v1/excel/tasks/{taskId}/progress 或 GET /{taskId}
     Task_Ctrl->>DB: 查詢任務狀態與進度
     Task_Ctrl-->>Client: 回傳 JSON (PROCESSING, 45.0% 或 COMPLETED, 100.0%)
     Client->>Task_Ctrl: GET /api/v1/excel/tasks/{taskId}/download
+    Task_Ctrl->>Storage: retrieve(taskId) 自 temp/excel-tasks/{taskId}.xlsx 讀取
+    Storage-->>Task_Ctrl: 返回二進位位元組
     Task_Ctrl-->>Client: 200 OK 二進位檔案下載
     end
 ```
@@ -409,8 +420,9 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
 
 | 測試類別名稱 | 涵蓋層級 | 驗證場景與 BDD 特性 (Feature & Scenario) |
 | :--- | :--- | :--- |
-| [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspectTest.java) | Infrastructure (AOP) | 1. 驗證標註 `@TrackExcelTask` 方法成功自動建檔、狀態維護並標記 `COMPLETED`<br>2. 驗證方法拋出例外時自動標記 `FAILED` 且釋放上下文<br>3. 驗證 `async = true` 時立即返回受理初值並於背景完成<br>4. 驗證上下文已有作用中任務時自動沿用（防重複建檔 Task Context Joining）<br>5. 驗證 `FastExcelWriterAdapter.writeStream` 串流寫入自動回報進度<br>6. 驗證 `PoiSxssfWriterAdapter.writeStream` 串流沖刷自動回報進度 |
-| [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java) | Presentation (REST) | 1. 驗證 `GET /{taskId}/progress` 成功回傳 HTTP 200 OK 與進度結構<br>2. 驗證查詢不存在任務時由全域例外處理器轉譯為 HTTP 404 Not Found<br>3. 驗證 `GET /{taskId}/download` 成功下載已完成任務之 Excel 二進位檔案<br>4. 驗證檔案未就緒時安全回傳 HTTP 404 |
+| [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspectTest.java) | Infrastructure (AOP) | 1. 驗證標註 `@TrackExcelTask` 方法成功自動建檔、狀態維護並標記 `COMPLETED`<br>2. 驗證方法拋出例外時自動標記 `FAILED` 且釋放上下文<br>3. 驗證 `async = true` 時立即返回受理初值並於背景完成<br>4. 驗證上下文已有作用中任務時自動沿用（防重複建檔 Task Context Joining）<br>5. 驗證業務服務調用 `FastExcelWriterAdapter.writeStream` 串流寫入自動回報進度與落盤<br>6. 驗證業務服務調用 `PoiSxssfWriterAdapter.writeStream` 串流沖刷自動回報進度與落盤<br>7. 驗證策略 B 下未標註 `@TrackExcelTask` 時直接調用 Adapter 不會建立任務（零開銷保證） |
+| [`LocalDirectoryExcelTaskStorageAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/task/LocalDirectoryExcelTaskStorageAdapterTest.java) | Infrastructure (Adapter) | 驗證檔案寫入落盤、`TeeOutputStream` 雙向分流、檔案讀取、刪除與查無檔案空值防護 |
+| [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java) | Presentation (REST) | 1. 驗證雙路徑 `GET /{taskId}/progress` 與 `GET /{taskId}` 成功回傳 HTTP 200 OK 與進度結構<br>2. 驗證查詢不存在任務時由全域例外處理器轉譯為 HTTP 404 Not Found<br>3. 驗證 `GET /{taskId}/download` 成功下載已完成任務之 Excel 二進位檔案<br>4. 驗證檔案未就緒時安全回傳 HTTP 404 |
 | [`ExcelTaskRepositoryAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapterTest.java) | Infrastructure (Adapter) | 驗證 JPA ORM 實體映射、進度更新、狀態變更持久化與百分比浮點數精準計算 |
 | [`ExcelTaskContextHolderTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/application/shared/context/ExcelTaskContextHolderTest.java) | Application (Context) | 驗證 ThreadLocal 執行緒隔離性、上下文綁定與安全釋放 (unbind) |
 
@@ -425,7 +437,7 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
   2. 若欲長時間觀察 `PROCESSING` 狀態，可匯出系統全部物料主檔（不帶 `parentMaterialCode`，展開 2000 筆物料），或在自訂 Service 方法中模擬短暫的資料庫查詢耗時。
 
 ### Q2：底層切換為 Apache POI (`excel.engine=APACHE_POI`) 時，任務追蹤功能是否一樣有效？
-* **答案**：**完全有效**！[`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) 的 `writeStream` 同樣完整標註了 `@TrackExcelTask`，且在 POI SXSSF 執行磁碟快取沖刷時會自動同步累加進度，上層無縫切換無感知。
+* **答案**：**完全有效**！在策略 B 架構下，`@TrackExcelTask` 宣告於上層業務服務節點（如 `BomCommandService`, `BomQueryService`），切面統一管理任務與檔案落盤。底層不論切換為 [`PoiSxssfWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/core/PoiSxssfWriterAdapter.java) 還是 `FastExcelWriterAdapter`，在執行磁碟快取沖刷時都會自動向 `ExcelTaskContextHolder` 累加進度，無縫透明相容。
 
 ### Q3：如果在已有外層任務的環境下呼叫了 `writeStream`，會不會產生兩個衝突的任務 ID？
 * **答案**：**不會**！切面具備智慧「Context Joining」穿透防護：
@@ -434,5 +446,5 @@ SELECT * FROM t_excel_task WHERE task_id = '7e3b6a21-9d8f-4d2c-84cb-3bf87693e502
       return joinPoint.proceed();
   }
   ```
-  若外層已經建立了長任務上下文，內層 Adapter 會自動繼承現有任務，並直接將串流產生的筆數累積到既有任務中，確保任務實體全域唯一。
+  若外層已經建立了長任務上下文，內部呼叫會自動繼承現有任務，並直接將串流產生的筆數累積到既有任務中，確保任務實體全域唯一。
 

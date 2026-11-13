@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.application.annotation.task.TrackExcelTask;
 import com.example.demo.application.assembler.BomDtoAssembler;
 import com.example.demo.application.port.in.bom.ExportBomUseCase;
 import com.example.demo.application.port.in.bom.StreamExportBomUseCase;
@@ -24,6 +25,7 @@ import com.example.demo.application.shared.command.WriteSheetCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
 import com.example.demo.application.shared.command.WriteStreamSheetCommand;
 import com.example.demo.application.shared.dto.BomExcelGottenResult;
+import com.example.demo.application.shared.vo.ExcelTaskType;
 import com.example.demo.domain.bom.aggregate.root.Bom;
 import com.example.demo.domain.material.aggregate.root.Material;
 import com.example.demo.domain.material.aggregate.vo.MaterialId;
@@ -74,6 +76,11 @@ public class BomCommandService implements ExportBomUseCase, StreamExportBomUseCa
 	 * @param command 匯出命令資料載體
 	 * @return BOM Excel 檔案產製結果 DTO
 	 */
+	@TrackExcelTask(
+			type = ExcelTaskType.EXPORT,
+			fileName = "#command != null ? T(com.example.demo.application.assembler.BomDtoAssembler).resolveFileName(#command) : 'BOM_EXPORT.xlsx'",
+			description = "物料清單 (BOM) 批次匯出長任務"
+	)
 	@Override
 	public BomExcelGottenResult exportBom(ExportBomCommand command) {
 		Objects.requireNonNull(command, "ExportBomCommand 不得為空");
@@ -179,6 +186,11 @@ public class BomCommandService implements ExportBomUseCase, StreamExportBomUseCa
 	 * @param outputStream 輸出串流 (例如 HttpServletResponse 輸出串流)
 	 * @param command      匯出條件與串流沖刷間隔命令
 	 */
+	@TrackExcelTask(
+			type = ExcelTaskType.EXPORT,
+			fileName = "#command != null ? T(com.example.demo.application.assembler.BomDtoAssembler).resolveFileName(#command) : 'BOM_EXPORT.xlsx'",
+			description = "物料清單 (BOM) 大數據串流匯出長任務"
+	)
 	@Override
 	public void streamExportBom(OutputStream outputStream, ExportBomCommand command) {
 		Objects.requireNonNull(outputStream, "OutputStream 不得為空");

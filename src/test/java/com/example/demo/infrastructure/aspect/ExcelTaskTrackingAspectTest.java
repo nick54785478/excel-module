@@ -70,6 +70,19 @@ class ExcelTaskTrackingAspectTest {
 		}
 	}
 
+	static class StreamingExportService {
+		private final ExcelWriterPort writer;
+
+		StreamingExportService(ExcelWriterPort writer) {
+			this.writer = writer;
+		}
+
+		@TrackExcelTask(type = ExcelTaskType.EXPORT, fileName = "#command.applicationName + '.xlsx'")
+		public void exportStream(OutputStream outputStream, WriteStreamExcelCommand command) {
+			writer.writeStream(outputStream, command);
+		}
+	}
+
 	@BeforeEach
 	void setUp() {
 		this.excelTaskRepositoryPort = mock(ExcelTaskRepositoryPort.class);
@@ -125,6 +138,7 @@ class ExcelTaskTrackingAspectTest {
 		assertThat(result).containsExactly(1, 2, 3);
 		verify(excelTaskRepositoryPort).createTask(any(CreateExcelTaskCommand.class));
 		verify(excelTaskRepositoryPort).markProcessing(anyString());
+		verify(excelTaskStoragePort).store(anyString(), eq("report.xlsx"), eq(new byte[] { 1, 2, 3 }));
 		verify(excelTaskRepositoryPort).markCompleted(anyString(), anyString(), eq(500L));
 		assertThat(ExcelTaskContextHolder.isActive()).isFalse();
 	}
@@ -203,23 +217,24 @@ class ExcelTaskTrackingAspectTest {
 
 	/**
 	 * Feature: FastExcelWriterAdapter 串流寫入之宣告式長任務追蹤
-	 * Scenario: 透過代理調用 FastExcelWriterAdapter.writeStream，驗證任務自動建檔、SpEL 檔名解析、進度同步與完成標記
-	 * Given: 透過 AspectJProxyFactory 包裝 FastExcelWriterAdapter 並組裝串流資料
-	 * When: 呼叫 writeStream 執行串流匯出
+	 * Scenario: 透過標註 @TrackExcelTask 之業務服務調用 FastExcelWriterAdapter.writeStream，驗證任務自動建檔、SpEL 檔名解析、進度同步與完成標記
+	 * Given: 透過 AspectJProxyFactory 包裝 StreamingExportService 並組裝串流資料
+	 * When: 呼叫 exportStream 執行串流匯出
 	 * Then: 成功生成 Excel 二進位內容，且 excelTaskRepositoryPort 依序執行建檔、處理中、進度更新與完成標記
 	 */
 	@Test
-	@DisplayName("場景：FastExcelWriterAdapter.writeStream 透過 @TrackExcelTask 宣告式追蹤串流長任務")
+	@DisplayName("場景：業務服務標註 @TrackExcelTask 調用 FastExcelWriterAdapter.writeStream 追蹤串流長任務")
 	void shouldTrackFastExcelWriterAdapterWriteStream() {
-		// Given: 建立 FastExcelWriterAdapter 代理
+		// Given: 建立 StreamingExportService (FastExcel) 代理
 		when(excelTaskStoragePort.wrapOutputStream(anyString(), anyString(), any(OutputStream.class)))
 				.thenAnswer(invocation -> invocation.getArgument(2));
 
 		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, excelTaskStoragePort, Runnable::run);
 		FastExcelWriterAdapter targetAdapter = new FastExcelWriterAdapter();
-		AspectJProxyFactory factory = new AspectJProxyFactory(targetAdapter);
+		StreamingExportService targetService = new StreamingExportService(targetAdapter);
+		AspectJProxyFactory factory = new AspectJProxyFactory(targetService);
 		factory.addAspect(aspect);
-		ExcelWriterPort proxyWriter = factory.getProxy();
+		StreamingExportService proxyService = factory.getProxy();
 
 		WriteStreamSheetCommand sheet = WriteStreamSheetCommand.builder()
 				.sheetName("長任務數據")
@@ -239,7 +254,7 @@ class ExcelTaskTrackingAspectTest {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		// When: 執行串流匯出長任務
-		proxyWriter.writeStream(baos, command);
+		proxyService.exportStream(baos, command);
 
 		// Then: 驗證產出與任務追蹤生命週期
 		assertThat(baos.toByteArray()).isNotEmpty();
@@ -247,28 +262,31 @@ class ExcelTaskTrackingAspectTest {
 		verify(excelTaskRepositoryPort).markProcessing(anyString());
 		verify(excelTaskRepositoryPort, atLeast(2)).updateProgress(anyString(), anyLong(), anyLong());
 		verify(excelTaskRepositoryPort).markCompleted(anyString(), anyString(), anyLong());
+		verify(excelTaskStoragePort).wrapOutputStream(anyString(), eq("BigDataReport.xlsx"), eq(baos));
+		verify(excelTaskStoragePort).finishStream(anyString());
 		assertThat(ExcelTaskContextHolder.isActive()).isFalse();
 	}
 
 	/**
 	 * Feature: PoiSxssfWriterAdapter 串流寫入之宣告式長任務追蹤
-	 * Scenario: 透過代理調用 PoiSxssfWriterAdapter.writeStream，驗證任務自動建檔、SpEL 檔名解析、硬碟沖刷進度同步與完成標記
-	 * Given: 透過 AspectJProxyFactory 包裝 PoiSxssfWriterAdapter 並組裝串流資料
-	 * When: 呼叫 writeStream 執行串流匯出
+	 * Scenario: 透過標註 @TrackExcelTask 之業務服務調用 PoiSxssfWriterAdapter.writeStream，驗證任務自動建檔、SpEL 檔名解析、硬碟沖刷進度同步與完成標記
+	 * Given: 透過 AspectJProxyFactory 包裝 StreamingExportService 並組裝串流資料
+	 * When: 呼叫 exportStream 執行串流匯出
 	 * Then: 成功生成 Excel 二進位內容，且 excelTaskRepositoryPort 依序執行建檔、處理中、進度更新與完成標記
 	 */
 	@Test
-	@DisplayName("場景：PoiSxssfWriterAdapter.writeStream 透過 @TrackExcelTask 宣告式追蹤串流長任務")
+	@DisplayName("場景：業務服務標註 @TrackExcelTask 調用 PoiSxssfWriterAdapter.writeStream 追蹤串流長任務")
 	void shouldTrackPoiSxssfWriterAdapterWriteStream() {
-		// Given: 建立 PoiSxssfWriterAdapter 代理
+		// Given: 建立 StreamingExportService (POI) 代理
 		when(excelTaskStoragePort.wrapOutputStream(anyString(), anyString(), any(OutputStream.class)))
 				.thenAnswer(invocation -> invocation.getArgument(2));
 
 		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, excelTaskStoragePort, Runnable::run);
 		PoiSxssfWriterAdapter targetAdapter = new PoiSxssfWriterAdapter();
-		AspectJProxyFactory factory = new AspectJProxyFactory(targetAdapter);
+		StreamingExportService targetService = new StreamingExportService(targetAdapter);
+		AspectJProxyFactory factory = new AspectJProxyFactory(targetService);
 		factory.addAspect(aspect);
-		ExcelWriterPort proxyWriter = factory.getProxy();
+		StreamingExportService proxyService = factory.getProxy();
 
 		WriteStreamSheetCommand sheet = WriteStreamSheetCommand.builder()
 				.sheetName("POI長任務數據")
@@ -288,7 +306,7 @@ class ExcelTaskTrackingAspectTest {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		// When: 執行串流匯出長任務
-		proxyWriter.writeStream(baos, command);
+		proxyService.exportStream(baos, command);
 
 		// Then: 驗證產出與任務追蹤生命週期
 		assertThat(baos.toByteArray()).isNotEmpty();
@@ -296,7 +314,39 @@ class ExcelTaskTrackingAspectTest {
 		verify(excelTaskRepositoryPort).markProcessing(anyString());
 		verify(excelTaskRepositoryPort, atLeast(2)).updateProgress(anyString(), anyLong(), anyLong());
 		verify(excelTaskRepositoryPort).markCompleted(anyString(), anyString(), anyLong());
+		verify(excelTaskStoragePort).wrapOutputStream(anyString(), eq("PoiBigDataReport.xlsx"), eq(baos));
+		verify(excelTaskStoragePort).finishStream(anyString());
 		assertThat(ExcelTaskContextHolder.isActive()).isFalse();
+	}
+
+	/**
+	 * Feature: 策略 B 零開銷保證 (Pure Adapter Zero Overhead)
+	 * Scenario: 當未標註 @TrackExcelTask 之一般呼叫直接調用 FastExcelWriterAdapter / PoiSxssfWriterAdapter 時，不建立長任務
+	 * Given: 直接呼叫 FastExcelWriterAdapter.writeStream
+	 * When: 執行串流匯出
+	 * Then: 產出正常 Excel，但未向 excelTaskRepositoryPort 發起任何任務建立調用
+	 */
+	@Test
+	@DisplayName("場景：未標註 @TrackExcelTask 時直接調用 Adapter 不會建立任務（策略 B 零開銷保證）")
+	void shouldNotTrackWhenAdapterCalledDirectlyWithoutAnnotation() {
+		FastExcelWriterAdapter adapter = new FastExcelWriterAdapter();
+		WriteStreamSheetCommand sheet = WriteStreamSheetCommand.builder()
+				.sheetName("無任務數據")
+				.headers(List.of("ID", "名稱"))
+				.rowIterable(List.of(List.of(1, "Item1")))
+				.flushInterval(1)
+				.build();
+		WriteStreamExcelCommand command = WriteStreamExcelCommand.builder()
+				.applicationName("SimpleExport")
+				.addSheet(sheet)
+				.build();
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		adapter.writeStream(baos, command);
+
+		assertThat(baos.toByteArray()).isNotEmpty();
+		verify(excelTaskRepositoryPort, never()).createTask(any(CreateExcelTaskCommand.class));
+		verify(excelTaskStoragePort, never()).wrapOutputStream(anyString(), anyString(), any(OutputStream.class));
 	}
 }
 

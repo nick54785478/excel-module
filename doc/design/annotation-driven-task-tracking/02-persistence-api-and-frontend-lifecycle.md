@@ -75,6 +75,7 @@ public class ExcelTaskJpaEntity {
   * [`SubmitAsyncExcelImportUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/task/SubmitAsyncExcelImportUseCase.java)
 * **Outbound Port**：
   * [`ExcelTaskRepositoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/task/ExcelTaskRepositoryPort.java)：純資料契約，定義 `createTask`, `updateProgress`, `markCompleted`, `markFailed`, `findTaskById`。
+  * [`ExcelTaskStoragePort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/task/ExcelTaskStoragePort.java)：任務產物二進位檔案本機儲存與串流分流純契約，定義 `store`, `wrapOutputStream`, `finishStream`, `retrieve`, `delete`。
 
 ---
 
@@ -86,23 +87,22 @@ public class ExcelTaskJpaEntity {
 [前端 Client]                         [後端 Excel 模組]
       │                                       │
       ├───── 1. 提交業務請求 (例如匯出報表) ────┤
-      │                                       │ (切面生成 UUID taskId，背景執行)
-      │<──── 返回 HTTP 202 (帶有 taskId) ─────┤
+      │                                       │ (切面生成 UUID taskId，背景/串流執行)
+      │<──── 返回 HTTP 202 或即時串流 ─────────┤ (TeeOutputStream 同步落盤至 temp/excel-tasks/)
       │                                       │
-      │   ┌── 2. 定期輪詢進度 (Polling) ───┐   │
-      ├───┼─> GET /api/v1/excel/tasks/{id}/progress
+      │   ┌── 2. 輪詢進度 (雙路徑 RESTful) ──┐ │
+      ├───┼─> GET /api/v1/excel/tasks/{id}    │
+      │   │   或 GET /tasks/{id}/progress     │
       │   └── <── 狀態: PROCESSING, 進度: 65%  │
-      │                                       │ (背景完成，標記 COMPLETED)
+      │                                       │ (任務完成，標記 COMPLETED)
       │                                       │
-      ├───── 3. 偵測到 COMPLETED ────────────┤
-      │                                       │
-      ├───── 4. 下載檔案 ─────────────────────┤
+      ├───── 3. 事後依 TaskId 再次下載 ───────┤
       │      GET /api/v1/excel/tasks/{id}/download
-      │<──── 回傳 Content-Disposition 二進位流 ┤
+      │<──── 回傳 Content-Disposition 二進位流 ┤ (從 temp/excel-tasks/{taskId}.xlsx 讀取)
 ```
 
-### 3.1 進度查詢 API
-* **端點**：`GET /api/v1/excel/tasks/{taskId}/progress`
+### 3.1 進度查詢 API (支援雙 RESTful 路徑)
+* **端點**：`GET /api/v1/excel/tasks/{taskId}/progress` 與 `GET /api/v1/excel/tasks/{taskId}`
 * **回應範例** (`HTTP 200 OK`)：
 ```json
 {
@@ -113,7 +113,7 @@ public class ExcelTaskJpaEntity {
   "processedRows": 25000,
   "progressPercentage": 50.0,
   "fileName": "BigDataReport.xlsx",
-  "fileUrl": null,
+  "fileUrl": "/api/v1/excel/tasks/c4b9d038-e6d2-43bb-a5a4-03a557b7f520/download",
   "errorMessage": null,
   "createdAt": "2026-11-04T00:30:00",
   "updatedAt": "2026-11-04T00:30:15"
@@ -122,12 +122,13 @@ public class ExcelTaskJpaEntity {
 
 ### 3.2 產物下載 API
 * **端點**：`GET /api/v1/excel/tasks/{taskId}/download`
-* **回應**：`HTTP 200 OK`，`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，支援檔名 UTF-8 URL 編碼。
+* **回應**：`HTTP 200 OK`，`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，支援檔名 UTF-8 URL 編碼。由 `LocalDirectoryExcelTaskStorageAdapter` 自 `temp/excel-tasks/{taskId}.xlsx` 安全檢索二進位位元組。
 
 ---
 
 ## 4. 單元與整合測試驗證 (Testing & Verification)
 
-* [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aop/ExcelTaskTrackingAspectTest.java)：驗證同步任務自動建檔、狀態變更、進度記錄、例外標記 `FAILED`、`async = true` 立即返回以及 FastExcel / POI 串流沖刷進度自動回報。
-* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java)：驗證進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
+* [`ExcelTaskTrackingAspectTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/aspect/ExcelTaskTrackingAspectTest.java)：驗證同步任務自動建檔、狀態變更、進度記錄、例外標記 `FAILED`、`async = true` 立即返回、FastExcel / POI 串流沖刷進度自動回報，以及策略 B 下未標註 Adapter 不會建立長任務之零開銷保證。
+* [`LocalDirectoryExcelTaskStorageAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/task/LocalDirectoryExcelTaskStorageAdapterTest.java)：驗證檔案寫入落盤、`TeeOutputStream` 雙向分流、檔案讀取、刪除與查無檔案空值防護。
+* [`ExcelTaskControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/task/ExcelTaskControllerTest.java)：驗證雙路徑進度輪詢正常回傳、`404 Not Found` 查無任務防護以及二進位檔案串流下載。
 

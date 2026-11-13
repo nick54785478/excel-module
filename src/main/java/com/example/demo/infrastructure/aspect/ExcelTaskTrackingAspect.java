@@ -25,6 +25,7 @@ import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
 import com.example.demo.application.port.out.task.ExcelTaskStoragePort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
+import com.example.demo.application.shared.dto.BomExcelGottenResult;
 import com.example.demo.application.shared.dto.ExcelTaskGottenResult;
 import com.example.demo.application.shared.vo.ExcelTaskType;
 
@@ -278,10 +279,24 @@ public class ExcelTaskTrackingAspect {
 	private Object processTaskCompletion(String taskId, long totalRows, String fileName, Object result) {
 		if (result instanceof byte[] bytes) {
 			excelTaskStoragePort.store(taskId, fileName, bytes);
+		} else if (result instanceof BomExcelGottenResult bomResult) {
+			excelTaskStoragePort.store(taskId, fileName, bomResult.fileBytes());
+		} else if (result != null) {
+			try {
+				Method method = result.getClass().getMethod("fileBytes");
+				if (method.getReturnType().equals(byte[].class)) {
+					byte[] extracted = (byte[]) method.invoke(result);
+					if (extracted != null) {
+						excelTaskStoragePort.store(taskId, fileName, extracted);
+					}
+				}
+			} catch (Exception ignored) {
+				// No fileBytes() method
+			}
 		}
 		// 結算最終處理列數與完成狀態
 		long finalProcessed = ExcelTaskContextHolder.getProcessedRows();
-		long finalTotal = totalRows > 0 ? totalRows : finalProcessed;
+		long finalTotal = totalRows > 0 ? totalRows : (finalProcessed > 0 ? finalProcessed : (result instanceof BomExcelGottenResult b ? b.totalRows() : 0L));
 		String fileUrl = "/api/v1/excel/tasks/" + taskId + "/download";
 		excelTaskRepositoryPort.markCompleted(taskId, fileUrl, finalTotal);
 		return result;

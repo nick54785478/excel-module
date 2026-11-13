@@ -21,7 +21,7 @@
 | ⚡ **`core`** | **雙引擎讀寫與物件映射** | FastExcel (StAX) 與 Apache POI (SXSSF) 雙引擎動態熱切換、百萬級串流讀寫、Record/POJO 宣告式雙向物件映射。 | `/api/v1/excel`<br>`/api/v1/excel/bean-mapping`<br>`@ExcelSheet`, `@ExcelColumn` | [串流讀寫設計](doc/design/streaming-processing.md)<br>[宣告式映射設計](doc/design/declarative-bean-mapping.md) |
 | 🚀 **`parallel`** | **平行管線與分片打包** | 模式 A 多執行緒 DB 查詢管線加速（`ArrayBlockingQueue` 背壓防護）＋模式 B 獨立活頁簿並行產製與 ZIP 串流壓縮打包（突破單表 104 萬列物理限制）。 | `/api/v1/excel/parallel/pipeline/stream`<br>`/api/v1/excel/parallel/partition/zip/stream` | [平行與執行緒安全](doc/design/thread-safety-and-concurrency.md)<br>[分片寫入器對比](doc/design/excel-writer-vs-partition-writer-comparison.md) |
 | 🎨 **`report`** | **企業報表裝飾與安全** | 通用裝飾策略工廠 SPI、合計列自動追加、動態 `=SUM(...)` 原生公式注入、跨欄合併、工作表密碼防護與列印頁首頁尾巨集。 | `/api/v1/excel/reports/{reportKey}/export`<br>`CellRange`, `@SheetProtectionConfig` | [報表裝飾與安全](doc/design/template-styles-and-security.md) |
-| ⏱️ **`task`** | **非同步長任務追蹤** | AOP 無感攔截底層讀寫、SpEL 動態參數解析、ThreadLocal 跨方法進度累計、`REQUIRES_NEW` 獨立交易進度持久化與檔案下載。 | `/api/v1/excel/tasks/{taskId}/progress`<br>`/api/v1/excel/tasks/{taskId}/download`<br>`@TrackExcelTask` | [長任務追蹤設計](doc/design/annotation-driven-task-tracking.md) |
+| ⏱️ **`task`** | **非同步長任務追蹤** | 策略 B 顯式宣告 AOP 攔截、SpEL 動態參數解析、ThreadLocal 跨方法進度累計、`REQUIRES_NEW` 獨立交易進度持久化、TeeOutputStream 雙向分流檔案落盤與多次下載。 | `/api/v1/excel/tasks/{taskId}`<br>`/api/v1/excel/tasks/{taskId}/progress`<br>`/api/v1/excel/tasks/{taskId}/download`<br>`@TrackExcelTask` | [長任務追蹤設計](doc/design/annotation-driven-task-tracking.md) |
 | 📑 **`template`** | **JXLS 範本渲染與維護** | JXLS 3.x 所見即所得 (WYSIWYG) 標籤渲染、JEXL 嚴格沙箱權限防護 (CVE 免疫)、動態公式平移與 Template 實體 DB-First CRUD 動態管理。 | `/api/v1/excel/templates`<br>`/api/v1/excel/templates/{templateKey}/stream`<br>`jx:area`, `jx:each` | [JXLS 範本總覽](doc/design/jxls-template-export.md)<br>[範本 CRUD 維護](doc/design/jxls-template-export/06-excel-template-management-crud.md) |
 | 🛡️ **`validation`** | **規則檢核與錯誤回標** | EasyRules 宣告式規則管線、非短路全量錯誤累積、雙向資料合規校驗、自動產製視覺化「錯誤回標檔」（紅底黑字＋錯誤原因說明欄）。 | `/api/v1/excel/validation/import-and-validate`<br>`@ValidateExcel` | [客製檢核與錯誤回標](doc/design/custom-validation-and-error-feedback.md) |
 
@@ -165,9 +165,9 @@ flowchart TD
 
     subgraph Infrastructure ["Infrastructure Layer (基礎設施層 - Outbound Adapters & Engines)"]
         subgraph EngineAdapters ["adapter.engine (讀寫核心引擎適配器)"]
-            FEWriter["FastExcelWriterAdapter (@TrackExcelTask)"]
+            FEWriter["FastExcelWriterAdapter (純適配器，無註解零開銷)"]
             FEReader["FastExcelReaderAdapter"]
-            PoiWriter["PoiSxssfWriterAdapter (@TrackExcelTask)"]
+            PoiWriter["PoiSxssfWriterAdapter (純適配器，無註解零開銷)"]
             PoiReader["PoiSaxReaderAdapter"]
         end
         subgraph TemplateAdapters ["adapter.template (JXLS 範本適配器)"]
@@ -206,6 +206,7 @@ flowchart TD
         subgraph AOP_Module ["AOP 橫切基礎設施 (Cross-Cutting AOP)"]
             TaskAspect["ExcelTaskTrackingAspect (@TrackExcelTask)"]
             TaskContext["ExcelTaskContextHolder"]
+            TaskStorage["LocalDirectoryExcelTaskStorageAdapter<br/>(TeeOutputStream 檔案落盤)"]
         end
     end
 
@@ -283,7 +284,7 @@ excel.engine=FAST_EXCEL
 | 模組分類 | 套件路徑 (Package) | 核心註解類別 | 職責與用途說明 |
 | :--- | :--- | :--- | :--- |
 | **`mapping`**<br>(物件映射) | [`application.annotation.mapping`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping) | [`@ExcelSheet`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelSheet.java)<br>[`@ExcelColumn`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/mapping/ExcelColumn.java) | 標註於 Model 類別或 Record 元件，宣告工作表名稱、表頭名稱、欄位索引、日期/數值格式化、公式與預設值 |
-| **`task`**<br>(任務追蹤) | [`application.annotation.task`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task) | [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java) | 標註於讀寫方法，由 AOP 自動接管非同步長任務建檔、SpEL 檔名解析、進度累計與生命週期狀態更新 |
+| **`task`**<br>(任務追蹤) | [`application.annotation.task`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task) | [`@TrackExcelTask`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/task/TrackExcelTask.java) | 標註於業務服務節點（策略 B 顯式模式），由 AOP 自動接管長任務建檔、SpEL 檔名解析、TeeOutputStream 檔案落盤、進度累計與生命週期狀態更新 |
 | **`validation`**<br>(資料檢核) | [`application.annotation.validation`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation) | [`@ValidateExcel`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidateExcel.java)<br>[`@ValidatedExcelData`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/annotation/validation/ValidatedExcelData.java) | `@ValidateExcel` 宣告於 Controller 端點自動執行 EasyRules 檢核與錯誤回標短路；`@ValidatedExcelData` 用於注入檢核通過之合規資料清單 |
 
 #### ② 基礎設施輸出適配器模組 (`com.example.demo.infrastructure.adapter`)
@@ -294,7 +295,7 @@ excel.engine=FAST_EXCEL
 | **`shared.engine`**<br>(共用串流引擎) | [`infrastructure.engine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/engine) | * [`ExcelStreamWriterEngine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/engine/ExcelStreamWriterEngine.java)<br>* [`PoiSxssfStreamWriterEngine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/engine/poi/PoiSxssfStreamWriterEngine.java)<br>* [`FastExcelStreamWriterEngine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/engine/fastexcel/FastExcelStreamWriterEngine.java) | **Infrastructure 內部共用引擎 SPI**，專注於單一活頁簿二進位串流序列化。由 `PoiSxssfWriterAdapter`、`FastExcelWriterAdapter` 與 `ParallelPartitionExcelWriterAdapter` 內部共用，嚴禁作為應用層 Port 外露 |
 | **`report`**<br>(裝飾策略工廠) | [`infrastructure.adapter.report`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report) | * [`SpringReportDecoratorFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/report/SpringReportDecoratorFactoryAdapter.java) | 實作 [`ExcelReportDecoratorFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/report/ExcelReportDecoratorFactoryPort.java)，自動收集並管理 [`ExcelReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportDecoratorStrategy.java) 實作 Bean，提供執行期 O(1) 動態路由與合計列/SUM 公式/合併裝飾 |
 | **`strategy`**<br>(具體裝飾策略) | [`infrastructure.report`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report) | * [`ProcurementReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/ProcurementReportDecoratorStrategy.java)<br>* [`BomCostAnalysisReportDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/BomCostAnalysisReportDecoratorStrategy.java)<br>* [`DefaultNoOpDecoratorStrategy`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/report/DefaultNoOpDecoratorStrategy.java) | 抽離出 `adapter/` 套件的具體報表裝飾策略實作，綁定 [`ExcelReportStrategyKeys`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/strategy/ExcelReportStrategyKeys.java) 標準鍵值，落實 Clean Architecture 職責純粹性 |
-| **`persistence`**<br>(持久化倉儲) | [`infrastructure.adapter.persistence`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence) | * [`BomRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/bom/BomRepositoryAdapter.java)<br>* [`MaterialRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/bom/MaterialRepositoryAdapter.java)<br>* [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapter.java) | 實作持久化 Ports，銜接 Spring Data JPA Repository 與資料庫，進行實體與 DTO 防腐轉換 |
+| **`persistence`**<br>(持久化與檔案儲存) | [`infrastructure.adapter.persistence`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/persistence) | * [`BomRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/bom/BomRepositoryAdapter.java)<br>* [`MaterialRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/bom/MaterialRepositoryAdapter.java)<br>* [`ExcelTaskRepositoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/task/ExcelTaskRepositoryAdapter.java)<br>* [`LocalDirectoryExcelTaskStorageAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/task/LocalDirectoryExcelTaskStorageAdapter.java) | 實作持久化 Ports 與檔案儲存 Ports，銜接 JPA Repository 與本機目錄暫存，進行實體與 DTO 防腐轉換以及 TeeOutputStream 雙向分流 |
 | **`validator`**<br>(規則引擎校驗) | [`infrastructure.adapter.validator`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation) | * [`EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapter.java) | 實作 [`ExcelRowValidatorPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelRowValidatorPort.java)，封裝 EasyRules 規則引擎，提供非短路全量錯誤累積推論 |
 | **`feedback`**<br>(視覺化回標) | [`infrastructure.adapter.feedback`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation) | * [`PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapter.java) | 實作 [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelErrorMarkerPort.java)，使用 POI 將出錯儲存格套用淡紅底 (ROSE) 與深紅字 (DARK_RED) 標註，並動態追加錯誤原因說明欄 |
 
@@ -400,9 +401,11 @@ curl -i -X GET "http://localhost:8080/api/v1/bom/excel?parentMaterialCode=MAT-FG
 curl -i -X GET "http://localhost:8080/api/v1/bom/excel/stream?parentMaterialCode=MAT-FG-001&flushInterval=500" -O -J
 ```
 
-#### ④ 查詢非同步長任務進度與狀態 (輪詢進度)
+#### ④ 查詢非同步長任務進度與狀態 (支援雙路徑 RESTful 輪詢)
 ```bash
 curl -i -X GET "http://localhost:8080/api/v1/excel/tasks/{taskId}/progress"
+# 或直接透過資源路徑查詢
+curl -i -X GET "http://localhost:8080/api/v1/excel/tasks/{taskId}"
 ```
 
 #### ⑤ 下載已完成長任務之產出檔案

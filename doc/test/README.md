@@ -55,11 +55,11 @@
   3. `POST 上傳 Excel 並宣告式解析為 OrderModel 清單`：驗證 Multipart 上傳自動映射 JavaBean。
   4. `POST 自訂 JSON 匯出商品主檔 (Java 21 Record)`：驗證 Record 批次資料匯出。
   5. `POST 上傳 Excel 並宣告式解析為 Record 清單`：驗證 Multipart 自動映射 Java 21 Record。
-* **`4. Excel 宣告式長任務監控模組 (Annotation-Driven Task Tracking)`**：
+* **`4. Excel 宣告式長任務監控模組 (Annotation-Driven Task Tracking - 策略 B)`**：
   * 詳細指引參閱：[`annotation_driven_task_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/annotation_driven_task_testing_guide.md)
-  1. `POST 結構化條件大數據串流下載 BOM (觸發長任務與 flushInterval)`：驗證 `@TrackExcelTask` 切面自動攔截、建檔並同步串流沖刷進度。
-  2. `GET 查詢 Excel 長任務進度與狀態 (/progress)`：驗證任務執行階段即時輪詢 (`PENDING` $\to$ `PROCESSING` $\to$ `COMPLETED`)、百分比與已處理列數。
-  3. `GET 下載已完成長任務之產出 Excel 檔案 (/download)`：驗證任務完成後二進位產物安全下載。
+  1. `POST 結構化條件大數據串流下載 BOM (觸發長任務與 flushInterval)`：驗證業務服務節點 `@TrackExcelTask` 切面自動攔截、建檔、TeeOutputStream 檔案落盤並同步串流沖刷進度。
+  2. `GET 查詢 Excel 長任務進度與狀態 (/{id} 或 /{id}/progress)`：支援雙路徑 RESTful 查詢任務執行階段即時輪詢 (`PENDING` $\to$ `PROCESSING` $\to$ `COMPLETED`)、百分比與已處理列數。
+  3. `GET 下載已完成長任務之產出 Excel 檔案 (/{id}/download)`：驗證任務完成後自本機目錄二進位產物安全下載。
   4. `GET 異常驗證 - 查詢不存在之任務 (404 Not Found)`：驗證查無任務時之全域錯誤回應。
 * **`5. Excel 客製驗證與錯誤回標模組 (Custom Validation & Error Feedback)`**：
   * 詳細指引參閱：[`custom_validation_testing_guide.md`](file:///d:/桌面/ModuleWorkSpace/excel-module/doc/test/custom_validation_testing_guide.md)

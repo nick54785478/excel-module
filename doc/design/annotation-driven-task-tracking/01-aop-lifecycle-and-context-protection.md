@@ -86,18 +86,24 @@ sequenceDiagram
     Aspect->>Context: bind(taskId, type, fileName, totalRows)
 
     alt 同步執行模式 (async = false)
+        opt 參數包含 OutputStream
+            Aspect->>Aspect: wrapOutputStream 建立 TeeOutputStream (雙向分流落盤)
+        end
         Aspect->>Target: joinPoint.proceed()
         loop 串流迭代資料列 (每達 flushInterval)
-            Target->>Context: updateProgress(processedRows)
+            Target->>Context: if (isActive()) updateProgress(processedRows)
             Context->>Repo: updateProgress(taskId, processed, total)
         end
         Target-->>Aspect: 方法執行完畢
+        opt 包含串流或產出二進位
+            Aspect->>Aspect: finishStream() 或 store() 保存至 temp/excel-tasks/{taskId}.xlsx
+        end
         Aspect->>Repo: markCompleted(taskId, fileUrl, finalTotal)
         Aspect->>Context: unbind()
         Aspect-->>Caller: 返回方法產出結果
     else 非同步執行模式 (async = true)
         Aspect->>Caller: 立即返回初值 (HTTP 202 Accepted / taskId)
-        Note over Aspect, Target: 背景執行緒池 (excelTaskExecutor) 執行上述 proceed 流程
+        Note over Aspect, Target: 背景執行緒池 (excelTaskExecutor) 執行上述 proceed 與檔案落盤流程
     end
 ```
 
@@ -132,8 +138,12 @@ public final class ExcelTaskContextHolder {
 }
 ```
 
-### 巢狀防覆蓋機制核心邏輯：
-當外層 Service 與內層 Adapter 皆標註 `@TrackExcelTask` 時：
+### 巢狀防覆蓋與策略 B (顯式業務宣告模式)：
+本架構採納 **策略 B (顯式業務宣告模式 / Explicit Business Annotation Pattern)**：
+1. **底層適配器零開銷**：底層技術適配器 (`FastExcelWriterAdapter`, `PoiSxssfWriterAdapter`) 保持純粹的資料轉譯職責，不再預設標註 `@TrackExcelTask`。一般呼叫（如小量物料主檔匯出）不經過切面、不建立資料庫長任務記錄、不佔用磁碟暫存空間。
+2. **業務節點精準監控**：`@TrackExcelTask` 僅顯式標註於真正具有巨量資料或長時間執行特性的業務服務節點（例如 `BomCommandService` 與 `BomQueryService` 之批次與串流端點）。
+3. **上下文透明推進**：當標註之業務節點被切面攔截並呼叫 `ExcelTaskContextHolder.bind(...)` 後，底層引擎在每次分批 flush 時自動探測 `if (ExcelTaskContextHolder.isActive())` 並推進進度；未標註任務時則 `isActive() == false`，達成真正的零開銷。
+4. **防重入與防覆蓋保護**：若外部 UseCase 或排程已建立任務，切面直接放行：
 ```java
 @Around("@annotation(trackExcelTask)")
 public Object trackTask(ProceedingJoinPoint joinPoint, TrackExcelTask trackExcelTask) throws Throwable {
@@ -141,7 +151,7 @@ public Object trackTask(ProceedingJoinPoint joinPoint, TrackExcelTask trackExcel
     if (ExcelTaskContextHolder.isActive()) {
         return joinPoint.proceed();
     }
-    // 建立新 TaskId 並管理完整生命週期...
+    // 建立新 TaskId、包裝 TeeOutputStream 落盤並管理完整生命週期...
 }
 ```
 
