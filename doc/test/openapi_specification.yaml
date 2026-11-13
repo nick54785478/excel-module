@@ -1103,10 +1103,51 @@ components:
         dataModel:
           type: object
           description: 注入範本之業務資料上下文 (支援任意鍵值對字典或模型集合)
+          example:
+            inquiryNo: "INQ-202611-008"
+            inquiryDate: "2026-11-10"
+            vendorNames: "漢翔精密, 長榮航太, 神盾精密"
+            quotationItems:
+              - materialCode: "MAT-SFG-001"
+                materialName: "飛控主板電路總成"
+                specification: "FC-STM32H7"
+                requiredQuantity: 50
+                vendorName: "漢翔精密"
+                quoteUnitPrice: 4520.00
+                targetPrice: 4500.00
+                vendorA_Price: 4800.00
+                vendorB_Price: 4650.00
+                vendorC_Price: 4520.00
+                lowestPrice: 4520.00
+                priceDiff: 20.00
+              - materialCode: "MAT-SFG-002"
+                materialName: "2212 920KV 無刷動力馬達組"
+                specification: "920KV CW/CCW"
+                requiredQuantity: 200
+                vendorName: "神盾精密"
+                quoteUnitPrice: 640.00
+                targetPrice: 650.00
+                vendorA_Price: 680.00
+                vendorB_Price: 660.00
+                vendorC_Price: 640.00
+                lowestPrice: 640.00
+                priceDiff: -10.00
+              - materialCode: "MAT-RM-0076"
+                materialName: "航太級碳纖維十字機臂管件"
+                specification: "3K Carbon D16"
+                requiredQuantity: 100
+                vendorName: "神盾精密"
+                quoteUnitPrice: 1190.00
+                targetPrice: 1200.00
+                vendorA_Price: 1250.00
+                vendorB_Price: 1220.00
+                vendorC_Price: 1190.00
+                lowestPrice: 1190.00
+                priceDiff: -10.00
         outputFileName:
           type: string
           description: 自訂輸出檔案名稱
-          example: procurement_comparison_report.xlsx
+          example: quotation_comparison.xlsx
 
     ExportTemplateWithMappingResource:
       type: object

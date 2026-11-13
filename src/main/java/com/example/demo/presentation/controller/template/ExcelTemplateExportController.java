@@ -52,6 +52,9 @@ import com.example.demo.presentation.resource.out.ExcelTemplateUpdatedResource;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,6 +77,119 @@ import jakarta.validation.Valid;
 public class ExcelTemplateExportController {
 
     private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    private static final String PROCUREMENT_COMPARISON_EXAMPLE_JSON = """
+            {
+              "outputFileName": "quotation_comparison.xlsx",
+              "dataModel": {
+                "inquiryNo": "INQ-202611-008",
+                "inquiryDate": "2026-11-10",
+                "vendorNames": "漢翔精密, 長榮航太, 神盾精密",
+                "quotationItems": [
+                  {
+                    "materialCode": "MAT-SFG-001",
+                    "materialName": "飛控主板電路總成",
+                    "specification": "FC-STM32H7",
+                    "requiredQuantity": 50,
+                    "vendorName": "漢翔精密",
+                    "quoteUnitPrice": 4520.00,
+                    "targetPrice": 4500.00,
+                    "vendorA_Price": 4800.00,
+                    "vendorB_Price": 4650.00,
+                    "vendorC_Price": 4520.00,
+                    "lowestPrice": 4520.00,
+                    "priceDiff": 20.00
+                  },
+                  {
+                    "materialCode": "MAT-SFG-002",
+                    "materialName": "2212 920KV 無刷動力馬達組",
+                    "specification": "920KV CW/CCW",
+                    "requiredQuantity": 200,
+                    "vendorName": "神盾精密",
+                    "quoteUnitPrice": 640.00,
+                    "targetPrice": 650.00,
+                    "vendorA_Price": 680.00,
+                    "vendorB_Price": 660.00,
+                    "vendorC_Price": 640.00,
+                    "lowestPrice": 640.00,
+                    "priceDiff": -10.00
+                  },
+                  {
+                    "materialCode": "MAT-RM-0076",
+                    "materialName": "航太級碳纖維十字機臂管件",
+                    "specification": "3K Carbon D16",
+                    "requiredQuantity": 100,
+                    "vendorName": "神盾精密",
+                    "quoteUnitPrice": 1190.00,
+                    "targetPrice": 1200.00,
+                    "vendorA_Price": 1250.00,
+                    "vendorB_Price": 1220.00,
+                    "vendorC_Price": 1190.00,
+                    "lowestPrice": 1190.00,
+                    "priceDiff": -10.00
+                  }
+                ]
+              }
+            }
+            """;
+
+    private static final String MATERIAL_MASTER_EXAMPLE_JSON = """
+            {
+              "outputFileName": "material_master_export.xlsx",
+              "dataModel": {
+                "companyName": "高準精密航太科技股份有限公司",
+                "exportDate": "2026-11-10",
+                "materials": [
+                  {
+                    "materialCode": "MAT-SFG-001",
+                    "materialName": "飛控主板電路總成",
+                    "specification": "FC-STM32H7",
+                    "category": "半成品",
+                    "unit": "套/組",
+                    "standardCost": 4800.00
+                  },
+                  {
+                    "materialCode": "MAT-SFG-002",
+                    "materialName": "2212 動力推進總成",
+                    "specification": "920KV 4-Pack",
+                    "category": "半成品",
+                    "unit": "套/組",
+                    "standardCost": 680.00
+                  }
+                ]
+              }
+            }
+            """;
+
+    private static final String BOM_COST_ANALYSIS_EXAMPLE_JSON = """
+            {
+              "outputFileName": "bom_cost_analysis_PRO4K.xlsx",
+              "dataModel": {
+                "parentMaterialCode": "MAT-FG-001",
+                "parentMaterialName": "4K 專業商用巡檢無人機旗艦裝配 (PRO-4K)",
+                "version": "V1.0",
+                "status": "APPROVED",
+                "baseQuantity": 1.00,
+                "currency": "TWD",
+                "items": [
+                  {
+                    "level": 1,
+                    "itemSequence": 10,
+                    "childMaterialCode": "MAT-SFG-001",
+                    "childMaterialName": "飛控主板電路總成",
+                    "specification": "FC-STM32H7",
+                    "category": "半成品",
+                    "unit": "套/組",
+                    "baseQuantity": 1.00,
+                    "scrapRate": 0.01,
+                    "standardCost": 4800.00,
+                    "positionCode": "FC-ASM",
+                    "remark": "高算力航行主控板"
+                  }
+                ]
+              }
+            }
+            """;
 
     private final ExportTemplateExcelUseCase exportTemplateExcelUseCase;
     private final StreamExportTemplateExcelUseCase streamExportTemplateExcelUseCase;
@@ -282,7 +398,35 @@ public class ExcelTemplateExportController {
      * @param resource    匯出請求資源載體
      * @return Excel (.xlsx) 二進位位元組附件下載
      */
-    @Operation(summary = "依據範本匯出 Excel 檔案 (Buffered 模式)", description = "接收資料上下文，以 JXLS 範本渲染並一次性回傳二進位位元組檔案下載")
+    @Operation(
+            summary = "依據範本匯出 Excel 檔案 (Buffered 模式)",
+            description = "接收資料上下文，以 JXLS 範本渲染並一次性回傳二進位位元組檔案下載",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "範本 Excel 匯出請求載體，包含 dataModel 資料模型與自訂輸出檔名",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ExportTemplateExcelResource.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "採購詢價比價單範例 (PROCUREMENT_COMPARISON)",
+                                            summary = "符合 templateKey 為 PROCUREMENT_COMPARISON 之完整資料模型範例",
+                                            value = PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "物料主檔清單範例 (MATERIAL_MASTER)",
+                                            summary = "符合 templateKey 為 MATERIAL_MASTER 之完整資料模型範例",
+                                            value = MATERIAL_MASTER_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "產品結構成本分析範例 (BOM_COST_ANALYSIS)",
+                                            summary = "符合 templateKey 為 BOM_COST_ANALYSIS 之完整資料模型範例",
+                                            value = BOM_COST_ANALYSIS_EXAMPLE_JSON
+                                    )
+                            }
+                    )
+            )
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功產製並回傳檔案二進位資料"),
         @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
@@ -309,7 +453,35 @@ public class ExcelTemplateExportController {
      * @param response    HTTP Servlet 回應物件
      * @throws IOException 串流寫入 I/O 異常
      */
-    @Operation(summary = "依據範本串流匯出 Excel 檔案 (Zero-Copy 串流模式)", description = "以低記憶體串流方式將 JXLS 產物直通 HTTP Response OutputStream")
+    @Operation(
+            summary = "依據範本串流匯出 Excel 檔案 (Zero-Copy 串流模式)",
+            description = "以低記憶體串流方式將 JXLS 產物直通 HTTP Response OutputStream",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "範本 Excel 串流匯出請求載體，包含 dataModel 資料模型與自訂輸出檔名",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ExportTemplateExcelResource.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "採購詢價比價單範例 (PROCUREMENT_COMPARISON)",
+                                            summary = "符合 templateKey 為 PROCUREMENT_COMPARISON 之完整資料模型範例",
+                                            value = PROCUREMENT_COMPARISON_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "物料主檔清單範例 (MATERIAL_MASTER)",
+                                            summary = "符合 templateKey 為 MATERIAL_MASTER 之完整資料模型範例",
+                                            value = MATERIAL_MASTER_EXAMPLE_JSON
+                                    ),
+                                    @ExampleObject(
+                                            name = "產品結構成本分析範例 (BOM_COST_ANALYSIS)",
+                                            summary = "符合 templateKey 為 BOM_COST_ANALYSIS 之完整資料模型範例",
+                                            value = BOM_COST_ANALYSIS_EXAMPLE_JSON
+                                    )
+                            }
+                    )
+            )
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
         @ApiResponse(responseCode = "404", description = "指定範本不存在"),
