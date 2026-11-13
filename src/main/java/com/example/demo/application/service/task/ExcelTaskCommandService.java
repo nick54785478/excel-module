@@ -16,8 +16,9 @@ import com.example.demo.application.port.in.task.DownloadExcelTaskFileUseCase;
 import com.example.demo.application.port.in.task.SubmitAsyncExcelExportUseCase;
 import com.example.demo.application.port.in.task.SubmitAsyncExcelImportUseCase;
 import com.example.demo.application.port.out.core.ExcelReaderPort;
-import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
 import com.example.demo.application.port.out.core.ExcelWriterPort;
+import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.task.ExcelTaskStoragePort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.command.ExportExcelCommand;
 import com.example.demo.application.shared.command.WriteExcelCommand;
@@ -55,21 +56,24 @@ import com.example.demo.application.shared.vo.ExcelTaskType;
 public class ExcelTaskCommandService implements SubmitAsyncExcelExportUseCase, SubmitAsyncExcelImportUseCase, DownloadExcelTaskFileUseCase {
 
 	private final ExcelTaskRepositoryPort excelTaskRepositoryPort;
+	private final ExcelTaskStoragePort excelTaskStoragePort;
 	private final ExcelWriterPort excelWriterPort;
 	private final ExcelReaderPort excelReaderPort;
 	private final Executor taskExecutor;
 
 	/**
-	 * 記憶體中暫存已完成任務產出檔案之二進位內容 (供 /download 端點取用)
+	 * 記憶體中暫存已完成任務產出檔案之二進位內容 (供 /download 端點高速取用)
 	 */
 	private final ConcurrentMap<String, byte[]> completedTaskFiles = new ConcurrentHashMap<>();
 
 	public ExcelTaskCommandService(
 			ExcelTaskRepositoryPort excelTaskRepositoryPort,
+			ExcelTaskStoragePort excelTaskStoragePort,
 			ExcelWriterPort excelWriterPort,
 			ExcelReaderPort excelReaderPort,
 			@Qualifier("excelTaskExecutor") Executor taskExecutor) {
 		this.excelTaskRepositoryPort = Objects.requireNonNull(excelTaskRepositoryPort, "excelTaskRepositoryPort 不得為空");
+		this.excelTaskStoragePort = Objects.requireNonNull(excelTaskStoragePort, "excelTaskStoragePort 不得為空");
 		this.excelWriterPort = Objects.requireNonNull(excelWriterPort, "excelWriterPort 不得為空");
 		this.excelReaderPort = Objects.requireNonNull(excelReaderPort, "excelReaderPort 不得為空");
 		this.taskExecutor = Objects.requireNonNull(taskExecutor, "taskExecutor 不得為空");
@@ -164,7 +168,11 @@ public class ExcelTaskCommandService implements SubmitAsyncExcelExportUseCase, S
 	@Override
 	public byte[] getExportedFile(String taskId) {
 		Objects.requireNonNull(taskId, "taskId 不得為空");
-		return completedTaskFiles.get(taskId);
+		byte[] inMemoryBytes = completedTaskFiles.get(taskId);
+		if (inMemoryBytes != null) {
+			return inMemoryBytes;
+		}
+		return excelTaskStoragePort.retrieve(taskId).orElse(null);
 	}
 
 	// =========================================================================
@@ -188,6 +196,11 @@ public class ExcelTaskCommandService implements SubmitAsyncExcelExportUseCase, S
 			byte[] fileBytes = excelWriterPort.write(writeCommand);
 
 			completedTaskFiles.put(taskId, fileBytes);
+			String fileName = command.fileName() != null && !command.fileName().isBlank()
+					? command.fileName()
+					: "export.xlsx";
+			excelTaskStoragePort.store(taskId, fileName, fileBytes);
+
 			String fileUrl = "/api/v1/excel/tasks/" + taskId + "/download";
 			excelTaskRepositoryPort.markCompleted(taskId, fileUrl, totalRows > 0 ? totalRows : processed);
 		} catch (Exception e) {

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,6 +24,7 @@ import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 
 import com.example.demo.application.annotation.task.TrackExcelTask;
 import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.task.ExcelTaskStoragePort;
 import com.example.demo.application.port.out.core.ExcelWriterPort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.command.WriteStreamExcelCommand;
@@ -45,6 +47,7 @@ import com.example.demo.infrastructure.adapter.core.PoiSxssfWriterAdapter;
 class ExcelTaskTrackingAspectTest {
 
 	private ExcelTaskRepositoryPort excelTaskRepositoryPort;
+	private ExcelTaskStoragePort excelTaskStoragePort;
 	private SampleService proxy;
 
 	static class SampleService {
@@ -70,6 +73,7 @@ class ExcelTaskTrackingAspectTest {
 	@BeforeEach
 	void setUp() {
 		this.excelTaskRepositoryPort = mock(ExcelTaskRepositoryPort.class);
+		this.excelTaskStoragePort = mock(ExcelTaskStoragePort.class);
 
 		when(excelTaskRepositoryPort.createTask(any(CreateExcelTaskCommand.class)))
 				.thenAnswer(invocation -> {
@@ -89,7 +93,14 @@ class ExcelTaskTrackingAspectTest {
 					);
 				});
 
-		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, Runnable::run);
+		when(excelTaskStoragePort.wrapOutputStream(anyString(), anyString(), any(OutputStream.class)))
+				.thenAnswer(invocation -> invocation.getArgument(2));
+
+		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(
+				excelTaskRepositoryPort,
+				excelTaskStoragePort,
+				Runnable::run
+		);
 
 		SampleService target = new SampleService();
 		AspectJProxyFactory factory = new AspectJProxyFactory(target);
@@ -201,7 +212,10 @@ class ExcelTaskTrackingAspectTest {
 	@DisplayName("場景：FastExcelWriterAdapter.writeStream 透過 @TrackExcelTask 宣告式追蹤串流長任務")
 	void shouldTrackFastExcelWriterAdapterWriteStream() {
 		// Given: 建立 FastExcelWriterAdapter 代理
-		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, Runnable::run);
+		when(excelTaskStoragePort.wrapOutputStream(anyString(), anyString(), any(OutputStream.class)))
+				.thenAnswer(invocation -> invocation.getArgument(2));
+
+		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, excelTaskStoragePort, Runnable::run);
 		FastExcelWriterAdapter targetAdapter = new FastExcelWriterAdapter();
 		AspectJProxyFactory factory = new AspectJProxyFactory(targetAdapter);
 		factory.addAspect(aspect);
@@ -247,7 +261,10 @@ class ExcelTaskTrackingAspectTest {
 	@DisplayName("場景：PoiSxssfWriterAdapter.writeStream 透過 @TrackExcelTask 宣告式追蹤串流長任務")
 	void shouldTrackPoiSxssfWriterAdapterWriteStream() {
 		// Given: 建立 PoiSxssfWriterAdapter 代理
-		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, Runnable::run);
+		when(excelTaskStoragePort.wrapOutputStream(anyString(), anyString(), any(OutputStream.class)))
+				.thenAnswer(invocation -> invocation.getArgument(2));
+
+		ExcelTaskTrackingAspect aspect = new ExcelTaskTrackingAspect(excelTaskRepositoryPort, excelTaskStoragePort, Runnable::run);
 		PoiSxssfWriterAdapter targetAdapter = new PoiSxssfWriterAdapter();
 		AspectJProxyFactory factory = new AspectJProxyFactory(targetAdapter);
 		factory.addAspect(aspect);

@@ -1,5 +1,6 @@
 package com.example.demo.infrastructure.aspect;
 
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.demo.application.annotation.task.TrackExcelTask;
 import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.task.ExcelTaskStoragePort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.context.ExcelTaskContextHolder;
 import com.example.demo.application.shared.dto.ExcelTaskGottenResult;
@@ -67,6 +69,11 @@ public class ExcelTaskTrackingAspect {
 	private final ExcelTaskRepositoryPort excelTaskRepositoryPort;
 
 	/**
+	 * 長任務產出檔案本機磁碟暫存輸出埠 (Outbound Port)，負責檔案落盤暫存與串流分流
+	 */
+	private final ExcelTaskStoragePort excelTaskStoragePort;
+
+	/**
 	 * 長任務背景專屬執行緒池，用於執行標註為 {@code async = true} 之耗時匯入/匯出任務
 	 */
 	private final Executor taskExecutor;
@@ -85,14 +92,17 @@ public class ExcelTaskTrackingAspect {
 	 * 建構子依賴注入
 	 *
 	 * @param excelTaskRepositoryPort 長任務資料庫輸出埠，不可為空
+	 * @param excelTaskStoragePort    長任務產出檔案儲存庫輸出埠，不可為空
 	 * @param taskExecutor            Excel 專用非同步執行緒池 (Bean 名稱: {@code excelTaskExecutor})，不可為空
 	 * @throws NullPointerException 若任何依賴組件為 {@code null}
 	 */
 	public ExcelTaskTrackingAspect(
 			ExcelTaskRepositoryPort excelTaskRepositoryPort,
+			ExcelTaskStoragePort excelTaskStoragePort,
 			@Qualifier("excelTaskExecutor") Executor taskExecutor
 	) {
 		this.excelTaskRepositoryPort = Objects.requireNonNull(excelTaskRepositoryPort, "excelTaskRepositoryPort 不得為空");
+		this.excelTaskStoragePort = Objects.requireNonNull(excelTaskStoragePort, "excelTaskStoragePort 不得為空");
 		this.taskExecutor = Objects.requireNonNull(taskExecutor, "taskExecutor 不得為空");
 	}
 
@@ -169,15 +179,21 @@ public class ExcelTaskTrackingAspect {
 		// 將任務上下文綁定至當前執行緒 ThreadLocal，使底層 Adapter 可無感呼叫 incrementProgress
 		ExcelTaskContextHolder.bind(taskId, taskType, fileName, totalRows, excelTaskRepositoryPort);
 		try {
-			// 執行原方法邏輯 (例如呼叫 FastExcelWriterAdapter 進行串流沖刷寫入)
-			Object result = joinPoint.proceed();
-
-			// 結算最終處理列數與完成狀態
-			long finalProcessed = ExcelTaskContextHolder.getProcessedRows();
-			long finalTotal = totalRows > 0 ? totalRows : finalProcessed;
-			String fileUrl = "/api/v1/excel/tasks/" + taskId + "/download";
-			excelTaskRepositoryPort.markCompleted(taskId, fileUrl, finalTotal);
-			return result;
+			Object[] args = joinPoint.getArgs();
+			if (args != null && args.length > 0 && args[0] instanceof OutputStream originalOut) {
+				OutputStream teeOut = excelTaskStoragePort.wrapOutputStream(taskId, fileName, originalOut);
+				Object[] modifiedArgs = args.clone();
+				modifiedArgs[0] = teeOut;
+				try {
+					Object result = joinPoint.proceed(modifiedArgs);
+					return processTaskCompletion(taskId, totalRows, fileName, result);
+				} finally {
+					excelTaskStoragePort.finishStream(taskId);
+				}
+			} else {
+				Object result = joinPoint.proceed();
+				return processTaskCompletion(taskId, totalRows, fileName, result);
+			}
 		} catch (Throwable t) {
 			// 發生未預期異常，記錄失敗原因並標記為 FAILED
 			excelTaskRepositoryPort.markFailed(taskId, t.getMessage());
@@ -219,14 +235,21 @@ public class ExcelTaskTrackingAspect {
 			excelTaskRepositoryPort.markProcessing(taskId);
 			ExcelTaskContextHolder.bind(taskId, taskType, fileName, totalRows, excelTaskRepositoryPort);
 			try {
-				// 執行耗時業務邏輯
-				joinPoint.proceed();
-
-				// 結算進度並標記 COMPLETED
-				long finalProcessed = ExcelTaskContextHolder.getProcessedRows();
-				long finalTotal = totalRows > 0 ? totalRows : finalProcessed;
-				String fileUrl = "/api/v1/excel/tasks/" + taskId + "/download";
-				excelTaskRepositoryPort.markCompleted(taskId, fileUrl, finalTotal);
+				Object[] args = joinPoint.getArgs();
+				if (args != null && args.length > 0 && args[0] instanceof OutputStream originalOut) {
+					OutputStream teeOut = excelTaskStoragePort.wrapOutputStream(taskId, fileName, originalOut);
+					Object[] modifiedArgs = args.clone();
+					modifiedArgs[0] = teeOut;
+					try {
+						Object result = joinPoint.proceed(modifiedArgs);
+						processTaskCompletion(taskId, totalRows, fileName, result);
+					} finally {
+						excelTaskStoragePort.finishStream(taskId);
+					}
+				} else {
+					Object result = joinPoint.proceed();
+					processTaskCompletion(taskId, totalRows, fileName, result);
+				}
 			} catch (Throwable t) {
 				// 背景任務拋出異常，記錄錯誤訊息至資料庫
 				excelTaskRepositoryPort.markFailed(taskId, t.getMessage());
@@ -241,6 +264,27 @@ public class ExcelTaskTrackingAspect {
 			return initialTask;
 		}
 		return null;
+	}
+
+	/**
+	 * 結算長任務產物檔案暫存與資料庫完成狀態
+	 *
+	 * @param taskId    任務識別碼
+	 * @param totalRows 預估或設定之總列數
+	 * @param fileName  產出檔案名稱
+	 * @param result    原方法回傳結果 (若為 byte[] 則持久化儲存)
+	 * @return 原方法執行回傳值
+	 */
+	private Object processTaskCompletion(String taskId, long totalRows, String fileName, Object result) {
+		if (result instanceof byte[] bytes) {
+			excelTaskStoragePort.store(taskId, fileName, bytes);
+		}
+		// 結算最終處理列數與完成狀態
+		long finalProcessed = ExcelTaskContextHolder.getProcessedRows();
+		long finalTotal = totalRows > 0 ? totalRows : finalProcessed;
+		String fileUrl = "/api/v1/excel/tasks/" + taskId + "/download";
+		excelTaskRepositoryPort.markCompleted(taskId, fileUrl, finalTotal);
+		return result;
 	}
 
 	/**

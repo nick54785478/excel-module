@@ -24,8 +24,9 @@ import org.junit.jupiter.api.Test;
 
 import com.example.demo.application.port.in.task.DownloadExcelTaskFileUseCase;
 import com.example.demo.application.port.out.core.ExcelReaderPort;
-import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
 import com.example.demo.application.port.out.core.ExcelWriterPort;
+import com.example.demo.application.port.out.task.ExcelTaskRepositoryPort;
+import com.example.demo.application.port.out.task.ExcelTaskStoragePort;
 import com.example.demo.application.shared.command.CreateExcelTaskCommand;
 import com.example.demo.application.shared.command.ExportExcelCommand;
 import com.example.demo.application.shared.command.WriteExcelCommand;
@@ -47,6 +48,7 @@ import com.example.demo.application.shared.stream.ExcelChunkConsumer;
 class ExcelTaskCommandServiceTest {
 
 	private ExcelTaskRepositoryPort excelTaskRepositoryPort;
+	private ExcelTaskStoragePort excelTaskStoragePort;
 	private ExcelWriterPort excelWriterPort;
 	private ExcelReaderPort excelReaderPort;
 	private ExcelTaskCommandService commandService;
@@ -54,12 +56,14 @@ class ExcelTaskCommandServiceTest {
 	@BeforeEach
 	void setUp() {
 		this.excelTaskRepositoryPort = mock(ExcelTaskRepositoryPort.class);
+		this.excelTaskStoragePort = mock(ExcelTaskStoragePort.class);
 		this.excelWriterPort = mock(ExcelWriterPort.class);
 		this.excelReaderPort = mock(ExcelReaderPort.class);
 
 		// 使用 Runnable::run 作為同步 Executor，確保背景工作於測試當下立即可靠執行
 		this.commandService = new ExcelTaskCommandService(
 				excelTaskRepositoryPort,
+				excelTaskStoragePort,
 				excelWriterPort,
 				excelReaderPort,
 				Runnable::run);

@@ -10,9 +10,8 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
--- 1. 清理舊資料表
+-- 1. 清理舊資料表 (保留 t_excel_task 歷史任務記錄，由 CREATE TABLE IF NOT EXISTS 維護)
 DROP TABLE IF EXISTS t_excel_template;
-DROP TABLE IF EXISTS t_excel_task;
 DROP TABLE IF EXISTS t_bom_item;
 DROP TABLE IF EXISTS t_bom;
 DROP TABLE IF EXISTS t_material;

@@ -58,13 +58,16 @@ public class ExcelTaskController {
 	}
 
 	/**
-	 * 查詢指定識別碼之長任務當前進度與執行狀態
+	 * 查詢指定識別碼之長任務當前進度與執行狀態 (支援標準 RESTful 資源路徑與 /progress 相容別名)
 	 *
 	 * @param taskId 任務唯一識別碼
 	 * @return HTTP 200 OK 與任務進度詳細資訊
 	 */
-	@GetMapping(value = "/{taskId}/progress", produces = MediaType.APPLICATION_JSON_VALUE)
-	@Operation(summary = "查詢 Excel 長任務進度與狀態", description = "提供前端輪詢當前任務狀態、總列數、已處理筆數、百分比與錯誤資訊")
+	@GetMapping(value = {"/{taskId}", "/{taskId}/progress"}, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(
+			summary = "查詢 Excel 長任務進度與狀態",
+			description = "提供前端輪詢當前任務狀態、總列數、已處理筆數、百分比與錯誤資訊。支援標準 RESTful 資源路徑 GET /{taskId} 與相容別名 GET /{taskId}/progress。"
+	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "查詢成功，回傳進度資訊"),
 			@ApiResponse(responseCode = "404", description = "查無該 taskId 對應之任務")
@@ -74,9 +77,10 @@ public class ExcelTaskController {
 			@PathVariable("taskId") @NotBlank(message = "任務識別碼 (taskId) 不得為空") String taskId
 	) {
 		// ---------------------------------------------------------------------
-		// 步驟 1：建構查詢條件並調用 GetExcelTaskUseCase (Inbound Port)
+		// 步驟 1：防禦性清理空白字元並調用 GetExcelTaskUseCase (Inbound Port)
 		// ---------------------------------------------------------------------
-		GetExcelTaskQuery query = new GetExcelTaskQuery(taskId);
+		String cleanTaskId = taskId.trim();
+		GetExcelTaskQuery query = new GetExcelTaskQuery(cleanTaskId);
 		ExcelTaskGottenResult taskResult = getExcelTaskUseCase.getTask(query);
 
 		// ---------------------------------------------------------------------
@@ -107,17 +111,18 @@ public class ExcelTaskController {
 			@PathVariable("taskId") @NotBlank(message = "任務識別碼 (taskId) 不得為空") String taskId
 	) {
 		// ---------------------------------------------------------------------
-		// 步驟 1：依據 taskId 查詢任務元數據與推薦檔名
+		// 步驟 1：防禦性清理空白並依據 taskId 查詢任務元數據與推薦檔名
 		// ---------------------------------------------------------------------
-		GetExcelTaskQuery query = new GetExcelTaskQuery(taskId);
+		String cleanTaskId = taskId.trim();
+		GetExcelTaskQuery query = new GetExcelTaskQuery(cleanTaskId);
 		ExcelTaskGottenResult taskResult = getExcelTaskUseCase.getTask(query);
 
 		// ---------------------------------------------------------------------
 		// 步驟 2：調用 DownloadExcelTaskFileUseCase 獲取已完成檔案二進位位元組
 		// ---------------------------------------------------------------------
-		byte[] fileBytes = downloadExcelTaskFileUseCase.getExportedFile(taskId);
+		byte[] fileBytes = downloadExcelTaskFileUseCase.getExportedFile(cleanTaskId);
 		if (fileBytes == null) {
-			throw new ExcelTaskNotFoundException("長任務匯出檔案尚未產生或已過期: " + taskId);
+			throw new ExcelTaskNotFoundException("長任務匯出檔案尚未產生或已過期: " + cleanTaskId);
 		}
 
 		// ---------------------------------------------------------------------

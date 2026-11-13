@@ -59,6 +59,43 @@ class ExcelTaskControllerTest {
 	}
 
 	/**
+	 * Feature: 查詢長任務進度端點 (標準 RESTful GET /{taskId} 路徑)
+	 * Scenario: 成功透過標準 RESTful 端點查詢現存長任務之進度與狀態
+	 * Given: 任務 "task-100" 存在於系統中
+	 * When: 發送 GET /api/v1/excel/tasks/task-100
+	 * Then: 應回傳 HTTP 200 OK，包含進度百分比與處理列數
+	 */
+	@Test
+	@DisplayName("場景：成功透過標準 RESTful GET /{taskId} 端點查詢長任務進度")
+	void shouldGetTaskProgressViaRestfulPathSuccessfully() throws Exception {
+		// Given
+		ExcelTaskGottenResult taskResult = new ExcelTaskGottenResult(
+				"task-100",
+				ExcelTaskType.EXPORT,
+				ExcelTaskStatus.PROCESSING,
+				1000L,
+				450L,
+				45.0,
+				"users.xlsx",
+				null,
+				null,
+				LocalDateTime.now(),
+				LocalDateTime.now()
+		);
+		when(getExcelTaskUseCase.getTask(new GetExcelTaskQuery("task-100")))
+				.thenReturn(taskResult);
+
+		// When & Then
+		mockMvc.perform(get("/api/v1/excel/tasks/task-100"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.taskId").value("task-100"))
+				.andExpect(jsonPath("$.taskStatus").value("PROCESSING"))
+				.andExpect(jsonPath("$.totalRows").value(1000))
+				.andExpect(jsonPath("$.processedRows").value(450))
+				.andExpect(jsonPath("$.progressPercentage").value(45.0));
+	}
+
+	/**
 	 * Feature: 查詢長任務進度端點
 	 * Scenario: 成功查詢現存長任務之進度與狀態
 	 * Given: 任務 "task-100" 存在於系統中
@@ -66,7 +103,7 @@ class ExcelTaskControllerTest {
 	 * Then: 應回傳 HTTP 200 OK，包含進度百分比與處理列數
 	 */
 	@Test
-	@DisplayName("場景：成功查詢現存長任務之進度詳細資訊")
+	@DisplayName("場景：成功查詢現存長任務之進度詳細資訊 (向後相容 /progress)")
 	void shouldGetTaskProgressSuccessfully() throws Exception {
 		// Given
 		ExcelTaskGottenResult taskResult = new ExcelTaskGottenResult(
