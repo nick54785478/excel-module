@@ -38,7 +38,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -90,24 +89,22 @@ public class ExcelController {
 			summary = "標準批次匯出 Excel 檔案",
 			description = "依據傳入之工作表結構、標題列與資料陣列，於記憶體中建構 Excel (.xlsx) 檔案，並以二進位串流提供下載。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功生成 Excel 二進位檔案並提供下載",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "請求資料校驗失敗 (如空白檔名、未指定工作表等)",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功生成 Excel 二進位檔案並提供下載",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "請求資料校驗失敗 (如空白檔名、未指定工作表等)",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping("/export")
 	public ResponseEntity<byte[]> exportExcel(
 			@Parameter(description = "匯出結構載體", required = true)
@@ -138,24 +135,22 @@ public class ExcelController {
 			summary = "大數據串流匯出 Excel 檔案",
 			description = "針對百萬筆大數據資料，邊寫入邊透過 HTTP 輸出串流 Flush，維持常數級低記憶體消耗，避免 OOM。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功建立串流輸出傳輸",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "串流參數校驗失敗 (如沖刷筆數小於 1 等)",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功建立串流輸出傳輸",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "串流參數校驗失敗 (如沖刷筆數小於 1 等)",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping("/export/stream")
 	public void streamExportExcel(
 			@Parameter(description = "串流匯出參數設定", required = true)
@@ -192,24 +187,22 @@ public class ExcelController {
 			summary = "檔案上傳並完整解析 Excel 內容",
 			description = "透過 Multipart 形式上傳 Excel 檔案，讀取各工作表欄位名稱與資料列，封裝為結構化 JSON 回應。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析 Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ExcelImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空或參數錯誤",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析 Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ExcelImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空或參數錯誤",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ExcelImportedResource> importExcel(
 			@Parameter(description = "欲上傳解析之 Excel 檔案 (.xlsx / .xls)", required = true)
@@ -248,24 +241,22 @@ public class ExcelController {
 			summary = "檔案上傳並執行大數據串流分塊解析",
 			description = "上傳超大型 Excel 檔案，以指定 Chunk 大小（如 1000 筆）進行分塊串流消費與業務處理，產出處理指標統計。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "大數據串流解析統計完成",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ExcelStreamImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空或分塊大小無效",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "大數據串流解析統計完成",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ExcelStreamImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空或分塊大小無效",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/import/stream", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ExcelStreamImportedResource> streamImportExcel(
 			@Parameter(description = "欲上傳串流解析之大數據 Excel 檔案", required = true)

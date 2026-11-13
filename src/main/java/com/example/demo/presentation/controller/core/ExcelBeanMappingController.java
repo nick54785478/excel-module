@@ -34,7 +34,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -149,24 +148,22 @@ public class ExcelBeanMappingController {
 			summary = "檔案上傳並宣告式解析為 OrderModel (JavaBean 模式)",
 			description = "上傳 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為 OrderModel 清單，回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析 Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = OrderImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析 Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = OrderImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/orders/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<OrderImportedResource> importOrders(
 			@Parameter(description = "欲上傳解析之訂單 Excel 檔案 (.xlsx)", required = true)
@@ -223,24 +220,22 @@ public class ExcelBeanMappingController {
 			summary = "檔案上傳並宣告式解析為 ProductRecordModel (Java 21 Record 模式)",
 			description = "上傳 Excel 檔案，後端自動根據 @ExcelSheet 與 @ExcelColumn 宣告式解析並映射為不可變 ProductRecordModel 清單，回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析商品 Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ProductImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析商品 Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ProductImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/products/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ProductImportedResource> importProducts(
 			@Parameter(description = "欲上傳解析之商品 Excel 檔案 (.xlsx)", required = true)

@@ -5,7 +5,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-DDD%20%7C%20Clean%20%7C%20Hexagonal-blue.svg)](#1-架構設計與雙引擎模型-architecture--dual-engine)
 [![Engine](https://img.shields.io/badge/Engine-FastExcel%200.20.2%20%2B%20Apache%20POI%205.5.1-purple.svg)](#2-雙引擎動態切換指南-dual-engine-configuration)
 [![Rule Engine](https://img.shields.io/badge/Rule%20Engine-EasyRules%204.1.0-red.svg)](https://github.com/j-easy/easy-rules)
-[![Tests](https://img.shields.io/badge/Tests-316%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
+[![Tests](https://img.shields.io/badge/Tests-315%20Passed-success.svg)](#7-自動化測試與品質保證-testing--verification)
 
 > 📌 本模組為企業級高性能試算表處理解決方案，原生結合製造業 **物料清單 (Bill of Materials, BOM)** 多階遞迴展開與匯出引擎。嚴格遵循 **領域驅動設計 (DDD)**、**Clean Architecture** 與 **六角形架構 (Hexagonal / Ports & Adapters)**，實踐表現層、應用層、領域層與底層實作的完全解耦。
 
@@ -126,9 +126,9 @@ com.example.demo
 * 🛡️ **高純度架構規範 (Strict Clean Architecture)**：
   * 領域層（Domain Layer）維持純粹 Java（Pure Java），**嚴禁使用 Lombok**，聚合根以業務語意封裝不變條件。
   * 應用層（Application Layer）嚴守 CQRS、Command/Query/Result 物件隔離與防腐層機制（ACL）。
-* 📋 **完整測試資產 (Comprehensive Testing Assets - 316/316 Passed)**：
+* 📋 **完整測試資產 (Comprehensive Testing Assets - 315/315 Passed)**：
   * 內建 OpenAPI 3.0 (Swagger UI) 與 Postman 整合測試集合（含 `pm.test` 自動斷言腳本）。
-  * 316 項單元與整合測試全量綠燈通過（`BUILD SUCCESS`）。
+  * 315 項單元與整合測試全量綠燈通過（`BUILD SUCCESS`）。
 
 ---
 
@@ -667,7 +667,7 @@ excel-module/
 │   │       ├── application.properties                  # 系統、excel.engine 與 excel.task.enabled 配置檔
 │   │       ├── templates/                              # 內建業務與錯誤回標測試範本 (.xlsx)
 │   │       └── sql/material_bom_test_data.sql          # 2000 筆物料與 25 筆 BOM 測試 SQL
-│   └── test/java/com/example/demo/                     # 【測試套件】涵蓋 316 個單元與整合測試 (100% BUILD SUCCESS)
+│   └── test/java/com/example/demo/                     # 【測試套件】涵蓋 315 個單元與整合測試 (100% BUILD SUCCESS)
 ```
 
 ---
@@ -738,7 +738,7 @@ gantt
 ./mvnw clean test
 ```
 
-### 測試執行報告 (316/316 Passed)
+### 測試執行報告 (315/315 Passed)
 ```text
 [INFO] -------------------------------------------------------
 [INFO]  T E S T S
@@ -812,7 +812,7 @@ gantt
 [INFO] Running ExcelValidationIntegrationTest 宣告式檢核與錯誤回標整合測試 (端到端真實檔案上傳) (6 tests)
 [INFO] 
 [INFO] Results:
-[INFO] Tests run: 316, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 315, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------

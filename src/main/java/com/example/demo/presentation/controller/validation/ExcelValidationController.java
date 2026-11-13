@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -316,10 +315,8 @@ public class ExcelValidationController {
         summary = "統一動態範本校驗並生成「錯誤回標檔」(OCP 核心統一接口)",
         description = "支援任意已註冊之業務範本 (如 orders, products, materials, boms 或自訂 templateKey)。若包含錯誤自動生成標註淡紅底深紅字之 Excel 回標檔供下載；全數合格則回傳 JSON 統計報告。"
     )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "檢核完全合格 (回傳成功 JSON) 或成功生成錯誤回標檔 (.xlsx) 下載", content = @Content(mediaType = EXCEL_MIME_TYPE)),
-        @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或未註冊之範本鍵值")
-    })
+    @ApiResponse(responseCode = "200", description = "檢核完全合格 (回傳成功 JSON) 或成功生成錯誤回標檔 (.xlsx) 下載", content = @Content(mediaType = EXCEL_MIME_TYPE))
+    @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或未註冊之範本鍵值")
     @PostMapping(value = "/{templateKey}/feedback", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> validateWithFeedback(
         @Parameter(description = "範本鍵值 (如 orders, products, materials, boms 或 Model 類別名稱)", required = true)
@@ -355,11 +352,9 @@ public class ExcelValidationController {
         summary = "統一動態範本校驗 (回傳 JSON 統計結果 - OCP 核心統一接口)",
         description = "支援任意已註冊之業務範本 (如 orders, products, materials, boms)。執行行級規則 (EasyRules) 檢核，回傳全量檢核錯誤清單與統計數據。"
     )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "完全合格或檢核完成報告", content = @Content(schema = @Schema(implementation = ExcelValidatedResource.class))),
-        @ApiResponse(responseCode = "422", description = "檢核發現不合格資料 (包含錯誤細節清單)", content = @Content(schema = @Schema(implementation = ExcelValidatedResource.class))),
-        @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或未註冊之範本鍵值")
-    })
+    @ApiResponse(responseCode = "200", description = "完全合格或檢核完成報告", content = @Content(schema = @Schema(implementation = ExcelValidatedResource.class)))
+    @ApiResponse(responseCode = "422", description = "檢核發現不合格資料 (包含錯誤細節清單)", content = @Content(schema = @Schema(implementation = ExcelValidatedResource.class)))
+    @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或未註冊之範本鍵值")
     @PostMapping(value = "/{templateKey}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ExcelValidatedResource> validate(
         @Parameter(description = "範本鍵值 (如 orders, products, materials, boms 或 Model 類別名稱)", required = true)
@@ -394,10 +389,8 @@ public class ExcelValidationController {
         summary = "智慧自動偵測範本並生成「錯誤回標檔」(Zero-Config 自動路由接口)",
         description = "無須指定 templateKey，後端自動依據上傳 Excel 第一個工作表名稱 (Sheet Name) 自動匹配對應之模型規範並校驗產製回標檔。"
     )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "檢核完全合格 (回傳成功 JSON) 或成功生成錯誤回標檔 (.xlsx) 下載", content = @Content(mediaType = EXCEL_MIME_TYPE)),
-        @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或查無匹配工作表之範本")
-    })
+    @ApiResponse(responseCode = "200", description = "檢核完全合格 (回傳成功 JSON) 或成功生成錯誤回標檔 (.xlsx) 下載", content = @Content(mediaType = EXCEL_MIME_TYPE))
+    @ApiResponse(responseCode = "400", description = "無效請求、檔案為空或查無匹配工作表之範本")
     @PostMapping(value = "/feedback", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> validateAutoDetectWithFeedback(
         @Parameter(description = "待檢核之 Excel 檔案 (.xlsx)", required = true)
@@ -441,10 +434,8 @@ public class ExcelValidationController {
         summary = "宣告式訂單匯入 (AOP 自動回標短路攔截最佳實踐示範)",
         description = "透過 @ValidateExcel 切面攔截，若有錯誤直接短路阻斷並下載錯誤回標 Excel；若合格則自動注入乾淨的 List<OrderModel>"
     )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "完全合格回傳成功報告，或違規時直接下載錯誤回標檔 (.xlsx)", content = @Content(mediaType = EXCEL_MIME_TYPE)),
-        @ApiResponse(responseCode = "400", description = "無效請求或檔案為空")
-    })
+    @ApiResponse(responseCode = "200", description = "完全合格回傳成功報告，或違規時直接下載錯誤回標檔 (.xlsx)", content = @Content(mediaType = EXCEL_MIME_TYPE))
+    @ApiResponse(responseCode = "400", description = "無效請求或檔案為空")
     @PostMapping(value = "/declarative/orders", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ValidateExcel(
         model = OrderModel.class,

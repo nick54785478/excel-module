@@ -47,7 +47,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -112,10 +111,8 @@ public class ExcelTemplateExportController {
      * @return 201 Created 與建立完成之範本回應資源
      */
     @Operation(summary = "建立並註冊新的 Excel 範本", description = "註冊全新範本識別鍵、名稱、分類、描述與必備變數清單")
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "成功建立並註冊範本"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法或範本鍵值重複")
-    })
+    @ApiResponse(responseCode = "201", description = "成功建立並註冊範本")
+    @ApiResponse(responseCode = "400", description = "請求參數格式不合法或範本鍵值重複")
     @PostMapping
     public ResponseEntity<ExcelTemplateCreatedResource> createTemplate(
             @Valid @RequestBody CreateExcelTemplateResource resource) {
@@ -132,10 +129,8 @@ public class ExcelTemplateExportController {
      * @return 200 OK 與更新完成之範本回應資源
      */
     @Operation(summary = "更新既有 Excel 範本規格", description = "異動範本顯示名稱、分類、用途說明、必備變數清單或啟用狀態")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功更新範本規格"),
-        @ApiResponse(responseCode = "404", description = "找不到指定範本")
-    })
+    @ApiResponse(responseCode = "200", description = "成功更新範本規格")
+    @ApiResponse(responseCode = "404", description = "找不到指定範本")
     @PutMapping("/{templateKey}")
     public ResponseEntity<ExcelTemplateUpdatedResource> updateTemplate(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
@@ -153,10 +148,8 @@ public class ExcelTemplateExportController {
      * @return 204 No Content
      */
     @Operation(summary = "刪除指定 Excel 範本", description = "自系統移除指定識別鍵之範本持久化記錄並自動更新快取")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "成功刪除指定範本"),
-        @ApiResponse(responseCode = "404", description = "找不到指定範本")
-    })
+    @ApiResponse(responseCode = "204", description = "成功刪除指定範本")
+    @ApiResponse(responseCode = "404", description = "找不到指定範本")
     @DeleteMapping("/{templateKey}")
     public ResponseEntity<Void> deleteTemplate(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
@@ -196,10 +189,8 @@ public class ExcelTemplateExportController {
      * @return 範本中繼規格回應資源
      */
     @Operation(summary = "查詢單一範本中繼規格", description = "依據範本鍵值獲取該範本之詳細欄位規格與描述")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功取得範本規格"),
-        @ApiResponse(responseCode = "404", description = "找不到指定範本")
-    })
+    @ApiResponse(responseCode = "200", description = "成功取得範本規格")
+    @ApiResponse(responseCode = "404", description = "找不到指定範本")
     @GetMapping("/{templateKey}")
     public ResponseEntity<ExcelTemplateRetrievedResource> getTemplateInfo(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
@@ -248,12 +239,10 @@ public class ExcelTemplateExportController {
                     )
             )
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功產製並回傳檔案二進位資料"),
-        @ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在"),
-        @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-    })
+    @ApiResponse(responseCode = "200", description = "成功產製並回傳檔案二進位資料")
+    @ApiResponse(responseCode = "400", description = "請求參數格式不合法")
+    @ApiResponse(responseCode = "404", description = "指定範本不存在")
+    @ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
     @PostMapping("/{templateKey}/export")
     public ResponseEntity<byte[]> exportFromTemplate(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
@@ -303,11 +292,9 @@ public class ExcelTemplateExportController {
                      )
              )
      )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在"),
-        @ApiResponse(responseCode = "500", description = "伺服器串流輸出異常")
-    })
+    @ApiResponse(responseCode = "200", description = "成功建立串流傳輸")
+    @ApiResponse(responseCode = "404", description = "指定範本不存在")
+    @ApiResponse(responseCode = "500", description = "伺服器串流輸出異常")
     @PostMapping("/{templateKey}/stream")
     public void streamExportFromTemplate(
             @Parameter(description = "範本識別鍵", example = "PROCUREMENT_COMPARISON")
@@ -361,11 +348,9 @@ public class ExcelTemplateExportController {
                     )
             )
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功動態映射並產製檔案"),
-        @ApiResponse(responseCode = "400", description = "映射規則無效或資料格式錯誤"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在")
-    })
+    @ApiResponse(responseCode = "200", description = "成功動態映射並產製檔案")
+    @ApiResponse(responseCode = "400", description = "映射規則無效或資料格式錯誤")
+    @ApiResponse(responseCode = "404", description = "指定範本不存在")
     @PostMapping("/{templateKey}/export-mapped")
     public ResponseEntity<byte[]> exportFromTemplateWithMapping(
             @Parameter(description = "範本識別鍵", example = "MATERIAL_MASTER")
@@ -415,10 +400,8 @@ public class ExcelTemplateExportController {
                     )
             )
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功建立串流傳輸"),
-        @ApiResponse(responseCode = "404", description = "指定範本不存在")
-    })
+    @ApiResponse(responseCode = "200", description = "成功建立串流傳輸")
+    @ApiResponse(responseCode = "404", description = "指定範本不存在")
     @PostMapping("/{templateKey}/stream-mapped")
     public void streamExportFromTemplateWithMapping(
             @Parameter(description = "範本識別鍵", example = "MATERIAL_MASTER")
@@ -471,10 +454,8 @@ public class ExcelTemplateExportController {
                     )
             )
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功預覽映射結果"),
-        @ApiResponse(responseCode = "400", description = "映射規則無效")
-    })
+    @ApiResponse(responseCode = "200", description = "成功預覽映射結果")
+    @ApiResponse(responseCode = "400", description = "映射規則無效")
     @PostMapping("/mapping/preview")
     public ResponseEntity<Map<String, Object>> previewMapping(
             @Valid @RequestBody ExportTemplateWithMappingResource resource) {

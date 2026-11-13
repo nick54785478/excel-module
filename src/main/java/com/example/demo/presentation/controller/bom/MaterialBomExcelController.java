@@ -39,7 +39,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
@@ -145,24 +144,22 @@ public class MaterialBomExcelController {
 			summary = "檔案上傳並宣告式解析為 MaterialExcelModel 清單 (可選填 sheetName)",
 			description = "上傳物料 Excel 檔案。若指定 sheetName 則精確讀取該工作表 (找不到時拋出 400 錯誤)；若未指定 sheetName 則自動將活頁簿中所有相符之工作表全部讀出並合併回傳，回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析物料 Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = MaterialImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空、工作表不存在或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析物料 Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = MaterialImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空、工作表不存在或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/materials/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MaterialImportedResource> importMaterials(
 			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
@@ -194,24 +191,22 @@ public class MaterialBomExcelController {
 			summary = "檔案上傳並指定工作表名稱解析為 MaterialExcelModel (SheetName 模式)",
 			description = "上傳物料 Excel 檔案並指定讀取特定工作表名稱 (sheetName)，若找不到該工作表則嚴格拋出例外，成功則回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析指定工作表之物料 Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = MaterialImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空、工作表不存在或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析指定工作表之物料 Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = MaterialImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空、工作表不存在或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/materials/import/by-sheet", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MaterialImportedResource> importMaterialsBySheet(
 			@Parameter(description = "欲上傳解析之物料 Excel 檔案 (.xlsx)", required = true)
@@ -272,24 +267,22 @@ public class MaterialBomExcelController {
 			summary = "檔案上傳並宣告式解析為 BomItemExcelModel 清單 (可選填 sheetName)",
 			description = "上傳 BOM Excel 檔案。若指定 sheetName 則精確讀取該工作表 (找不到時拋出 400 錯誤)；若未指定 sheetName 則自動將活頁簿中所有相符之工作表全部讀出並合併回傳，回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析 BOM Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = BomItemImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空、工作表不存在或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析 BOM Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = BomItemImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空、工作表不存在或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/bom-items/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BomItemImportedResource> importBomItems(
 			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
@@ -321,24 +314,22 @@ public class MaterialBomExcelController {
 			summary = "檔案上傳並指定工作表名稱解析為 BomItemExcelModel (SheetName 模式)",
 			description = "上傳 BOM Excel 檔案並指定讀取特定工作表名稱 (sheetName)，若找不到該工作表則嚴格拋出例外，成功則回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析指定工作表之 BOM Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = BomItemImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空、工作表不存在或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析指定工作表之 BOM Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = BomItemImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空、工作表不存在或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/bom-items/import/by-sheet", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BomItemImportedResource> importBomItemsBySheet(
 			@Parameter(description = "欲上傳解析之 BOM 配方 Excel 檔案 (.xlsx)", required = true)
@@ -371,24 +362,22 @@ public class MaterialBomExcelController {
 			summary = "檔案上傳並宣告式解析為 MultiLevelBomExcelModel 清單 (多階層展開專屬模型)",
 			description = "上傳 BOM Excel 檔案並解析為包含階層 (Level)、階層序號 (WBS)、規格型號、有效用量、標準單價與成本小計之多階層展開清單，回傳 JSON。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功解析多階層 BOM Excel 內容",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = MultiLevelBomImportedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "檔案為空、工作表不存在或解析失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功解析多階層 BOM Excel 內容",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = MultiLevelBomImportedResource.class)
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "檔案為空、工作表不存在或解析失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping(value = "/multi-level-bom/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<MultiLevelBomImportedResource> importMultiLevelBom(
 			@Parameter(description = "欲上傳解析之多階層 BOM Excel 檔案 (.xlsx)", required = true)

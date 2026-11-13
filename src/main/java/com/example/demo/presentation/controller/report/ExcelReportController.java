@@ -30,7 +30,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -80,11 +79,9 @@ public class ExcelReportController {
 			summary = "【Request傳入資料】匯出物料採購損益分析月報 (包含自訂明細、合併合計、動態公式與密碼保護)",
 			description = "透過 POST 請求將物料清單與報表設定傳入，後端自動生成動態小計公式、跨欄合併彙總列、SUM公式與安全防護"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功產製並下載 Excel 報表"),
-			@ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功產製並下載 Excel 報表")
+	@ApiResponse(responseCode = "400", description = "請求參數格式不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/procurement-analysis")
 	public ResponseEntity<byte[]> exportProcurementAnalysisReport(
 			@RequestBody @Valid ExportProcurementAnalysisResource resource
@@ -286,11 +283,9 @@ public class ExcelReportController {
 					)
 			)
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功產製並下載 BOM 成本分析 Excel 報表"),
-			@ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功產製並下載 BOM 成本分析 Excel 報表")
+	@ApiResponse(responseCode = "400", description = "請求參數格式不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/bom-cost-analysis")
 	public ResponseEntity<byte[]> exportBomCostAnalysisReport(
 			@RequestBody @Valid ExportBomCostAnalysisResource resource
@@ -366,11 +361,9 @@ public class ExcelReportController {
 			summary = "自訂進階樣式、任意合併區間、動態公式與安全防護報表匯出",
 			description = "以 JSON 格式動態傳送表頭、二維資料、特定座標公式 (如 D10: SUM(D2:D9)) 與合併範圍 (firstRow, lastRow, firstCol, lastCol)"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功產製並下載客製化報表"),
-			@ApiResponse(responseCode = "400", description = "請求參數格式不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功產製並下載客製化報表")
+	@ApiResponse(responseCode = "400", description = "請求參數格式不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/custom-styled")
 	public ResponseEntity<byte[]> exportCustomReport(
 			@RequestBody @Valid ExportCustomReportResource resource

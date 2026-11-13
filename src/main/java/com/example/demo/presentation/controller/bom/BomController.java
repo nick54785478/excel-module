@@ -32,7 +32,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -92,32 +91,30 @@ public class BomController {
 			summary = "下載物料清單 (BOM) Excel 檔案 (GET)",
 			description = "依據母件料號、版本號與工作表選項，動態產製包含多階展開清單、單階匯入清單與物料主檔對照表之 Excel 檔案並提供下載。若未指定料號則匯出全部 BOM。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功生成 BOM Excel 二進位檔案並提供下載",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "請求參數錯誤",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "404",
-					description = "查無指定母件料號之物料主檔",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功生成 BOM Excel 二進位檔案並提供下載",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "請求參數錯誤",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
+	@ApiResponse(
+			responseCode = "404",
+			description = "查無指定母件料號之物料主檔",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@GetMapping("/excel")
 	public ResponseEntity<byte[]> downloadBomExcel(
 			@Parameter(description = "母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單)", example = "MAT-FG-001")
@@ -153,32 +150,30 @@ public class BomController {
 			summary = "以結構化條件匯出物料清單 (BOM) Excel 檔案 (POST)",
 			description = "接收 JSON 結構化條件，動態產製並下載物料清單 (BOM) Excel 檔案。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功生成 BOM Excel 二進位檔案並提供下載",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "請求資料校驗失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "404",
-					description = "查無指定母件料號之物料主檔",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功生成 BOM Excel 二進位檔案並提供下載",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "請求資料校驗失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
+	@ApiResponse(
+			responseCode = "404",
+			description = "查無指定母件料號之物料主檔",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping("/excel/export")
 	public ResponseEntity<byte[]> exportBomExcel(
 			@Parameter(description = "BOM 匯出請求載體", required = true)
@@ -205,24 +200,22 @@ public class BomController {
 			summary = "大數據串流下載物料清單 (BOM) Excel 檔案 (GET)",
 			description = "邊產製邊將 Excel 二進位串流 Flush 至 HTTP 回應流中，維持常數級極低記憶體消耗，適合海量 BOM 下載。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功建立串流輸出傳輸",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "404",
-					description = "查無指定母件料號之物料主檔",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功建立串流輸出傳輸",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "404",
+			description = "查無指定母件料號之物料主檔",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@GetMapping("/excel/stream")
 	public void streamDownloadBomExcel(
 			@Parameter(description = "母件物料料號 (選填，若未填寫則匯出系統中所有 BOM 清單)", example = "MAT-FG-001")
@@ -266,32 +259,30 @@ public class BomController {
 			summary = "以結構化條件大數據串流匯出物料清單 (BOM) Excel 檔案 (POST)",
 			description = "接收 JSON 結構化條件，邊產製邊以分批 Flush 機制將 Excel 串流傳輸至前端。"
 	)
-	@ApiResponses({
-			@ApiResponse(
-					responseCode = "200",
-					description = "成功建立串流輸出傳輸",
-					content = @Content(
-							mediaType = EXCEL_MIME_TYPE,
-							schema = @Schema(type = "string", format = "binary")
-					)
-			),
-			@ApiResponse(
-					responseCode = "400",
-					description = "請求資料校驗失敗",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
-			),
-			@ApiResponse(
-					responseCode = "404",
-					description = "查無指定母件料號之物料主檔",
-					content = @Content(
-							mediaType = MediaType.APPLICATION_JSON_VALUE,
-							schema = @Schema(implementation = ValidationFailedResource.class)
-					)
+	@ApiResponse(
+			responseCode = "200",
+			description = "成功建立串流輸出傳輸",
+			content = @Content(
+					mediaType = EXCEL_MIME_TYPE,
+					schema = @Schema(type = "string", format = "binary")
 			)
-	})
+	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "請求資料校驗失敗",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
+	@ApiResponse(
+			responseCode = "404",
+			description = "查無指定母件料號之物料主檔",
+			content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(implementation = ValidationFailedResource.class)
+			)
+	)
 	@PostMapping("/excel/stream")
 	public void streamExportBomExcel(
 			@Parameter(description = "BOM 匯出請求載體", required = true)

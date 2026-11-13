@@ -24,7 +24,6 @@ import com.example.demo.presentation.resource.out.ExcelTaskRetrievedResource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 
@@ -68,10 +67,8 @@ public class ExcelTaskController {
 			summary = "查詢 Excel 長任務進度與狀態",
 			description = "提供前端輪詢當前任務狀態、總列數、已處理筆數、百分比與錯誤資訊。支援標準 RESTful 資源路徑 GET /{taskId} 與相容別名 GET /{taskId}/progress。"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "查詢成功，回傳進度資訊"),
-			@ApiResponse(responseCode = "404", description = "查無該 taskId 對應之任務")
-	})
+	@ApiResponse(responseCode = "200", description = "查詢成功，回傳進度資訊")
+	@ApiResponse(responseCode = "404", description = "查無該 taskId 對應之任務")
 	public ResponseEntity<ExcelTaskRetrievedResource> getTaskProgress(
 			@Parameter(description = "任務唯一識別碼", required = true)
 			@PathVariable("taskId") @NotBlank(message = "任務識別碼 (taskId) 不得為空") String taskId
@@ -102,10 +99,8 @@ public class ExcelTaskController {
 	 */
 	@GetMapping(value = "/{taskId}/download")
 	@Operation(summary = "下載已完成長任務之 Excel 產出檔案", description = "當任務狀態為 COMPLETED 且檔案產出後，可經由此端點下載二進位檔案")
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "檔案下載成功"),
-			@ApiResponse(responseCode = "404", description = "查無該任務產出檔案或任務尚未完成")
-	})
+	@ApiResponse(responseCode = "200", description = "檔案下載成功")
+	@ApiResponse(responseCode = "404", description = "查無該任務產出檔案或任務尚未完成")
 	public ResponseEntity<byte[]> downloadExportedFile(
 			@Parameter(description = "任務唯一識別碼", required = true)
 			@PathVariable("taskId") @NotBlank(message = "任務識別碼 (taskId) 不得為空") String taskId

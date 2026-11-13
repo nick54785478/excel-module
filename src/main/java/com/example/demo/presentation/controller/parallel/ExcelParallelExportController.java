@@ -26,7 +26,6 @@ import com.example.demo.presentation.resource.in.ExportPartitionZipResource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -100,11 +99,9 @@ public class ExcelParallelExportController {
 			summary = "【自訂參數・模式 A】微觀生產者-消費者管線平行匯出",
 			description = "支援前端自訂總列數、批次區塊大小 (chunkSize)、背壓佇列容量 (queueCapacity) 與平行執行緒數"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功產製並下載 Excel 報表"),
-			@ApiResponse(responseCode = "400", description = "請求參數不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功產製並下載 Excel 報表")
+	@ApiResponse(responseCode = "400", description = "請求參數不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/pipeline")
 	public ResponseEntity<byte[]> exportPipelineCustom(
 			@RequestBody @Valid ExportParallelPipelineResource resource
@@ -128,11 +125,9 @@ public class ExcelParallelExportController {
 			summary = "【串流寫入・模式 A】微觀生產者-消費者管線平行匯出至 HTTP 輸出串流",
 			description = "直接將生產者-消費者管線寫入至 Servlet OutputStream，完全不佔用 JVM 堆疊記憶體緩衝"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功串流產製並下載 Excel 報表"),
-			@ApiResponse(responseCode = "400", description = "請求參數不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功串流產製並下載 Excel 報表")
+	@ApiResponse(responseCode = "400", description = "請求參數不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/pipeline/stream")
 	public void exportPipelineStream(
 			@RequestBody @Valid ExportParallelPipelineResource resource,
@@ -197,11 +192,9 @@ public class ExcelParallelExportController {
 			summary = "【自訂參數・模式 B / A+B】多活頁簿 ZIP 分片平行匯出",
 			description = "支援自訂單一檔案上限列數 (maxRowsPerFile)，分片內部可無縫切換是否開啟模式 A 管線加速"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功產製並下載分片 ZIP 壓縮檔"),
-			@ApiResponse(responseCode = "400", description = "請求參數不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功產製並下載分片 ZIP 壓縮檔")
+	@ApiResponse(responseCode = "400", description = "請求參數不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping("/partition-zip")
 	public ResponseEntity<byte[]> exportPartitionZipCustom(
 			@RequestBody @Valid ExportPartitionZipResource resource
@@ -222,11 +215,9 @@ public class ExcelParallelExportController {
 			summary = "【串流壓縮・模式 B / A+B】多活頁簿 ZIP 分片平行產製並動態串流壓縮寫入 HTTP 輸出串流",
 			description = "直接將各分片檔案動態串流壓縮寫入 Servlet OutputStream，突破百萬列天花板且不佔用記憶體緩衝"
 	)
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "成功串流產製並下載分片 ZIP 壓縮檔"),
-			@ApiResponse(responseCode = "400", description = "請求參數不合法"),
-			@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
-	})
+	@ApiResponse(responseCode = "200", description = "成功串流產製並下載分片 ZIP 壓縮檔")
+	@ApiResponse(responseCode = "400", description = "請求參數不合法")
+	@ApiResponse(responseCode = "500", description = "伺服器內部產生異常")
 	@PostMapping({"/partition/zip/stream", "/partition-zip/stream"})
 	public void exportPartitionZipStream(
 			@RequestBody @Valid ExportPartitionZipResource resource,
