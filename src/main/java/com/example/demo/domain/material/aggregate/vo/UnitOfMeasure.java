@@ -42,8 +42,16 @@ public enum UnitOfMeasure {
 	 */
 	BOX("箱/盒");
 
+	/**
+	 * 單位中文顯示名稱 (如 "件/個", "套/組")
+	 */
 	private final String displayName;
 
+	/**
+	 * 建構計量單位枚舉項。
+	 *
+	 * @param displayName 中文顯示名稱
+	 */
 	UnitOfMeasure(String displayName) {
 		this.displayName = displayName;
 	}

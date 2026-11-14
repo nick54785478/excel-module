@@ -631,12 +631,13 @@ excel-module/
 │   │   │   ├── application/                            # 【應用層】CQRS 調度、Port 介面、策略 SPI
 │   │   │   │   ├── annotation/                         # 宣告式註解 (mapping, task, validation)
 │   │   │   │   ├── port/in/                            # Inbound Ports (Export, Import, Task, Validate, Financial, Parallel, Template UseCases)
-│   │   │   │   ├── port/out/                           # Outbound Ports (全數以 *Port 結尾: ExcelWriterPort, ExcelPartitionWriterPort, ExcelTemplateWriterPort...)
+│   │   │   │   ├── port/out/                           # Outbound Ports (全數以 *Port 結尾: ExcelWriterPort, ExcelPartitionWriterPort, ExcelTemplateWriterPort, ExcelTemplateModelCustomizerFactoryPort...)
 │   │   │   │   ├── service/                            # Application Services (Bom, Excel, Task, Validation, Report, Parallel, Template CQRS)
 │   │   │   │   ├── shared/                             # 共享不可變模型、值物件與上下文 (Java 21 Records / Pure Models)
 │   │   │   │   │   ├── command/                        # 業務命令 (WriteExcelCommand, ExportPipelineExcelCommand, ExportPartitionZipCommand...)
 │   │   │   │   │   ├── query/                          # 查詢條件 (ReadExcelQuery, GetExcelTaskQuery, GetTemplateQuery...)
 │   │   │   │   │   ├── dto/                            # 結果載體 (ExcelGottenResult, ExcelValidationGottenResult...)
+│   │   │   │   │   ├── template/                       # 範本模型自定義策略契約 (ExcelTemplateModelCustomizer)
 │   │   │   │   │   ├── model/                          # 垂直切片領域資料模型 (bom, material, report, validation, demo)
 │   │   │   │   │   ├── vo/                             # 實質物件 (CellCoordinate, CellRange, Sheet configs, ExcelTaskStatus, ExcelTaskType)
 │   │   │   │   │   ├── context/                        # 裝飾與檢核上下文 (ReportDecorationContext, ExcelValidationContext)
@@ -650,11 +651,12 @@ excel-module/
 │   │   │   │   │   ├── engine/                         # FastExcel / Apache POI 核心讀寫適配器
 │   │   │   │   │   ├── parallel/                       # 高並發平行管線與分片適配器 (ParallelPartitionExcelWriterAdapter)
 │   │   │   │   │   ├── report/                         # 裝飾策略工廠適配器 (SpringReportDecoratorFactoryAdapter)
+│   │   │   │   │   ├── template/                       # JXLS 範本寫入與模型自定義工廠適配器 (JxlsTemplateWriterAdapter, ExcelTemplateModelCustomizerFactoryAdapter)
 │   │   │   │   │   ├── persistence/                    # Bom, Material, ExcelTask JPA 持久化適配器
 │   │   │   │   │   ├── validator/                      # EasyRules 規則引擎校驗適配器
 │   │   │   │   │   └── feedback/                       # Apache POI 視覺化錯誤回標適配器
 │   │   │   │   ├── report/                             # 具體報表裝飾策略 (ProcurementReport, BomCost, NoOp...)
-│   │   │   │   ├── template/                           # 範本元數據註冊容器與 SPI (ExcelTemplateRegistry, Customizer)
+│   │   │   │   ├── template/                           # 範本元數據註冊容器與具體策略 (ExcelTemplateRegistry, RegistryCustomizer, customizer/, mapping/)
 │   │   │   │   └── persistence/                        # JPA ORM 實體與 Spring Data Repository
 │   │   │   ├── presentation/                           # 【表現層】Inbound Adapters
 │   │   │   │   ├── controller/                         # REST Controllers (Bom, Excel, Task, Bean, Validation, Report, Parallel, Template)
@@ -662,12 +664,12 @@ excel-module/
 │   │   │   │   ├── resource/                           # In/Out Resources (純資料載體)
 │   │   │   │   ├── assembler/                          # 表現層 Resource 組裝器 (ACL 防腐層)
 │   │   │   │   └── exception/                          # 全域例外轉譯器 (GlobalExceptionHandler)
-│   │   │   └── config/                                 # 【配置層】全域配置與 Bean 註冊 (ExcelEngineConfiguration, ExcelParallelConfiguration...)
+│   │   │   └── config/                                 # 【配置層】全域配置與 Bean 註冊 (ExcelEngineConfiguration, ExcelParallelConfiguration, ExcelJxlsConfiguration...)
 │   │   └── resources/
 │   │       ├── application.properties                  # 系統、excel.engine 與 excel.task.enabled 配置檔
 │   │       ├── templates/                              # 內建業務與錯誤回標測試範本 (.xlsx)
 │   │       └── sql/material_bom_test_data.sql          # 2000 筆物料與 25 筆 BOM 測試 SQL
-│   └── test/java/com/example/demo/                     # 【測試套件】涵蓋 315 個單元與整合測試 (100% BUILD SUCCESS)
+│   └── test/java/com/example/demo/                     # 【測試套件】涵蓋 325 個單元與整合測試 (100% BUILD SUCCESS)
 ```
 
 ---

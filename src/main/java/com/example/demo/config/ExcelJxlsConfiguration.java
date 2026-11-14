@@ -6,17 +6,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+import com.example.demo.application.port.out.template.ExcelTemplateModelCustomizerFactoryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateWriterPort;
 import com.example.demo.infrastructure.adapter.template.ClasspathExcelTemplateRegistryAdapter;
 import com.example.demo.infrastructure.adapter.template.JxlsFieldMappingAdapter;
 import com.example.demo.infrastructure.adapter.template.JxlsTemplateWriterAdapter;
+import com.example.demo.infrastructure.adapter.template.ExcelTemplateModelCustomizerFactoryAdapter;
 import com.example.demo.infrastructure.persistence.template.repository.ExcelTemplateJpaRepository;
 import com.example.demo.infrastructure.template.mapping.engine.JxlsFieldMappingEngine;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * JXLS 宣告式範本引擎全域配置類別 (Configuration Layer - Composition Root)。
@@ -78,6 +83,19 @@ public class ExcelJxlsConfiguration {
     @ConditionalOnMissingBean(ExcelTemplateFieldMapperPort.class)
     public ExcelTemplateFieldMapperPort excelTemplateFieldMapperPort(JxlsFieldMappingEngine engine) {
         return new JxlsFieldMappingAdapter(engine);
+    }
+
+    /**
+     * 註冊範本模型自定義工廠輸出埠實作 (ExcelTemplateModelCustomizerFactoryAdapter)。
+     *
+     * @param customizers 自定義策略清單 (可選注入)
+     * @return ExcelTemplateModelCustomizerFactoryPort 實例
+     */
+    @Bean
+    @ConditionalOnMissingBean(ExcelTemplateModelCustomizerFactoryPort.class)
+    public ExcelTemplateModelCustomizerFactoryPort excelTemplateModelCustomizerFactoryPort(
+            @Autowired(required = false) List<ExcelTemplateModelCustomizer> customizers) {
+        return new ExcelTemplateModelCustomizerFactoryAdapter(customizers);
     }
 }
 

@@ -1,6 +1,8 @@
 package com.example.demo.application.service.template;
 
 import com.example.demo.application.port.out.bom.MaterialRepositoryPort;
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+import com.example.demo.application.port.out.template.ExcelTemplateModelCustomizerFactoryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRepositoryPort;
@@ -24,7 +26,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -379,6 +380,58 @@ class ExcelTemplateCommandServiceTest {
 
         verify(templateRepositoryPort).deleteByTemplateKey("OBSOLETE_REPORT");
         verify(templateRegistryPort).refreshCache("OBSOLETE_REPORT");
+    }
+
+    /**
+     * Feature: 範本匯出前自動透過工廠輸出埠 (Factory Port) 獲取自定義策略並擴充模型
+     * Scenario: 注入自定義器工廠，匯出時依 templateKey 取得 Customizer，模型被客製化後才送入 writerPort
+     *   Given 工廠針對 "CUSTOM_TPL" 回傳注入 "customized=true" 之自定義策略
+     *   When 調用 exportFromTemplate 執行匯出
+     *   Then writerPort 所接收之 dataModel 應包含經自定義器注入之 "customized" 屬性
+     */
+    @Test
+    @DisplayName("Gherkin: 範本匯出時自動調用工廠獲取 Customizer 擴充資料模型情境")
+    void shouldApplyCustomizerBeforeWriting() {
+        String templateKey = "CUSTOM_TPL";
+        ExcelTemplateModelCustomizer customizer = ExcelTemplateModelCustomizer.of(
+            templateKey,
+            model -> {
+                java.util.Map<String, Object> copy = new java.util.HashMap<>(model);
+                copy.put("customized", true);
+                return copy;
+            }
+        );
+
+        ExcelTemplateModelCustomizerFactoryPort factoryPort = mock(ExcelTemplateModelCustomizerFactoryPort.class);
+        when(factoryPort.getCustomizer(templateKey)).thenReturn(customizer);
+
+        ExcelTemplateCommandService serviceWithCustomizer = new ExcelTemplateCommandService(
+            templateRegistryPort,
+            templateWriterPort,
+            templateFieldMapperPort,
+            materialRepositoryPort,
+            templateRepositoryPort,
+            factoryPort
+        );
+
+        ExportTemplateExcelCommand command = new ExportTemplateExcelCommand(
+            templateKey,
+            Map.of("rawKey", "rawValue"),
+            "custom.xlsx"
+        );
+
+        when(templateRegistryPort.exists(templateKey)).thenReturn(true);
+        when(templateRegistryPort.openTemplateStream(templateKey)).thenReturn(new ByteArrayInputStream(new byte[]{1}));
+        when(templateWriterPort.writeFromTemplate(any(InputStream.class), any())).thenReturn(new byte[]{99});
+
+        byte[] result = serviceWithCustomizer.exportFromTemplate(command);
+
+        assertThat(result).containsExactly(99);
+        org.mockito.ArgumentCaptor<Map<String, Object>> captor = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(templateWriterPort).writeFromTemplate(any(InputStream.class), captor.capture());
+        assertThat(captor.getValue()).containsEntry("rawKey", "rawValue");
+        assertThat(captor.getValue()).containsEntry("customized", true);
+        verify(factoryPort).getCustomizer(templateKey);
     }
 }
 

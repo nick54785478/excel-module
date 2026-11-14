@@ -17,8 +17,16 @@ public enum MaterialStatus {
 	 */
 	DISCONTINUED("已停用");
 
+	/**
+	 * 狀態中文顯示名稱
+	 */
 	private final String displayName;
 
+	/**
+	 * 建構物料狀態枚舉項。
+	 *
+	 * @param displayName 中文顯示名稱
+	 */
 	MaterialStatus(String displayName) {
 		this.displayName = displayName;
 	}

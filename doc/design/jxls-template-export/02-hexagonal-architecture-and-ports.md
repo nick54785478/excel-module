@@ -38,12 +38,14 @@ flowchart TD
         
         OutPortWriter["ExcelTemplateWriterPort (Outbound Port)"]
         OutPortRegistry["ExcelTemplateRegistryPort (Outbound Port)"]
+        OutPortCustomizer["ExcelTemplateModelCustomizerFactoryPort (Outbound Port)"]
         
         InPort1 --> AppService
         InPort2 --> AppService
         AppService --> Cmd
         AppService --> Dto
         AppService --> OutPortRegistry
+        AppService --> OutPortCustomizer
         AppService --> OutPortWriter
     end
 
@@ -51,19 +53,24 @@ flowchart TD
         direction TB
         AdapterWriter["JxlsTemplateWriterAdapter<br/>(實作 ExcelTemplateWriterPort)"]
         AdapterRegistry["ClasspathExcelTemplateRegistryAdapter<br/>(實作 ExcelTemplateRegistryPort)"]
+        AdapterCustomizer["ExcelTemplateModelCustomizerFactoryAdapter<br/>(實作 ExcelTemplateModelCustomizerFactoryPort)"]
+        Strategies["範本模型自定義策略 (customizer/)<br/>• ProcurementComparison<br/>• BomCostAnalysis<br/>• SmartAlias (*)"]
         Engine["JxlsTemplateEngine<br/>• SecureJexlExpressionEvaluator (沙箱)<br/>• PoiTransformer 渲染"]
         DiskTpl["磁碟/Classpath 範本儲存庫<br/>classpath:/templates/excel/*.xlsx"]
         
         OutPortWriter -.-> AdapterWriter
         OutPortRegistry -.-> AdapterRegistry
+        OutPortCustomizer -.-> AdapterCustomizer
+        AdapterCustomizer --> Strategies
         AdapterWriter --> Engine
         AdapterRegistry --> DiskTpl
     end
 
     subgraph Configuration_Layer ["配置層 (Configuration Layer - The Dirtiest Layer)"]
-        Config["ExcelTemplateConfiguration<br/>@Configuration 集中裝配與 Bean 註冊"]
+        Config["ExcelJxlsConfiguration<br/>@Configuration 集中裝配與 Bean 註冊"]
         Config -. 裝配 .-> AdapterWriter
         Config -. 裝配 .-> AdapterRegistry
+        Config -. 裝配 .-> AdapterCustomizer
         Config -. 裝配 .-> AppService
     end
 
@@ -218,6 +225,61 @@ public interface ExcelTemplateRegistryPort {
 }
 ```
 
+### 2.2.3 範本模型自定義器工廠輸出埠與策略 SPI (`ExcelTemplateModelCustomizerFactoryPort` & `ExcelTemplateModelCustomizer`)
+
+為確保業務客製邏輯（如特定單據的明細雙向對齊、別名自動補強、預設供應商注入）不侵入通用 JXLS 寫入適配器，應用層定義了純策略 SPI 與工廠輸出埠：
+
+```java
+package com.example.demo.application.port.out.template;
+
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+
+/**
+ * 範本模型自定義器工廠輸出埠 (Outbound Port)。
+ * 遵循 AGENTS.md 規則 3-8，Outbound Port 一律以 Port 結尾。
+ */
+public interface ExcelTemplateModelCustomizerFactoryPort {
+
+    /**
+     * 依據範本識別鍵獲取對應之資料模型自定義策略實例。
+     * 若未找到專屬自定義器，工廠應自動回傳通用保底策略，保證不為 null。
+     */
+    ExcelTemplateModelCustomizer getCustomizer(String templateKey);
+
+    /**
+     * 檢查是否存在專屬支援該範本識別鍵之自定義器。
+     */
+    boolean hasCustomizer(String templateKey);
+}
+```
+
+```java
+package com.example.demo.application.shared.template;
+
+import java.util.Map;
+
+/**
+ * 範本資料模型自定義策略契約 (SPI)。
+ * 座落於 application/shared/template/，定義「如何對特定範本的傳入 dataModel 進行前處理或別名補強」。
+ */
+@FunctionalInterface
+public interface ExcelTemplateModelCustomizer {
+
+    ExcelTemplateModelCustomizer NO_OP = dataModel -> (dataModel != null) ? dataModel : Map.of();
+
+    default String getTemplateKey() {
+        return "*";
+    }
+
+    default boolean supports(String templateKey) {
+        if (templateKey == null || getTemplateKey() == null) return false;
+        return "*".equals(getTemplateKey()) || getTemplateKey().equalsIgnoreCase(templateKey.trim());
+    }
+
+    Map<String, Object> customize(Map<String, Object> dataModel);
+}
+```
+
 ---
 
 ### 2.3 命令與 DTO (Java 21 Record 純資料載體)
@@ -293,24 +355,28 @@ public record ExcelTemplateGottenResult(
 遵循 `AGENTS.md` 規則 3-9，以 `*CommandService` 命名：
 
 ```java
-package com.example.demo.application.service;
+package com.example.demo.application.service.template;
 
-import com.example.demo.application.port.in.ExportTemplateExcelUseCase;
-import com.example.demo.application.port.in.StreamExportTemplateExcelUseCase;
-import com.example.demo.application.port.out.ExcelTemplateRegistryPort;
-import com.example.demo.application.port.out.ExcelTemplateWriterPort;
+import com.example.demo.application.port.in.template.ExportTemplateExcelUseCase;
+import com.example.demo.application.port.in.template.StreamExportTemplateExcelUseCase;
+import com.example.demo.application.port.out.template.ExcelTemplateModelCustomizerFactoryPort;
+import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
+import com.example.demo.application.port.out.template.ExcelTemplateWriterPort;
 import com.example.demo.application.shared.command.ExportTemplateExcelCommand;
-import com.example.demo.domain.shared.exception.ExcelTemplateNotFoundException;
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+import com.example.demo.application.shared.exception.ExcelTemplateNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  * 範本 Excel 匯出應用層服務 (Application Service)。
  * <p>
- * 負責協調範本儲存庫輸出埠 (ExcelTemplateRegistryPort) 與寫入輸出埠 (ExcelTemplateWriterPort)，
+ * 負責協調範本儲存庫輸出埠 (ExcelTemplateRegistryPort)、模型前處理自定義工廠輸出埠
+ * (ExcelTemplateModelCustomizerFactoryPort) 與寫入輸出埠 (ExcelTemplateWriterPort)，
  * 嚴守單一職責，不依賴任何外部框架或 HTTP 協定物件。
  * </p>
  */
@@ -319,18 +385,22 @@ public class ExcelTemplateCommandService implements ExportTemplateExcelUseCase, 
 
     private final ExcelTemplateRegistryPort templateRegistryPort;
     private final ExcelTemplateWriterPort templateWriterPort;
+    private final ExcelTemplateModelCustomizerFactoryPort templateModelCustomizerFactoryPort;
 
     public ExcelTemplateCommandService(ExcelTemplateRegistryPort templateRegistryPort,
-                                       ExcelTemplateWriterPort templateWriterPort) {
+                                       ExcelTemplateWriterPort templateWriterPort,
+                                       ExcelTemplateModelCustomizerFactoryPort templateModelCustomizerFactoryPort) {
         this.templateRegistryPort = Objects.requireNonNull(templateRegistryPort, "templateRegistryPort 不得為空");
         this.templateWriterPort = Objects.requireNonNull(templateWriterPort, "templateWriterPort 不得為空");
+        this.templateModelCustomizerFactoryPort = templateModelCustomizerFactoryPort;
     }
 
     @Override
     public byte[] exportFromTemplate(ExportTemplateExcelCommand command) {
         validateTemplateExistence(command.templateKey());
+        Map<String, Object> preparedModel = applyCustomizers(command.templateKey(), command.dataModel());
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
-            return templateWriterPort.writeFromTemplate(templateStream, command.dataModel());
+            return templateWriterPort.writeFromTemplate(templateStream, preparedModel);
         } catch (Exception e) {
             throw new RuntimeException("範本 Excel 匯出執行失敗: " + command.templateKey(), e);
         }
@@ -339,11 +409,23 @@ public class ExcelTemplateCommandService implements ExportTemplateExcelUseCase, 
     @Override
     public void streamExportFromTemplate(OutputStream outputStream, ExportTemplateExcelCommand command) {
         validateTemplateExistence(command.templateKey());
+        Map<String, Object> preparedModel = applyCustomizers(command.templateKey(), command.dataModel());
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
-            templateWriterPort.streamWriteFromTemplate(templateStream, outputStream, command.dataModel());
+            templateWriterPort.streamWriteFromTemplate(templateStream, outputStream, preparedModel);
         } catch (Exception e) {
             throw new RuntimeException("範本 Excel 串流匯出執行失敗: " + command.templateKey(), e);
         }
+    }
+
+    private Map<String, Object> applyCustomizers(String templateKey, Map<String, Object> dataModel) {
+        if (dataModel == null || dataModel.isEmpty()) {
+            return Map.of();
+        }
+        if (templateModelCustomizerFactoryPort == null) {
+            return dataModel;
+        }
+        ExcelTemplateModelCustomizer customizer = templateModelCustomizerFactoryPort.getCustomizer(templateKey);
+        return (customizer != null) ? customizer.customize(dataModel) : dataModel;
     }
 
     private void validateTemplateExistence(String templateKey) {
@@ -515,6 +597,80 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
         }
     }
 }
+```
+
+### 3.3 `ExcelTemplateModelCustomizerFactoryAdapter` (Outbound Adapter)
+
+負責管理並路由所有注入 Spring 容器之 `ExcelTemplateModelCustomizer` 實例：
+* 遵循 `AGENTS.md` 規則 2 與 3-9，Outbound Adapter 位於 `infrastructure/adapter/template/`，以 `*Adapter` 結尾。
+* 支援依 `templateKey` 進行大小寫不敏感之 O(1) 動態比對。
+* 若未匹配專屬自定義器，則自動降級至通用保底自定義器（`SmartAliasTemplateModelCustomizer` 或 `NO_OP`）。
+
+```java
+package com.example.demo.infrastructure.adapter.template;
+
+import com.example.demo.application.port.out.template.ExcelTemplateModelCustomizerFactoryPort;
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 範本資料模型自定義器工廠適配器 (Outbound Adapter)。
+ * 實作 ExcelTemplateModelCustomizerFactoryPort。
+ */
+@Component
+public class ExcelTemplateModelCustomizerFactoryAdapter implements ExcelTemplateModelCustomizerFactoryPort {
+
+    private final Map<String, ExcelTemplateModelCustomizer> registry = new ConcurrentHashMap<>();
+    private final ExcelTemplateModelCustomizer fallbackCustomizer;
+
+    @Autowired
+    public ExcelTemplateModelCustomizerFactoryAdapter(@Autowired(required = false) List<ExcelTemplateModelCustomizer> customizers) {
+        ExcelTemplateModelCustomizer detectedFallback = ExcelTemplateModelCustomizer.NO_OP;
+        if (customizers != null) {
+            for (ExcelTemplateModelCustomizer c : customizers) {
+                String key = c.getTemplateKey();
+                if (key != null && !key.isBlank() && !"*".equals(key)) {
+                    registry.put(key.toUpperCase(Locale.ROOT), c);
+                } else if ("*".equals(key)) {
+                    detectedFallback = c;
+                }
+            }
+        }
+        this.fallbackCustomizer = detectedFallback;
+    }
+
+    @Override
+    public ExcelTemplateModelCustomizer getCustomizer(String templateKey) {
+        if (templateKey == null || templateKey.isBlank()) {
+            return fallbackCustomizer;
+        }
+        ExcelTemplateModelCustomizer exactMatch = registry.get(templateKey.toUpperCase(Locale.ROOT));
+        return (exactMatch != null) ? exactMatch : fallbackCustomizer;
+    }
+
+    @Override
+    public boolean hasCustomizer(String templateKey) {
+        if (templateKey == null || templateKey.isBlank()) {
+            return false;
+        }
+        return registry.containsKey(templateKey.toUpperCase(Locale.ROOT));
+    }
+}
+```
+
+### 3.4 基礎設施層範本自定義具體策略實作 (`infrastructure/template/customizer/`)
+
+根據 `AGENTS.md` 規則 2，非 Adapter 類別不應置於 `infrastructure/adapter/`，因此具體策略實作集中於專屬套件 `infrastructure/template/customizer/`：
+* **`ProcurementComparisonTemplateModelCustomizer`**：實作採購比價明細單之集合鍵雙向對齊（`quotationItems` $\leftrightarrow$ `items`）、首選供應商解析與料號/品名/數量別名對齊。
+* **`BomCostAnalysisTemplateModelCustomizer`**：實作 BOM 成本分析展開單之集合對齊（`materials` $\leftrightarrow$ `items`）與子件欄位別名擴充（`childMaterialCode`, `specification`, `standardCost`）。
+* **`SmartAliasTemplateModelCustomizer`**：通用保底策略（綁定 `*`），自動為任何範本之集合元素補強常見欄位別名，防範資料留白。
+* **`TemplateModelCustomizerHelper`**：內部工具類別，提供集合鍵雙向對齊、安全深拷貝與別名對齊等共用靜態函式。
 ```
 
 ---

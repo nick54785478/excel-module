@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -16,6 +17,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+import com.example.demo.application.shared.command.CreateExcelTemplateCommand;
+import com.example.demo.application.shared.command.UpdateExcelTemplateCommand;
 import com.example.demo.application.shared.dto.ExcelTemplateGottenResult;
 
 /**
@@ -255,6 +258,67 @@ public class ExcelTemplateJpaEntity {
                 getRequiredVariablesList(),
                 lastModified
         );
+    }
+
+    /**
+     * 從建立範本命令建構 Excel 範本持久化實體 (充血模型工廠方法)。
+     * <p>
+     * 封裝範本實體的初始狀態與預設屬性指派邏輯，將範本鍵值與分類統一正規化為大寫。
+     *
+     * @param command 建立 Excel 範本命令載體，不得為 null
+     * @return 初始化完成之 Excel 範本持久化實體
+     */
+    public static ExcelTemplateJpaEntity create(CreateExcelTemplateCommand command) {
+        Objects.requireNonNull(command, "CreateExcelTemplateCommand 不得為空");
+        String normalizedKey = command.templateKey() != null ? command.templateKey().toUpperCase(Locale.ROOT) : null;
+        String normalizedCategory = command.category() != null ? command.category().toUpperCase(Locale.ROOT) : null;
+
+        ExcelTemplateJpaEntity entity = new ExcelTemplateJpaEntity();
+        entity.setTemplateKey(normalizedKey);
+        entity.setTemplateName(command.templateName());
+        entity.setCategory(normalizedCategory);
+        entity.setDescription(command.description());
+        entity.setRequiredVariablesList(command.requiredVariables());
+        entity.setStorageType(command.storageType());
+        entity.setFilePath(command.filePath());
+        entity.setDefaultMappingJson(command.defaultMappingJson());
+        entity.setActive(true);
+        return entity;
+    }
+
+    /**
+     * 依據更新命令更新範本屬性 (充血模型領域行為方法)。
+     * <p>
+     * 封裝範本內部欄位的選擇性更新邏輯，保持實體狀態的內聚性。
+     *
+     * @param command 更新 Excel 範本命令載體，不得為 null
+     */
+    public void updateFrom(UpdateExcelTemplateCommand command) {
+        Objects.requireNonNull(command, "UpdateExcelTemplateCommand 不得為空");
+        if (command.templateName() != null && !command.templateName().isBlank()) {
+            this.templateName = command.templateName();
+        }
+        if (command.category() != null && !command.category().isBlank()) {
+            this.category = command.category().toUpperCase(Locale.ROOT);
+        }
+        if (command.description() != null) {
+            this.description = command.description();
+        }
+        if (command.requiredVariables() != null) {
+            setRequiredVariablesList(command.requiredVariables());
+        }
+        if (command.storageType() != null && !command.storageType().isBlank()) {
+            this.storageType = command.storageType();
+        }
+        if (command.filePath() != null && !command.filePath().isBlank()) {
+            this.filePath = command.filePath();
+        }
+        if (command.defaultMappingJson() != null) {
+            this.defaultMappingJson = command.defaultMappingJson();
+        }
+        if (command.active() != null) {
+            this.active = command.active();
+        }
     }
 
     /**

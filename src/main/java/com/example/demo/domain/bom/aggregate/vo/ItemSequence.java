@@ -4,6 +4,8 @@ package com.example.demo.domain.bom.aggregate.vo;
  * 物料清單項次序號實質物件 (Item Sequence Value Object)
  * <p>
  * 定義 BOM 清單中子件之排列序號（例如 10, 20, 30...），數值必須為大於 0 之正整數。
+ *
+ * @param value 序號正整數 (如 10, 20)
  */
 public record ItemSequence(int value) implements Comparable<ItemSequence> {
 
@@ -70,11 +72,22 @@ public record ItemSequence(int value) implements Comparable<ItemSequence> {
 		return new ItemSequence(this.value + step);
 	}
 
+	/**
+	 * 依據項次序號數值大小進行排序比較。
+	 *
+	 * @param o 另一項次序號物件
+	 * @return 負數表示小於、零表示等於、正數表示大於
+	 */
 	@Override
 	public int compareTo(ItemSequence o) {
 		return Integer.compare(this.value, o.value);
 	}
 
+	/**
+	 * 取得項次序號字串表達形式。
+	 *
+	 * @return 序號數值字串
+	 */
 	@Override
 	public String toString() {
 		return String.valueOf(value);

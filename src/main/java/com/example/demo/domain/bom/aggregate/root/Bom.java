@@ -40,12 +40,39 @@ import com.example.demo.domain.material.aggregate.vo.MaterialId;
  */
 public class Bom {
 
+	/**
+	 * 物料清單唯一識別碼 (BOM Aggregate Identifier)
+	 */
 	private final BomId id;
+
+	/**
+	 * 本 BOM 所屬之母件物料識別碼 (必須為成品或半成品)
+	 */
 	private final MaterialId parentMaterialId;
+
+	/**
+	 * BOM 工程版本號 (例如 V1.0、V2.0)
+	 */
 	private final BomVersion version;
+
+	/**
+	 * 配方或產品結構說明描述
+	 */
 	private String description;
+
+	/**
+	 * 母件產出基準數量 (標準基準單位，例如 1.0000)
+	 */
 	private Quantity baseQuantity;
+
+	/**
+	 * BOM 當前生命週期狀態 (草稿 DRAFT、已審核 APPROVED、已作廢 OBSOLETE)
+	 */
 	private BomStatus status;
+
+	/**
+	 * 本 BOM 配方下所包含之子件明細實體清單
+	 */
 	private final List<BomItem> items = new ArrayList<>();
 
 	/**
@@ -54,7 +81,15 @@ public class Bom {
 	private final List<Object> domainEvents = new ArrayList<>();
 
 	/**
-	 * 私有建構子，封裝建構細節。
+	 * 私有建構子，封裝聚合根完整欄位初始化邏輯。
+	 *
+	 * @param id BOM 識別碼實質物件，不可為 null
+	 * @param parentMaterialId 母件物料識別碼實質物件，不可為 null
+	 * @param version BOM 版本號實質物件，不可為 null
+	 * @param description 配方說明文字，若為 null 則自動初始化為空字串
+	 * @param baseQuantity 母件產出基準數量，若為 null 則預設為 {@link Quantity#ONE}
+	 * @param status BOM 當前生命週期狀態，不可為 null
+	 * @param initialItems 初始子料件項目清單，可為 null 或空清單
 	 */
 	private Bom(
 			BomId id,
@@ -234,6 +269,8 @@ public class Bom {
 
 	/**
 	 * 作廢此 BOM 配方清單。
+	 * <p>
+	 * 將 BOM 狀態變更為 {@link BomStatus#OBSOLETE}，代表該配方結構已淘汰或由新版本取代。
 	 */
 	public void obsolete() {
 		this.status = BomStatus.OBSOLETE;
@@ -291,17 +328,30 @@ public class Bom {
 
 	/**
 	 * 清除已收集之領域事件。
+	 * <p>
+	 * 於應用層 (Application Service) 將領域事件透過訊息發布器對外發布後調用。
 	 */
 	public void clearDomainEvents() {
 		this.domainEvents.clear();
 	}
 
+	/**
+	 * 記錄內部觸發之領域事件至待發布佇列。
+	 *
+	 * @param event 欲記錄之領域事件物件，若為 null 則忽略
+	 */
 	protected void recordEvent(Object event) {
 		if (event != null) {
 			this.domainEvents.add(event);
 		}
 	}
 
+	/**
+	 * 斷言當前 BOM 狀態必須為草稿 (DRAFT)。
+	 *
+	 * @param operationName 欲執行的業務操作名稱（用於錯誤提示訊息）
+	 * @throws IllegalBomOperationException 當當前狀態非草稿狀態時拋出
+	 */
 	private void assertDraftStatus(String operationName) {
 		if (this.status != BomStatus.DRAFT) {
 			throw new IllegalBomOperationException(
@@ -310,6 +360,13 @@ public class Bom {
 		}
 	}
 
+	/**
+	 * 計算並取得下一個預設子項序號。
+	 * <p>
+	 * 依據清單中既有最大序號加上 {@link ItemSequence#DEFAULT_STEP} (預設為 10) 遞增產生。
+	 *
+	 * @return 計算出的下一個項次序號實質物件
+	 */
 	private ItemSequence calculateNextSequence() {
 		if (this.items.isEmpty()) {
 			return ItemSequence.initial();
@@ -323,26 +380,56 @@ public class Bom {
 		return ItemSequence.of(maxSequence + ItemSequence.DEFAULT_STEP);
 	}
 
+	/**
+	 * 取得 BOM 唯一識別碼。
+	 *
+	 * @return BOM 識別碼實質物件
+	 */
 	public BomId getId() {
 		return id;
 	}
 
+	/**
+	 * 取得本 BOM 所屬之母件物料識別碼。
+	 *
+	 * @return 母件物料識別碼實質物件
+	 */
 	public MaterialId getParentMaterialId() {
 		return parentMaterialId;
 	}
 
+	/**
+	 * 取得 BOM 工程版本號。
+	 *
+	 * @return 版本號實質物件
+	 */
 	public BomVersion getVersion() {
 		return version;
 	}
 
+	/**
+	 * 取得 BOM 配方說明描述。
+	 *
+	 * @return 說明字串
+	 */
 	public String getDescription() {
 		return description;
 	}
 
+	/**
+	 * 取得母件產出基準數量。
+	 *
+	 * @return 基準用量實質物件
+	 */
 	public Quantity getBaseQuantity() {
 		return baseQuantity;
 	}
 
+	/**
+	 * 取得 BOM 當前生命週期狀態。
+	 *
+	 * @return 生命週期狀態枚舉
+	 */
 	public BomStatus getStatus() {
 		return status;
 	}
@@ -356,6 +443,12 @@ public class Bom {
 		return Collections.unmodifiableList(items);
 	}
 
+	/**
+	 * 判斷兩 BOM 實體是否相等（以全域唯一識別碼 {@link BomId} 作為 Aggregate 實體相等性基準）。
+	 *
+	 * @param o 欲比較的物件
+	 * @return 若識別碼相同回傳 {@code true}，否則回傳 {@code false}
+	 */
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -364,11 +457,21 @@ public class Bom {
 		return Objects.equals(id, bom.id);
 	}
 
+	/**
+	 * 依據全域唯一識別碼 {@link BomId} 計算雜湊值。
+	 *
+	 * @return 雜湊碼
+	 */
 	@Override
 	public int hashCode() {
 		return Objects.hash(id);
 	}
 
+	/**
+	 * 產生 BOM 聚合根文字表達形式（便於除錯與記錄稽核日誌）。
+	 *
+	 * @return 包含關鍵屬性之字串
+	 */
 	@Override
 	public String toString() {
 		return "Bom{" +

@@ -9,6 +9,9 @@ import com.example.demo.domain.material.exception.NegativeMaterialCostException;
  * 貨幣與金額實質物件 (Money Value Object)
  * <p>
  * 封裝金額數值與幣別，提供高精度之算術運算與非負數之領域檢核。
+ *
+ * @param amount 金額數值 (保留 4 位小數，不可為負數)
+ * @param currency 幣別 ISO 代碼 (如 "TWD", "USD")
  */
 public record Money(BigDecimal amount, String currency) {
 
@@ -113,6 +116,11 @@ public record Money(BigDecimal amount, String currency) {
 		return new Money(this.amount.multiply(factor), this.currency);
 	}
 
+	/**
+	 * 取得金額與幣別之字串表達形式 (例如 "TWD 100.0000")。
+	 *
+	 * @return 幣別與金額字串
+	 */
 	@Override
 	public String toString() {
 		return currency + " " + amount.toPlainString();

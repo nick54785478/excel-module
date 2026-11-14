@@ -192,7 +192,7 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
             }
         }
         // 2. 合併手動或動態註冊於記憶體中之範本 (若資料庫無相同 key 則補入)
-        metadataRegistry.forEach((key, dto) -> combined.putIfAbsent(key, dto));
+        metadataRegistry.forEach(combined::putIfAbsent);
         return List.copyOf(combined.values());
     }
 
@@ -228,6 +228,7 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
     /**
      * 清空記憶體範本快取，強制下次讀取時重新自磁碟載入。
      */
+    @Override
     public void clearCache() {
         templateCache.clear();
         log.info("已清空 Excel 範本快取容器");
@@ -238,6 +239,7 @@ public class ClasspathExcelTemplateRegistryAdapter implements ExcelTemplateRegis
      *
      * @param templateKey 範本唯一識別鍵
      */
+    @Override
     public void refreshCache(String templateKey) {
         if (templateKey != null) {
             String normalizedKey = templateKey.toUpperCase(Locale.ROOT);

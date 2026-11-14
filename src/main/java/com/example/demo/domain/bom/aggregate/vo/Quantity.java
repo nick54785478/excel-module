@@ -8,6 +8,8 @@ import java.util.Objects;
  * 用量數量實質物件 (Quantity Value Object)
  * <p>
  * 封裝母件基數或子件單機用量，限制數值必須大於 0，精度統一保留 4 位小數。
+ *
+ * @param value 用量數值 (保留 4 位小數，必須大於零)
  */
 public record Quantity(BigDecimal value) {
 
@@ -79,6 +81,11 @@ public record Quantity(BigDecimal value) {
 		return new Quantity(this.value.multiply(factor));
 	}
 
+	/**
+	 * 取得用量之字串表達形式 (保留完整精度小數，不採科學記號)。
+	 *
+	 * @return 數值純文字字串
+	 */
 	@Override
 	public String toString() {
 		return value.toPlainString();

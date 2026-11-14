@@ -27,8 +27,16 @@ public enum BomStatus {
 	 */
 	OBSOLETE("已廢止");
 
+	/**
+	 * 狀態顯示名稱 (中文)
+	 */
 	private final String displayName;
 
+	/**
+	 * 建構 BOM 狀態枚舉項。
+	 *
+	 * @param displayName 中文顯示名稱
+	 */
 	BomStatus(String displayName) {
 		this.displayName = displayName;
 	}

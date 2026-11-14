@@ -27,9 +27,22 @@ public enum MaterialCategory {
 	 */
 	RAW_MATERIAL("原物料", "RM");
 
+	/**
+	 * 分類中文顯示名稱 (如 "成品", "半成品", "原物料")
+	 */
 	private final String displayName;
+
+	/**
+	 * 分類代碼縮寫 (如 "FG", "SFG", "RM")
+	 */
 	private final String code;
 
+	/**
+	 * 建構物料分類枚舉項。
+	 *
+	 * @param displayName 中文顯示名稱
+	 * @param code 英文縮寫代碼
+	 */
 	MaterialCategory(String displayName, String code) {
 		this.displayName = displayName;
 		this.code = code;

@@ -47,16 +47,7 @@ public class ExcelTemplateRepositoryAdapter implements ExcelTemplateRepositoryPo
             throw new IllegalArgumentException("建立範本失敗，範本鍵值已存在: " + normalizedKey);
         }
 
-        ExcelTemplateJpaEntity entity = new ExcelTemplateJpaEntity();
-        entity.setTemplateKey(normalizedKey);
-        entity.setTemplateName(command.templateName());
-        entity.setCategory(command.category().toUpperCase(Locale.ROOT));
-        entity.setDescription(command.description());
-        entity.setRequiredVariablesList(command.requiredVariables());
-        entity.setStorageType(command.storageType());
-        entity.setFilePath(command.filePath());
-        entity.setDefaultMappingJson(command.defaultMappingJson());
-        entity.setActive(true);
+        ExcelTemplateJpaEntity entity = ExcelTemplateJpaEntity.create(command);
 
         ExcelTemplateJpaEntity saved = templateJpaRepository.saveAndFlush(entity);
         log.info("成功建立 Excel 範本持久化記錄: key={}, name={}", saved.getTemplateKey(), saved.getTemplateName());
@@ -72,30 +63,7 @@ public class ExcelTemplateRepositoryAdapter implements ExcelTemplateRepositoryPo
         ExcelTemplateJpaEntity entity = templateJpaRepository.findByTemplateKey(normalizedKey)
                 .orElseThrow(() -> new ExcelTemplateNotFoundException("更新範本失敗，查無該範本鍵值: " + normalizedKey));
 
-        if (command.templateName() != null && !command.templateName().isBlank()) {
-            entity.setTemplateName(command.templateName());
-        }
-        if (command.category() != null && !command.category().isBlank()) {
-            entity.setCategory(command.category().toUpperCase(Locale.ROOT));
-        }
-        if (command.description() != null) {
-            entity.setDescription(command.description());
-        }
-        if (command.requiredVariables() != null) {
-            entity.setRequiredVariablesList(command.requiredVariables());
-        }
-        if (command.storageType() != null && !command.storageType().isBlank()) {
-            entity.setStorageType(command.storageType());
-        }
-        if (command.filePath() != null && !command.filePath().isBlank()) {
-            entity.setFilePath(command.filePath());
-        }
-        if (command.defaultMappingJson() != null) {
-            entity.setDefaultMappingJson(command.defaultMappingJson());
-        }
-        if (command.active() != null) {
-            entity.setActive(command.active());
-        }
+        entity.updateFrom(command);
 
         ExcelTemplateJpaEntity saved = templateJpaRepository.saveAndFlush(entity);
         log.info("成功更新 Excel 範本持久化記錄: key={}, active={}", saved.getTemplateKey(), saved.isActive());

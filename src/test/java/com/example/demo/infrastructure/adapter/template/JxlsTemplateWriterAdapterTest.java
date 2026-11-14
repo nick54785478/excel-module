@@ -1,6 +1,7 @@
 package com.example.demo.infrastructure.adapter.template;
 
 import com.example.demo.application.shared.exception.ExcelWriteException;
+import com.example.demo.infrastructure.template.customizer.ProcurementComparisonTemplateModelCustomizer;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -232,7 +233,10 @@ class JxlsTemplateWriterAdapterTest {
                 )
             );
 
-            byte[] resultBytes = adapter.writeFromTemplate(tplStream, dataModel);
+            ProcurementComparisonTemplateModelCustomizer customizer = new ProcurementComparisonTemplateModelCustomizer();
+            Map<String, Object> preparedModel = customizer.customize(dataModel);
+
+            byte[] resultBytes = adapter.writeFromTemplate(tplStream, preparedModel);
             assertThat(resultBytes).isNotEmpty();
 
             try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(resultBytes))) {

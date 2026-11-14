@@ -9,6 +9,11 @@ import com.example.demo.domain.material.aggregate.vo.Money;
  * <p>
  * 遵循命名規範：{@code N + Ved + Event}。
  * 當物料之標準成本調整時觸發並對外發布。
+ *
+ * @param materialId 物料識別碼實質物件
+ * @param previousCost 變更前標準成本
+ * @param newCost 變更後標準成本
+ * @param occurredOn 事件發生時間戳記
  */
 public record MaterialCostChangedEvent(
 		MaterialId materialId,
@@ -18,9 +23,9 @@ public record MaterialCostChangedEvent(
 ) {
 
 	/**
-	 * 建構物料成本變更領域事件。
+	 * 建構物料成本變更領域事件 (自動帶入當前時間戳記)。
 	 *
-	 * @param materialId 物料識別碼
+	 * @param materialId 物料識別碼實質物件
 	 * @param previousCost 變更前成本
 	 * @param newCost 變更後成本
 	 */

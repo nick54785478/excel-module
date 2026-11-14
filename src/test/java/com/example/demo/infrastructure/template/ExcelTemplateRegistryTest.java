@@ -20,7 +20,7 @@ import com.example.demo.config.ExcelTemplateConfiguration;
  * <p>
  * 遵循 BDD 與 Gherkin 規範，驗證 {@link ExcelTemplateRegistry} 之純容器行為、
  * {@link ExcelTemplateConfiguration} 之預載核心範本、別名多重解析、工作表名稱反查 (Zero-Config)、
- * 以及基於 {@link ExcelTemplateCustomizer} 與 OCP 之動態外掛能力。
+ * 以及基於 {@link ExcelTemplateRegistryCustomizer} 與 OCP 之動態外掛能力。
  * </p>
  */
 @DisplayName("ExcelTemplateRegistry 宣告式範本註冊表測試")
@@ -151,16 +151,16 @@ class ExcelTemplateRegistryTest {
 	}
 
 	/**
-	 * Feature: ExcelTemplateCustomizer SPI 擴充驗證
+	 * Feature: ExcelTemplateRegistryCustomizer SPI 擴充驗證
 	 * Scenario: 驗證透過 Customizer 介面回呼擴充範本
 	 * Given: 建立自訂 Customizer
 	 * When: 執行 customizer.customize(registry)
 	 * Then: 成功外掛供應商範本
 	 */
 	@Test
-	@DisplayName("情境：驗證 ExcelTemplateCustomizer SPI 回呼外掛機制")
+	@DisplayName("情境：驗證 ExcelTemplateRegistryCustomizer SPI 回呼外掛機制")
 	void shouldSupportCustomizerSpi() {
-		ExcelTemplateCustomizer customizer = reg -> reg.register("suppliers", CustomerTestModel.class, "供應商主檔");
+		ExcelTemplateRegistryCustomizer customizer = reg -> reg.register("suppliers", CustomerTestModel.class, "供應商主檔");
 		customizer.customize(registry);
 
 		ExcelTemplateRegistry.TemplateDescriptor desc = registry.getRequired("suppliers");

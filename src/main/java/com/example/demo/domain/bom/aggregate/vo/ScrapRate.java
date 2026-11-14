@@ -9,6 +9,8 @@ import java.util.Objects;
  * <p>
  * 定義製程中零件之損耗百分比比率（例如 0.05 代表 5% 損耗）。
  * 數值範圍介於 0.0000 至 1.0000 之間（即 0% ~ 100%）。
+ *
+ * @param rate 損耗比率數值 (介於 0.0 至 1.0 之間)
  */
 public record ScrapRate(BigDecimal rate) {
 
@@ -93,6 +95,11 @@ public record ScrapRate(BigDecimal rate) {
 		return rate.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP).toPlainString() + "%";
 	}
 
+	/**
+	 * 取得損耗率之小數位字串表達形式 (純數值格式)。
+	 *
+	 * @return 數值字串
+	 */
 	@Override
 	public String toString() {
 		return rate.toPlainString();

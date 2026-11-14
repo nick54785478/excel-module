@@ -13,8 +13,8 @@ import com.example.demo.application.shared.model.bom.BomItemExcelModel;
 import com.example.demo.application.shared.model.material.MaterialExcelModel;
 import com.example.demo.application.shared.model.demo.OrderModel;
 import com.example.demo.application.shared.model.demo.ProductRecordModel;
-import com.example.demo.infrastructure.template.ExcelTemplateCustomizer;
 import com.example.demo.infrastructure.template.ExcelTemplateRegistry;
+import com.example.demo.infrastructure.template.ExcelTemplateRegistryCustomizer;
 
 /**
  * Excel 宣告式範本元數據註冊表全域配置類 (Excel Template Configuration)
@@ -33,12 +33,12 @@ import com.example.demo.infrastructure.template.ExcelTemplateRegistry;
  *   <li><b>配置裝配集中化</b>：由本配置類集中依賴具體業務模型（{@link OrderModel}、{@link ProductRecordModel}、{@link MaterialExcelModel}、{@link BomItemExcelModel}），
  *       並執行路由別名、中文工作表名稱與檢核錯誤回標檔名之全量映射裝配。</li>
  *   <li><b>徹底落實 OCP (Open-Closed Principle)</b>：未來擴充新業務範本時，無需修改底層註冊表類別或表現層控制器，
- *       僅需於本配置類追加註冊，或透過實作 {@link ExcelTemplateCustomizer} SPI 宣告為 Spring Bean 即可隨插即用。</li>
+ *       僅需於本配置類追加註冊，或透過實作 {@link ExcelTemplateRegistryCustomizer} SPI 宣告為 Spring Bean 即可隨插即用。</li>
  * </ul>
  * </p>
  *
  * @see ExcelTemplateRegistry
- * @see ExcelTemplateCustomizer
+ * @see ExcelTemplateRegistryCustomizer
  */
 @Configuration
 public class ExcelTemplateConfiguration {
@@ -55,8 +55,8 @@ public class ExcelTemplateConfiguration {
 	 * <b>【生命週期與裝配流程】</b>
 	 * <ol>
 	 *   <li>調用 {@link #createDefaultRegistry()} 建立乾淨的 {@link ExcelTemplateRegistry} 並預載系統四大核心業務範本。</li>
-	 *   <li>利用 Spring IoC 的容器自動收集特性，注入所有註冊為 Spring Bean 之 {@link ExcelTemplateCustomizer} 自訂擴充器。</li>
-	 *   <li>依序回呼每個擴充器的 {@link ExcelTemplateCustomizer#customize(ExcelTemplateRegistry)} 方法，動態外掛自訂單據範本。</li>
+	 *   <li>利用 Spring IoC 的容器自動收集特性，注入所有註冊為 Spring Bean 之 {@link ExcelTemplateRegistryCustomizer} 自訂擴充器。</li>
+	 *   <li>依序回呼每個擴充器的 {@link ExcelTemplateRegistryCustomizer#customize(ExcelTemplateRegistry)} 方法，動態外掛自訂單據範本。</li>
 	 *   <li>輸出標準化啟動日誌，列出目前系統所支援之所有範本識別鍵與總數。</li>
 	 * </ol>
 	 * </p>
@@ -71,14 +71,14 @@ public class ExcelTemplateConfiguration {
 	@Bean
 	@ConditionalOnMissingBean(ExcelTemplateRegistry.class)
 	public ExcelTemplateRegistry excelTemplateRegistry(
-			@Autowired(required = false) List<ExcelTemplateCustomizer> customizers
+			@Autowired(required = false) List<ExcelTemplateRegistryCustomizer> customizers
 	) {
 		// 1. 建立預載四大核心業務範本之標準註冊表
 		ExcelTemplateRegistry registry = createDefaultRegistry();
 
 		// 2. 執行外掛擴充器管線 (SPI Customizer Pipeline)
 		if (customizers != null && !customizers.isEmpty()) {
-			for (ExcelTemplateCustomizer customizer : customizers) {
+			for (ExcelTemplateRegistryCustomizer customizer : customizers) {
 				if (customizer != null) {
 					customizer.customize(registry);
 					log.info("[ExcelTemplateConfiguration] 成功套用自訂範本擴充器 (Applied template customizer): {}",

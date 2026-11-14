@@ -19,7 +19,7 @@
 ```mermaid
 flowchart TD
     subgraph Configuration_Layer ["Configuration Layer (全域配置層 - Composition Root)"]
-        TemplateConfig["ExcelTemplateConfiguration<br/>(集中裝配核心範本 orders, products, materials, boms<br/>& 自訂擴充 ExcelTemplateCustomizer SPI)"]
+        TemplateConfig["ExcelTemplateConfiguration<br/>(集中裝配核心範本 orders, products, materials, boms<br/>& 自訂擴充 ExcelTemplateRegistryCustomizer SPI)"]
     end
 
     subgraph Presentation_Layer ["Presentation Layer (表現層 - Inbound Adapters)"]
@@ -89,7 +89,7 @@ flowchart TD
 | **Application (Port Out)**| [`ExcelErrorMarkerPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/validation/ExcelErrorMarkerPort.java) | 錯誤回標檔案二進位生成 Outbound Port 契約 | `*Port` (Rule 3-8) |
 | **Application (Model)**   | [`ExcelRowError`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/model/validation/ExcelRowError.java)<br>[`ExcelValidationGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelValidationGottenResult.java) | 單一儲存格違規事實與檢核匯總純資料載體 | Java 21 Record |
 | **Infrastructure (Template)**| [`ExcelTemplateRegistry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateRegistry.java) | 集中管理各單據範本之元數據與驗證模型 (OCP 技術容器) | Registry |
-| **Configuration** | [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java) | 集中預載業務範本元數據並支援 `ExcelTemplateCustomizer` SPI 擴充 | Configuration |
+| **Configuration** | [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java) | 集中預載業務範本元數據並支援 `ExcelTemplateRegistryCustomizer` SPI 擴充 | Configuration |
 | **Infrastructure (Adapter)** | [`EasyRulesExcelValidatorAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapter.java) | 基於 EasyRules 4.1.0 實作 `ExcelRowValidatorPort` | `*Adapter` (Rule 3-9) |
 | **Infrastructure (Adapter)** | [`PoiExcelErrorMarkerAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapter.java) | 基於 POI 5.5.1 實作 `ExcelErrorMarkerPort` | `*Adapter` (Rule 3-9) |
 

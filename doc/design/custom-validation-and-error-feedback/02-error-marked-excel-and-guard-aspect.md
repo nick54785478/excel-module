@@ -87,13 +87,13 @@ public class ExcelTemplateRegistry {
 }
 ```
 
-### 3.2 自訂擴充回呼 SPI 介面：`ExcelTemplateCustomizer`
-座落於 [`com.example.demo.infrastructure.template.ExcelTemplateCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateCustomizer.java)：
+### 3.2 自訂擴充回呼 SPI 介面：`ExcelTemplateRegistryCustomizer`
+座落於 [`com.example.demo.infrastructure.template.ExcelTemplateRegistryCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateRegistryCustomizer.java)：
 * 貫徹開放封閉原則 (OCP)，任何子模組欲擴充新單據範本（如「客戶主檔」、「請購單」），僅需宣告實作此介面的 Spring Bean，無需修改現有核心程式碼。
 
 ```java
 @FunctionalInterface
-public interface ExcelTemplateCustomizer {
+public interface ExcelTemplateRegistryCustomizer {
     void customize(ExcelTemplateRegistry registry);
 }
 ```
@@ -101,7 +101,7 @@ public interface ExcelTemplateCustomizer {
 ### 3.3 全域配置層集中裝配：`ExcelTemplateConfiguration`
 座落於 [`com.example.demo.config.ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java)：
 * 遵循 `AGENTS.md` 規則 40~41（The Dirtiest Layer / Composition Root），將所有具體業務模型與中文別名集中於配置層裝配。
-* 自動收集容器中所有 `ExcelTemplateCustomizer` 擴充器並依序回呼執行。
+* 自動收集容器中所有 `ExcelTemplateRegistryCustomizer` 擴充器並依序回呼執行。
 * 提供 `createDefaultRegistry()` 靜態工廠，供 Spring 初始化與無容器之單元測試快速獲取一致配置。
 
 ```java
@@ -111,7 +111,7 @@ public class ExcelTemplateConfiguration {
     @Bean
     @ConditionalOnMissingBean(ExcelTemplateRegistry.class)
     public ExcelTemplateRegistry excelTemplateRegistry(
-            @Autowired(required = false) List<ExcelTemplateCustomizer> customizers
+            @Autowired(required = false) List<ExcelTemplateRegistryCustomizer> customizers
     ) {
         ExcelTemplateRegistry registry = createDefaultRegistry();
         if (customizers != null) {
@@ -150,7 +150,7 @@ public class ExcelTemplateConfiguration {
 
 ## 5. 單元與整合測試驗證 (Testing & Verification)
 
-* [`ExcelTemplateRegistryTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/template/ExcelTemplateRegistryTest.java)：驗證純空容器建立、配置層預載 4 大業務範本、大小寫與別名智能匹配、工作表名稱反查、OCP 動態註冊與 `ExcelTemplateCustomizer` SPI 擴充管線等 6 大場景。
+* [`ExcelTemplateRegistryTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/template/ExcelTemplateRegistryTest.java)：驗證純空容器建立、配置層預載 4 大業務範本、大小寫與別名智能匹配、工作表名稱反查、OCP 動態註冊與 `ExcelTemplateRegistryCustomizer` SPI 擴充管線等 6 大場景。
 * [`EasyRulesExcelValidatorAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/EasyRulesExcelValidatorAdapterTest.java)：驗證 EasyRules 行級規則評估、非短路錯誤全量累積與跨欄位連動驗證。
 * [`PoiExcelErrorMarkerAdapterTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/infrastructure/adapter/validation/PoiExcelErrorMarkerAdapterTest.java)：驗證 POI 原始格式保留、出錯儲存格淡紅底深紅字套用與最右側錯誤原因追加。
 * [`ExcelValidationControllerTest`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/test/java/com/example/demo/presentation/controller/validation/ExcelValidationControllerTest.java)：驗證 5 隻端點的檔案上傳、HTTP 422 錯誤報告、檔案下載與 AOP 切面攔截。

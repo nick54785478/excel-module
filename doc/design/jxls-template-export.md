@@ -76,15 +76,20 @@ flowchart LR
 | **Presentation** | [`ExcelTemplateResourceAssembler`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/assembler/ExcelTemplateResourceAssembler.java) | ACL 防腐層，負責將 Request Resource 轉換為應用層 Command | Assembler (Rule 2) |
 | **Application (Port In)** | [`ExportTemplateExcelUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/template/ExportTemplateExcelUseCase.java) | 範本 Excel 匯出業務合約（回傳二進位 byte[] 或寫入 OutputStream） | `*UseCase` (Rule 3-8) |
 | **Application (Port In)** | [`StreamExportTemplateExcelUseCase`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/in/template/StreamExportTemplateExcelUseCase.java) | 範本 Excel 串流匯出業務合約，直接將二進位資料串流寫入 Response | `*UseCase` (Rule 3-8) |
-| **Application (Service)** | [`ExcelTemplateCommandService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/template/ExcelTemplateCommandService.java) | 流程協調者，調用範本載入埠與範本寫入埠，協調業務上下文 | `*CommandService` (Rule 3-9) |
+| **Application (Service)** | [`ExcelTemplateCommandService`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/service/template/ExcelTemplateCommandService.java) | 流程協調者，調用範本載入埠、模型前處理工廠與範本寫入埠，協調業務上下文 | `*CommandService` (Rule 3-9) |
 | **Application (Port Out)**| [`ExcelTemplateWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/template/ExcelTemplateWriterPort.java) | 範本 Excel 二進位填充寫入技術契約，接收 Command 與資料模型 | `*Port` (Rule 3-8) |
 | **Application (Port Out)**| [`ExcelTemplateRegistryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/template/ExcelTemplateRegistryPort.java) | 範本中繼資料查詢與二進位串流載入抽象契約 | `*Port` (Rule 3-8) |
+| **Application (Port Out)**| [`ExcelTemplateModelCustomizerFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/template/ExcelTemplateModelCustomizerFactoryPort.java) | 範本資料模型自定義工廠輸出埠，動態取得特定範本之 Model Customizer | `*Port` (Rule 3-8) |
+| **Application (SPI)**     | [`ExcelTemplateModelCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/template/ExcelTemplateModelCustomizer.java) | 範本資料模型自定義策略契約，定義特定範本資料上下文之擴充與轉換 | SPI Strategy Interface |
 | **Application (Command)** | [`ExportTemplateExcelCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/ExportTemplateExcelCommand.java) | 不可變 Java 21 Record，封裝 `templateKey`, `dataModel`, `outputFileName` | `V + N + Command` (Rule 3-4) |
 | **Application (DTO)**     | [`ExcelTemplateGottenResult`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/dto/ExcelTemplateGottenResult.java) | 封裝範本中繼資訊（鍵值、名稱、分類、描述、必填變數清單） | `N + Gotten + Result` (Rule 3-6) |
 | **Infrastructure (Adapter)**| [`JxlsTemplateWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/template/JxlsTemplateWriterAdapter.java) | 實作 `ExcelTemplateWriterPort`，封裝 JXLS 3.x 引擎、JEXL 沙箱與 POI 轉換 | `*Adapter` (Rule 3-9) |
 | **Infrastructure (Adapter)**| [`ClasspathExcelTemplateRegistryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/template/ClasspathExcelTemplateRegistryAdapter.java) | 實作 `ExcelTemplateRegistryPort`，管理 `templates/excel/` 目錄之範本快取 | `*Adapter` (Rule 3-9) |
-| **Infrastructure (Engine)** | [`JxlsTemplateEngine`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/engine/jxls/JxlsTemplateEngine.java) | 基礎設施層技術核心，配置 `JexlPermissions.RESTRICTED` 沙箱與 XlsArea 解析 | Internal Engine |
-| **Configuration**         | [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java) | 配置層 (Dirtiest Layer)，註冊 JXLS 引擎 Bean、沙箱權限與範本儲存庫 | `@Configuration` |
+| **Infrastructure (Adapter)**| [`ExcelTemplateModelCustomizerFactoryAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/template/ExcelTemplateModelCustomizerFactoryAdapter.java) | 實作 `ExcelTemplateModelCustomizerFactoryPort`，管理與路由所有模型自定義策略 | `*Adapter` (Rule 3-9) |
+| **Infrastructure (Strategy)**| [`ProcurementComparisonTemplateModelCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/customizer/ProcurementComparisonTemplateModelCustomizer.java) | 實作 `ExcelTemplateModelCustomizer`，專門處理採購比價明細與供應商解析 | Strategy Class |
+| **Infrastructure (Strategy)**| [`BomCostAnalysisTemplateModelCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/customizer/BomCostAnalysisTemplateModelCustomizer.java) | 實作 `ExcelTemplateModelCustomizer`，專門處理 BOM 成本卷算與子件別名對齊 | Strategy Class |
+| **Infrastructure (Strategy)**| [`SmartAliasTemplateModelCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/customizer/SmartAliasTemplateModelCustomizer.java) | 實作 `ExcelTemplateModelCustomizer`，通用保底別名補全策略 (`*`) | Strategy Class |
+| **Configuration**         | [`ExcelJxlsConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelJxlsConfiguration.java) | 配置層 (Dirtiest Layer)，裝配 JXLS Writer、Registry、FieldMapper 與 ModelCustomizerFactory | `@Configuration` |
 
 ---
 
@@ -192,6 +197,7 @@ com.example.demo
 │   │   ├── ExcelTemplateWriterPort.java             # JXLS 範本寫入合約
 │   │   ├── ExcelTemplateRegistryPort.java           # 範本註冊表查詢合約
 │   │   ├── ExcelTemplateFieldMappingPort.java       # 欄位映射與型別轉換合約
+│   │   ├── ExcelTemplateModelCustomizerFactoryPort.java # 範本資料模型自定義工廠合約
 │   │   └── ExcelTemplateRepositoryPort.java         # 範本資料庫維護合約
 │   ├── service/template/                            # CQRS 應用服務 (Rule 3-9)
 │   │   ├── ExcelTemplateCommandService.java         # 範本匯出與串流命令服務
@@ -199,6 +205,8 @@ com.example.demo
 │   └── shared/
 │       ├── command/                                 # ExportTemplateExcelCommand, ExportTemplateWithMappingCommand...
 │       ├── dto/                                     # ExcelTemplateGottenResult.java
+│       ├── template/                                # 範本資料模型自定義策略 SPI
+│       │   └── ExcelTemplateModelCustomizer.java    # 匯出資料模型前處理與別名策略契約
 │       ├── mapping/                                 # TemplateFieldMappingDefinition, FieldRuleDefinition, TransformRuleDefinition...
 │       └── exception/                               # ExcelTemplateNotFoundException.java
 │
@@ -206,10 +214,16 @@ com.example.demo
 │   ├── adapter/template/                            # 輸出適配器 (Rule 3-9)
 │   │   ├── ClasspathExcelTemplateRegistryAdapter.java # Classpath/DB 雙軌範本註冊表適配器
 │   │   ├── JxlsTemplateWriterAdapter.java           # JXLS 3.x 實體寫入適配器
-│   │   └── JxlsFieldMappingAdapter.java             # 動態欄位映射引擎適配器
+│   │   ├── JxlsFieldMappingAdapter.java             # 動態欄位映射引擎適配器
+│   │   └── ExcelTemplateModelCustomizerFactoryAdapter.java # 範本模型自定義工廠適配器
 │   ├── template/                                    # 範本底層技術元件 (Internal SPI)
 │   │   ├── ExcelTemplateRegistry.java               # 記憶體範本註冊中心
-│   │   ├── ExcelTemplateCustomizer.java             # 範本客製化擴充 SPI
+│   │   ├── ExcelTemplateRegistryCustomizer.java     # 範本註冊表自定義擴充 SPI (註冊中繼資料)
+│   │   ├── customizer/                              # 範本模型自定義具體策略 (Procurement, BOM, SmartAlias...)
+│   │   │   ├── ProcurementComparisonTemplateModelCustomizer.java
+│   │   │   ├── BomCostAnalysisTemplateModelCustomizer.java
+│   │   │   ├── SmartAliasTemplateModelCustomizer.java
+│   │   │   └── TemplateModelCustomizerHelper.java
 │   │   └── mapping/                                 # 欄位動態映射引擎與轉換器
 │   │       ├── converter/ (CurrencyFieldConverter, DateFormatFieldConverter, MaskingFieldConverter...)
 │   │       ├── engine/ (JxlsFieldMappingEngine, ValueObjectSmartUnboxer)
@@ -235,16 +249,23 @@ com.example.demo
     ├── adapter/template/
     │   ├── ClasspathExcelTemplateRegistryAdapterTest.java
     │   ├── ExcelTemplateRepositoryAdapterTest.java  # 範本持久化適配器單元測試
+    │   ├── ExcelTemplateModelCustomizerFactoryAdapterTest.java # 模型自定義工廠單元測試
     │   ├── JxlsTemplateWriterAdapterTest.java
     │   ├── JxlsFieldMappingAdapterTest.java
     │   ├── JxlsFieldMappingIntegrationTest.java
     │   └── JxlsAggregateTemplateGeneratorTest.java
     ├── persistence/template/repository/
     │   └── ExcelTemplateJpaRepositoryTest.java      # 範本 JPA Repository 整合測試
-    └── template/mapping/
-        ├── converter/FieldConverterTest.java
-        ├── engine/JxlsFieldMappingEngineTest.java
-        ├── engine/ValueObjectSmartUnboxerTest.java
-        └── registry/JsonTemplateMappingLoaderTest.java
+    ├── template/
+    │   ├── ExcelTemplateRegistryTest.java           # 範本註冊表與 RegistryCustomizer 測試
+    │   ├── customizer/                              # 範本資料模型自定義策略單元測試
+    │   │   ├── ProcurementComparisonTemplateModelCustomizerTest.java
+    │   │   ├── BomCostAnalysisTemplateModelCustomizerTest.java
+    │   │   └── SmartAliasTemplateModelCustomizerTest.java
+    │   └── mapping/
+    │       ├── converter/FieldConverterTest.java
+    │       ├── engine/JxlsFieldMappingEngineTest.java
+    │       ├── engine/ValueObjectSmartUnboxerTest.java
+    │       └── registry/JsonTemplateMappingLoaderTest.java
 ```
 

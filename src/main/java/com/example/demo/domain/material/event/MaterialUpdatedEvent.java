@@ -8,6 +8,11 @@ import com.example.demo.domain.material.aggregate.vo.MaterialId;
  * <p>
  * 遵循命名規範：{@code N + Ved + Event}。
  * 當物料名稱或規格描述進行異動時觸發並對外發布。
+ *
+ * @param materialId 物料識別碼實質物件
+ * @param materialName 異動後之物料品名
+ * @param specification 異動後之規格型號描述
+ * @param occurredOn 事件發生時間戳記
  */
 public record MaterialUpdatedEvent(
 		MaterialId materialId,
@@ -17,9 +22,9 @@ public record MaterialUpdatedEvent(
 ) {
 
 	/**
-	 * 建構物料資訊更新領域事件。
+	 * 建構物料資訊更新領域事件 (自動帶入當前時間戳記)。
 	 *
-	 * @param materialId 物料識別碼
+	 * @param materialId 物料識別碼實質物件
 	 * @param materialName 物料名稱
 	 * @param specification 規格型號
 	 */

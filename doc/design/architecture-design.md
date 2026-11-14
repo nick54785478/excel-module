@@ -211,7 +211,7 @@ flowchart TD
   5. **表現層 REST API 控制器與動態範本註冊**：
      * [`ExcelValidationController`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/presentation/controller/validation/ExcelValidationController.java)：提供 5 隻核心 OCP REST 端點，包括範本探索 (`GET /templates`)、動態範本校驗與回標 (`POST /{templateKey}/feedback`)、結構化 JSON 診斷報告 (`POST /{templateKey}`)、以及智慧工作表探測回標 (`POST /feedback`)。
      * [`ExcelTemplateRegistry`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateRegistry.java)：基礎設施層技術註冊容器，零業務模型依賴。
-     * [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java)：全域配置層，集中裝配核心單據範本並支援 [`ExcelTemplateCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateCustomizer.java) SPI 外掛擴充，嚴守開放封閉原則 (OCP)。
+     * [`ExcelTemplateConfiguration`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/config/ExcelTemplateConfiguration.java)：全域配置層，集中裝配核心單據範本並支援 [`ExcelTemplateRegistryCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/template/ExcelTemplateRegistryCustomizer.java) SPI 外掛擴充，嚴守開放封閉原則 (OCP)。
 
 ---
 
@@ -338,6 +338,8 @@ flowchart TD
   4. **六角形架構無侵入適配**：
      * 定義純淨應用層 Outbound Port [`ExcelTemplateWriterPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/template/ExcelTemplateWriterPort.java)，輸入純不可變 Java 21 Record [`ExportTemplateExcelCommand`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/command/ExportTemplateExcelCommand.java)。
      * JXLS 引擎細節完全封裝於基礎設施層適配器 [`JxlsTemplateWriterAdapter`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/infrastructure/adapter/template/JxlsTemplateWriterAdapter.java)，並提供範本字節快取與 `SxssfTransformer` 巨量資料大檔串流相容機制。
+  5. **範本資料模型自定義工廠與策略模式 (Model Customizer SPI)**：
+     * 透過應用層輸出埠 [`ExcelTemplateModelCustomizerFactoryPort`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/port/out/template/ExcelTemplateModelCustomizerFactoryPort.java) 與策略 SPI [`ExcelTemplateModelCustomizer`](file:///d:/桌面/ModuleWorkSpace/excel-module/src/main/java/com/example/demo/application/shared/template/ExcelTemplateModelCustomizer.java)，將範本專屬之資料上下文正規化（如採購比價明細對齊、BOM 成本卷算子件別名、通用別名容錯）下推至基礎設施層策略實作，保持寫入適配器為 100% 技術純淨之渲染引擎。
 
 ---
 

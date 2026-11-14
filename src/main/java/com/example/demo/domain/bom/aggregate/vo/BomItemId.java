@@ -6,13 +6,15 @@ import java.util.UUID;
  * 物料清單子件唯一識別碼實質物件 (BOM Item Identifier Value Object)
  * <p>
  * 封裝 BOM 明細項目之全域唯一 UUID。
+ *
+ * @param value BOM 明細項目全域唯一識別碼字串 (UUID 格式)
  */
 public record BomItemId(String value) {
 
 	/**
 	 * 建構並檢核 BOM 明細識別碼。
 	 *
-	 * @param value 識別碼字串
+	 * @param value 識別碼字串，不得為 null 或空白字串
 	 * @throws IllegalArgumentException 當識別碼為空或無效時拋出
 	 */
 	public BomItemId {
@@ -23,9 +25,9 @@ public record BomItemId(String value) {
 	}
 
 	/**
-	 * 生成全域唯一 BOM 明細識別碼。
+	 * 生成隨機全域唯一 BOM 明細識別碼。
 	 *
-	 * @return 新建之 BOM 明細識別碼
+	 * @return 新建之 BOM 明細識別碼實質物件
 	 */
 	public static BomItemId generate() {
 		return new BomItemId(UUID.randomUUID().toString());
@@ -41,6 +43,11 @@ public record BomItemId(String value) {
 		return new BomItemId(value);
 	}
 
+	/**
+	 * 取得明細識別碼字串表達形式。
+	 *
+	 * @return 識別碼原始字串
+	 */
 	@Override
 	public String toString() {
 		return value;

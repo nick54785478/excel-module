@@ -11,6 +11,12 @@ import com.example.demo.domain.material.aggregate.vo.MaterialId;
  * <p>
  * 遵循命名規範：{@code N + Ved + Event}。
  * 當成功將子件加入 BOM 結構時觸發並發布。
+ *
+ * @param bomId BOM 識別碼實質物件
+ * @param bomItemId 子項識別碼實質物件
+ * @param childMaterialId 子件物料識別碼實質物件
+ * @param quantity 單機用量實質物件
+ * @param occurredOn 事件發生時間戳記
  */
 public record BomItemAddedEvent(
 		BomId bomId,
@@ -21,12 +27,12 @@ public record BomItemAddedEvent(
 ) {
 
 	/**
-	 * 建構子件新增領域事件。
+	 * 建構子件新增領域事件 (自動帶入當前時間戳記)。
 	 *
-	 * @param bomId BOM 識別碼
-	 * @param bomItemId 子項識別碼
-	 * @param childMaterialId 子件物料識別碼
-	 * @param quantity 用量
+	 * @param bomId BOM 識別碼實質物件
+	 * @param bomItemId 子項識別碼實質物件
+	 * @param childMaterialId 子件物料識別碼實質物件
+	 * @param quantity 單機用量實質物件
 	 */
 	public BomItemAddedEvent(
 			BomId bomId,

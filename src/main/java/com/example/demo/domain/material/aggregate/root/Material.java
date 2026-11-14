@@ -25,13 +25,44 @@ import com.example.demo.domain.material.event.MaterialUpdatedEvent;
  */
 public class Material {
 
+	/**
+	 * 物料唯一識別碼 (Material Aggregate Identifier)
+	 */
 	private final MaterialId id;
+
+	/**
+	 * 物料料號實質物件 (標準料號編碼)
+	 */
 	private final MaterialCode code;
+
+	/**
+	 * 物料品名
+	 */
 	private String name;
+
+	/**
+	 * 規格型號說明
+	 */
 	private String specification;
+
+	/**
+	 * 物料層級分類 (成品 FG、半成品 SFG、原物料 RM)
+	 */
 	private final MaterialCategory category;
+
+	/**
+	 * 標準計量單位 (如 PCS, SET, KG 等)
+	 */
 	private final UnitOfMeasure unit;
+
+	/**
+	 * 物料標準成本金額 (含幣別與高精度金額)
+	 */
 	private Money standardCost;
+
+	/**
+	 * 物料當前生命週期狀態 (正常使用中 ACTIVE、已停用 DISCONTINUED)
+	 */
 	private MaterialStatus status;
 
 	/**
@@ -41,6 +72,15 @@ public class Material {
 
 	/**
 	 * 私有建構子，確保僅能透過工廠方法或重建方法實例化物料。
+	 *
+	 * @param id 物料識別碼實質物件，不可為 null
+	 * @param code 物料料號實質物件，不可為 null
+	 * @param name 物料品名，不可為 null 或空白
+	 * @param specification 規格型號說明字串，若為 null 預設為空字串
+	 * @param category 物料分類枚舉，不可為 null
+	 * @param unit 計量單位枚舉，不可為 null
+	 * @param standardCost 標準成本實質物件，不可為 null
+	 * @param status 物料狀態枚舉，不可為 null
 	 */
 	private Material(
 			MaterialId id,
@@ -155,6 +195,8 @@ public class Material {
 
 	/**
 	 * 停用物料。
+	 * <p>
+	 * 將物料生命週期狀態設定為 {@link MaterialStatus#DISCONTINUED}，並觸發 {@link MaterialDeactivatedEvent} 事件。
 	 */
 	public void discontinue() {
 		if (this.status == MaterialStatus.DISCONTINUED) {
@@ -166,6 +208,8 @@ public class Material {
 
 	/**
 	 * 重新啟用物料。
+	 * <p>
+	 * 將物料生命週期狀態重設為 {@link MaterialStatus#ACTIVE}。
 	 */
 	public void activate() {
 		this.status = MaterialStatus.ACTIVE;
@@ -202,11 +246,19 @@ public class Material {
 
 	/**
 	 * 清除已收集之領域事件。
+	 * <p>
+	 * 於應用層 (Application Service) 將領域事件透過訊息發布器對外發布後調用。
 	 */
 	public void clearDomainEvents() {
 		this.domainEvents.clear();
 	}
 
+	/**
+	 * 設定物料品名並檢核不變性。
+	 *
+	 * @param name 物料品名，不可為空或空白字串
+	 * @throws IllegalArgumentException 當品名為空時拋出
+	 */
 	private void setName(String name) {
 		if (name == null || name.trim().isEmpty()) {
 			throw new IllegalArgumentException("物料品名不得為空");
@@ -214,38 +266,84 @@ public class Material {
 		this.name = name.trim();
 	}
 
+	/**
+	 * 取得物料唯一識別碼。
+	 *
+	 * @return 物料識別碼實質物件
+	 */
 	public MaterialId getId() {
 		return id;
 	}
 
+	/**
+	 * 取得物料標準料號。
+	 *
+	 * @return 物料料號實質物件
+	 */
 	public MaterialCode getCode() {
 		return code;
 	}
 
+	/**
+	 * 取得物料品名。
+	 *
+	 * @return 物料品名字串
+	 */
 	public String getName() {
 		return name;
 	}
 
+	/**
+	 * 取得物料規格型號說明。
+	 *
+	 * @return 規格說明字串
+	 */
 	public String getSpecification() {
 		return specification;
 	}
 
+	/**
+	 * 取得物料層級分類。
+	 *
+	 * @return 物料分類枚舉
+	 */
 	public MaterialCategory getCategory() {
 		return category;
 	}
 
+	/**
+	 * 取得物料標準計量單位。
+	 *
+	 * @return 計量單位枚舉
+	 */
 	public UnitOfMeasure getUnit() {
 		return unit;
 	}
 
+	/**
+	 * 取得物料標準成本金額。
+	 *
+	 * @return 標準成本金額實質物件
+	 */
 	public Money getStandardCost() {
 		return standardCost;
 	}
 
+	/**
+	 * 取得物料生命週期狀態。
+	 *
+	 * @return 物料狀態枚舉
+	 */
 	public MaterialStatus getStatus() {
 		return status;
 	}
 
+	/**
+	 * 判斷兩物料實體是否相等（以全域唯一識別碼 {@link MaterialId} 作為 Aggregate 實體相等性基準）。
+	 *
+	 * @param o 欲比較的物件
+	 * @return 若識別碼相同回傳 {@code true}，否則回傳 {@code false}
+	 */
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -254,11 +352,21 @@ public class Material {
 		return Objects.equals(id, material.id);
 	}
 
+	/**
+	 * 依據全域唯一識別碼 {@link MaterialId} 計算雜湊值。
+	 *
+	 * @return 雜湊碼
+	 */
 	@Override
 	public int hashCode() {
 		return Objects.hash(id);
 	}
 
+	/**
+	 * 產生物料聚合根文字表達形式（便於除錯與排查日誌）。
+	 *
+	 * @return 包含關鍵屬性之字串
+	 */
 	@Override
 	public String toString() {
 		return "Material{" +

@@ -8,6 +8,11 @@ package com.example.demo.domain.material.exception;
  */
 public class MaterialNotFoundException extends RuntimeException {
 
+	/**
+	 * 建構物料未找到領域例外。
+	 *
+	 * @param message 異常說明訊息
+	 */
 	public MaterialNotFoundException(String message) {
 		super(message);
 	}

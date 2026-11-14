@@ -3,6 +3,7 @@ package com.example.demo.application.service.template;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -18,6 +19,8 @@ import com.example.demo.application.port.in.template.StreamExportTemplateExcelUs
 import com.example.demo.application.port.in.template.StreamExportTemplateWithMappingUseCase;
 import com.example.demo.application.port.in.template.UpdateExcelTemplateUseCase;
 import com.example.demo.application.port.out.bom.MaterialRepositoryPort;
+import com.example.demo.application.shared.template.ExcelTemplateModelCustomizer;
+import com.example.demo.application.port.out.template.ExcelTemplateModelCustomizerFactoryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateFieldMapperPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRegistryPort;
 import com.example.demo.application.port.out.template.ExcelTemplateRepositoryPort;
@@ -60,6 +63,7 @@ public class ExcelTemplateCommandService implements
     private final ExcelTemplateFieldMapperPort templateFieldMapperPort;
     private final MaterialRepositoryPort materialRepositoryPort;
     private final ExcelTemplateRepositoryPort templateRepositoryPort;
+    private final ExcelTemplateModelCustomizerFactoryPort templateModelCustomizerFactoryPort;
 
     /**
      * 相容輕量建構函式：僅注入範本註冊表與寫入輸出埠。
@@ -69,7 +73,7 @@ public class ExcelTemplateCommandService implements
      */
     public ExcelTemplateCommandService(ExcelTemplateRegistryPort templateRegistryPort,
                                        ExcelTemplateWriterPort templateWriterPort) {
-        this(templateRegistryPort, templateWriterPort, null, null, null);
+        this(templateRegistryPort, templateWriterPort, null, null, null, null);
     }
 
     /**
@@ -84,11 +88,11 @@ public class ExcelTemplateCommandService implements
                                        ExcelTemplateWriterPort templateWriterPort,
                                        ExcelTemplateFieldMapperPort templateFieldMapperPort,
                                        MaterialRepositoryPort materialRepositoryPort) {
-        this(templateRegistryPort, templateWriterPort, templateFieldMapperPort, materialRepositoryPort, null);
+        this(templateRegistryPort, templateWriterPort, templateFieldMapperPort, materialRepositoryPort, null, null);
     }
 
     /**
-     * 完整相依建構函式：支援範本持久化儲存庫注入，提供完整 CRUD 與動態映射能力。
+     * 相容五參建構函式：支援範本持久化儲存庫注入。
      *
      * @param templateRegistryPort   範本儲存庫輸出埠
      * @param templateWriterPort     範本寫入輸出埠
@@ -96,17 +100,37 @@ public class ExcelTemplateCommandService implements
      * @param materialRepositoryPort 物料領域儲存庫輸出埠 (可為 null)
      * @param templateRepositoryPort 範本持久化儲存庫輸出埠 (可為 null)
      */
+    public ExcelTemplateCommandService(ExcelTemplateRegistryPort templateRegistryPort,
+                                       ExcelTemplateWriterPort templateWriterPort,
+                                       ExcelTemplateFieldMapperPort templateFieldMapperPort,
+                                       MaterialRepositoryPort materialRepositoryPort,
+                                       ExcelTemplateRepositoryPort templateRepositoryPort) {
+        this(templateRegistryPort, templateWriterPort, templateFieldMapperPort, materialRepositoryPort, templateRepositoryPort, null);
+    }
+
+    /**
+     * 完整相依建構函式：支援範本持久化儲存庫與模型自定義工廠輸出埠注入。
+     *
+     * @param templateRegistryPort   範本儲存庫輸出埠
+     * @param templateWriterPort     範本寫入輸出埠
+     * @param templateFieldMapperPort 欄位動態映射輸出埠 (可為 null)
+     * @param materialRepositoryPort 物料領域儲存庫輸出埠 (可為 null)
+     * @param templateRepositoryPort 範本持久化儲存庫輸出埠 (可為 null)
+     * @param templateModelCustomizerFactoryPort 範本資料模型自定義工廠輸出埠 (可為 null)
+     */
     @Autowired
     public ExcelTemplateCommandService(ExcelTemplateRegistryPort templateRegistryPort,
                                        ExcelTemplateWriterPort templateWriterPort,
                                        @Autowired(required = false) ExcelTemplateFieldMapperPort templateFieldMapperPort,
                                        @Autowired(required = false) MaterialRepositoryPort materialRepositoryPort,
-                                       @Autowired(required = false) ExcelTemplateRepositoryPort templateRepositoryPort) {
+                                       @Autowired(required = false) ExcelTemplateRepositoryPort templateRepositoryPort,
+                                       @Autowired(required = false) ExcelTemplateModelCustomizerFactoryPort templateModelCustomizerFactoryPort) {
         this.templateRegistryPort = Objects.requireNonNull(templateRegistryPort, "templateRegistryPort 不得為空");
         this.templateWriterPort = Objects.requireNonNull(templateWriterPort, "templateWriterPort 不得為空");
         this.templateFieldMapperPort = templateFieldMapperPort;
         this.materialRepositoryPort = materialRepositoryPort;
         this.templateRepositoryPort = templateRepositoryPort;
+        this.templateModelCustomizerFactoryPort = templateModelCustomizerFactoryPort;
     }
 
     @Override
@@ -114,8 +138,10 @@ public class ExcelTemplateCommandService implements
         Objects.requireNonNull(command, "command 不得為空");
         validateTemplateExistence(command.templateKey());
 
+        Map<String, Object> preparedModel = applyCustomizers(command.templateKey(), command.dataModel());
+
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
-            return templateWriterPort.writeFromTemplate(templateStream, command.dataModel());
+            return templateWriterPort.writeFromTemplate(templateStream, preparedModel);
         } catch (ExcelTemplateNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -129,8 +155,10 @@ public class ExcelTemplateCommandService implements
         Objects.requireNonNull(command, "command 不得為空");
         validateTemplateExistence(command.templateKey());
 
+        Map<String, Object> preparedModel = applyCustomizers(command.templateKey(), command.dataModel());
+
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
-            templateWriterPort.streamWriteFromTemplate(templateStream, outputStream, command.dataModel());
+            templateWriterPort.streamWriteFromTemplate(templateStream, outputStream, preparedModel);
         } catch (ExcelTemplateNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -144,6 +172,7 @@ public class ExcelTemplateCommandService implements
         validateTemplateExistence(command.templateKey());
 
         Map<String, Object> dataModel = resolveAndMapContext(command);
+        dataModel = applyCustomizers(command.templateKey(), dataModel);
 
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
             return templateWriterPort.writeFromTemplate(templateStream, dataModel);
@@ -161,6 +190,7 @@ public class ExcelTemplateCommandService implements
         validateTemplateExistence(command.templateKey());
 
         Map<String, Object> dataModel = resolveAndMapContext(command);
+        dataModel = applyCustomizers(command.templateKey(), dataModel);
 
         try (InputStream templateStream = templateRegistryPort.openTemplateStream(command.templateKey())) {
             templateWriterPort.streamWriteFromTemplate(templateStream, outputStream, dataModel);
@@ -169,6 +199,24 @@ public class ExcelTemplateCommandService implements
         } catch (Exception e) {
             throw new ExcelWriteException("具自訂映射之範本 Excel 串流匯出執行遭遇異常: " + command.templateKey(), e);
         }
+    }
+
+    /**
+     * 透過範本模型自定義工廠輸出埠 (Factory Port)，依範本識別鍵取得對應之自定義策略並執行資料補強。
+     *
+     * @param templateKey 範本唯一識別鍵
+     * @param dataModel   原始資料上下文
+     * @return 經自定義策略補強後之資料上下文 Map
+     */
+    private Map<String, Object> applyCustomizers(String templateKey, Map<String, Object> dataModel) {
+        if (dataModel == null || dataModel.isEmpty()) {
+            return new HashMap<>();
+        }
+        if (templateModelCustomizerFactoryPort == null) {
+            return dataModel;
+        }
+        ExcelTemplateModelCustomizer customizer = templateModelCustomizerFactoryPort.getCustomizer(templateKey);
+        return (customizer != null) ? customizer.customize(dataModel) : dataModel;
     }
 
     @Override
